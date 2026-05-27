@@ -10,7 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from api.schemas.investigation import (
@@ -24,18 +24,34 @@ from app.database import get_db
 
 router = APIRouter(prefix="/investigations", tags=["Investigations"])
 
+# ── Actual DB status values ───────────────────────────────────────────────────
+# open | in_progress | pending_review | escalated | closed | dismissed | on_hold
+_CLOSED_STATUSES = ("'closed'", "'dismissed'")
+_CLOSED_IN = ", ".join(_CLOSED_STATUSES)
+
+# ── Reusable risk-level CASE expression ───────────────────────────────────────
+_RISK_LEVEL = """
+    CASE
+        WHEN crs.composite_risk_score >= 0.8 THEN 'critical'
+        WHEN crs.composite_risk_score >= 0.6 THEN 'high'
+        WHEN crs.composite_risk_score >= 0.3 THEN 'medium'
+        WHEN crs.composite_risk_score IS NOT NULL THEN 'low'
+        ELSE NULL
+    END
+""".strip()
+
 
 @router.get("/dashboard", response_model=DashboardMetrics)
 def get_dashboard_metrics(db: Session = Depends(get_db)):
     """Returns top-level metrics for the analyst dashboard."""
-    rows = db.execute(text("""
+    rows = db.execute(text(f"""
         SELECT
             COUNT(*) FILTER (WHERE ic.status = 'open')          AS open_cases,
             COUNT(*) FILTER (WHERE ic.status = 'escalated')     AS escalated_cases,
-            COUNT(*) FILTER (WHERE ic.status = 'triaged')       AS triaged_cases,
-            COUNT(*) FILTER (WHERE ic.status = 'investigating')  AS investigating_cases
+            COUNT(*) FILTER (WHERE ic.status = 'pending_review') AS triaged_cases,
+            COUNT(*) FILTER (WHERE ic.status = 'in_progress')   AS investigating_cases
         FROM audit.investigation_cases ic
-        WHERE ic.status NOT IN ('closed', 'resolved')
+        WHERE ic.status NOT IN ({_CLOSED_IN})
     """)).mappings().fetchone()
 
     findings = db.execute(text("""
@@ -54,8 +70,8 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
 
     escalated = db.execute(text("""
         SELECT ic.case_id, ic.case_number, ic.status, ic.priority,
-               ic.violation_category, ce.entity_name,
-               ic.covered_entity_id
+               ic.case_type AS violation_category,
+               ic.covered_entity_id, ce.entity_name
         FROM audit.investigation_cases ic
         LEFT JOIN ref.covered_entities ce
                ON ic.covered_entity_id = ce.ce_id AND ce.is_current = TRUE
@@ -92,12 +108,14 @@ def get_investigation_queue(
     db: Session = Depends(get_db),
 ):
     """Returns paginated investigation queue with optional status/priority filters."""
-    filters = ["ic.status NOT IN ('closed', 'resolved')"]
+    filters = [f"ic.status NOT IN ({_CLOSED_IN})"]
     params: dict = {"offset": (page - 1) * limit, "limit": limit}
 
     if status:
+        # Map frontend status labels to actual DB values
+        status_map = {"triaged": "pending_review", "investigating": "in_progress"}
+        params["status"] = status_map.get(status, status)
         filters.append("ic.status = :status")
-        params["status"] = status
     if priority:
         filters.append("ic.priority = :priority")
         params["priority"] = priority
@@ -112,20 +130,26 @@ def get_investigation_queue(
 
     rows = db.execute(text(f"""
         SELECT ic.case_id, ic.case_number, ic.status, ic.priority,
-               ic.violation_category, ic.covered_entity_id, ic.opened_at,
-               ic.assigned_to, ce.entity_name,
-               crs.risk_level, crs.composite_score,
-               crs.total_findings, crs.critical_findings,
-               crs.high_findings, crs.estimated_financial_exposure AS financial_exposure
+               ic.case_type          AS violation_category,
+               ic.covered_entity_id,
+               ic.opened_at,
+               ic.assigned_to,
+               ce.entity_name,
+               crs.composite_risk_score    AS composite_score,
+               crs.total_findings,
+               crs.critical_findings,
+               crs.high_findings,
+               crs.total_financial_exposure AS financial_exposure,
+               {_RISK_LEVEL}               AS risk_level
         FROM audit.investigation_cases ic
         LEFT JOIN ref.covered_entities ce
                ON ic.covered_entity_id = ce.ce_id AND ce.is_current = TRUE
         LEFT JOIN LATERAL (
-            SELECT risk_level, composite_score, total_findings,
-                   critical_findings, high_findings, estimated_financial_exposure
+            SELECT composite_risk_score, total_findings,
+                   critical_findings, high_findings, total_financial_exposure
             FROM audit.case_risk_snapshots
             WHERE case_id = ic.case_id
-            ORDER BY created_at DESC LIMIT 1
+            ORDER BY snapshot_at DESC LIMIT 1
         ) crs ON TRUE
         WHERE {where}
         ORDER BY
@@ -146,26 +170,37 @@ def get_investigation_queue(
 @router.get("/{case_id}", response_model=InvestigationCaseDetail)
 def get_case_detail(case_id: UUID, db: Session = Depends(get_db)):
     """Returns full case detail including risk snapshot and finding breakdown."""
-    row = db.execute(text("""
+    row = db.execute(text(f"""
         SELECT ic.case_id, ic.case_number, ic.status, ic.priority,
-               ic.violation_category, ic.covered_entity_id,
-               ic.opened_at, ic.closed_at, ic.assigned_to, ic.resolution_notes,
+               ic.case_type          AS violation_category,
+               ic.covered_entity_id,
+               ic.opened_at,
+               ic.closed_at,
+               ic.assigned_to,
+               ic.description        AS resolution_notes,
                ce.entity_name,
-               crs.risk_level, crs.composite_score,
-               crs.total_findings, crs.critical_findings, crs.high_findings,
-               crs.medium_findings, crs.low_findings,
-               crs.unique_patients, crs.estimated_financial_exposure AS financial_exposure,
-               crs.ndc_list, crs.findings_by_rule
+               crs.composite_risk_score    AS composite_score,
+               crs.total_findings,
+               crs.critical_findings,
+               crs.high_findings,
+               crs.medium_findings,
+               crs.low_findings,
+               crs.unique_patients,
+               crs.total_financial_exposure AS financial_exposure,
+               crs.ndc_list,
+               crs.findings_by_rule,
+               {_RISK_LEVEL}               AS risk_level
         FROM audit.investigation_cases ic
         LEFT JOIN ref.covered_entities ce
                ON ic.covered_entity_id = ce.ce_id AND ce.is_current = TRUE
         LEFT JOIN LATERAL (
-            SELECT risk_level, composite_score, total_findings, critical_findings,
-                   high_findings, medium_findings, low_findings, unique_patients,
-                   estimated_financial_exposure, ndc_list, findings_by_rule
+            SELECT composite_risk_score, total_findings, critical_findings,
+                   high_findings, medium_findings, low_findings,
+                   unique_patients, total_financial_exposure,
+                   ndc_list, findings_by_rule
             FROM audit.case_risk_snapshots
             WHERE case_id = ic.case_id
-            ORDER BY created_at DESC LIMIT 1
+            ORDER BY snapshot_at DESC LIMIT 1
         ) crs ON TRUE
         WHERE ic.case_id = :cid::uuid
     """), {"cid": str(case_id)}).mappings().fetchone()
@@ -185,10 +220,11 @@ def update_case_status(
     """Updates the status of an investigation case."""
     db.execute(text("""
         UPDATE audit.investigation_cases
-        SET status = :status,
-            resolution_notes = COALESCE(:notes, resolution_notes),
-            closed_at = CASE WHEN :status IN ('resolved','closed') THEN NOW() ELSE closed_at END
+        SET status    = :status,
+            closed_at = CASE WHEN :status IN ('closed','dismissed') THEN NOW()
+                             ELSE closed_at END,
+            updated_at = NOW()
         WHERE case_id = :cid::uuid
-    """), {"cid": str(case_id), "status": body.status, "notes": body.resolution_notes})
+    """), {"cid": str(case_id), "status": body.status})
     db.commit()
     return {"case_id": str(case_id), "status": body.status, "updated": True}
