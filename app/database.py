@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from typing import Generator
 
 from sqlalchemy import create_engine, text
@@ -22,11 +21,10 @@ SessionLocal = sessionmaker(
 )
 
 
-@contextmanager
 def get_db() -> Generator[Session, None, None]:
     """
-    Context manager that yields a database session with automatic
-    commit on success and rollback on exception.
+    Generator that yields a database session for use with FastAPI Depends().
+    Commits on success, rolls back on exception.
     """
     db = SessionLocal()
     try:

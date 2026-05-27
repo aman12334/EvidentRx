@@ -1,9 +1,17 @@
 import os
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
+
+# Load .env file so DATABASE_URL is available without manual export
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+except ImportError:
+    pass  # python-dotenv not installed — rely on shell environment
 
 # Import all models so Base.metadata is populated before autogenerate runs
 import app.models  # noqa: F401
