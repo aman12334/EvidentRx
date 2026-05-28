@@ -422,6 +422,30 @@ finally:
         warn("Dashboard is NOT running")
 
 
+def cmd_generate_samples(args: argparse.Namespace) -> None:
+    header("EvidentRx — Generating Sample Upload Files")
+    run([
+        str(PYTHON), "scripts/generate_sample_upload.py",
+        "--rows",       str(getattr(args, "rows", 100)),
+        "--violations", str(getattr(args, "violations", 0.12)),
+        "--out-dir",    str(getattr(args, "out_dir", "output")),
+    ])
+
+
+def cmd_export(args: argparse.Namespace) -> None:
+    header("EvidentRx — Exporting Findings")
+    cmd = [str(PYTHON), "scripts/export_findings.py"]
+    if getattr(args, "status", None):
+        cmd += ["--status"] + args.status
+    if getattr(args, "severity", None):
+        cmd += ["--severity"] + args.severity
+    if getattr(args, "case", None):
+        cmd += ["--case", args.case]
+    if getattr(args, "out", None):
+        cmd += ["--out", args.out]
+    run(cmd)
+
+
 def cmd_reset(args: argparse.Namespace) -> None:
     header("EvidentRx — Reset (Wipe + Reseed)")
     warn("This will DELETE all data and reseed. Are you sure? [y/N] ")
@@ -569,15 +593,17 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python evidentrx.py setup              # First-time setup from scratch
-  python evidentrx.py setup --real       # Setup with real HRSA data
-  python evidentrx.py start              # Start API + dashboard
-  python evidentrx.py start --api-only   # API only (no frontend)
-  python evidentrx.py seed --real        # Load real HRSA/CMS data
-  python evidentrx.py rules              # Run compliance rules engine
-  python evidentrx.py run-agent <id>     # Dispatch AI workflow on a case
-  python evidentrx.py status             # System health check
-  python evidentrx.py reset              # Wipe and reseed (dev)
+  python evidentrx.py setup                 # First-time setup from scratch
+  python evidentrx.py setup --real          # Setup with real HRSA/FDA data
+  python evidentrx.py start                 # Start API + dashboard
+  python evidentrx.py start --api-only      # API only (no frontend)
+  python evidentrx.py seed --real           # Reload real HRSA/CMS data
+  python evidentrx.py rules                 # Run compliance rules engine
+  python evidentrx.py run-agent <id>        # Dispatch AI workflow on a case
+  python evidentrx.py generate-samples      # Generate sample CSV for upload
+  python evidentrx.py export --severity critical high  # Export findings CSV
+  python evidentrx.py status                # System health check
+  python evidentrx.py reset                 # Wipe and reseed (dev)
         """,
     )
 
@@ -610,16 +636,31 @@ Examples:
     p_reset = sub.add_parser("reset", help="Wipe and reseed all data (dev only)")
     p_reset.add_argument("--real", action="store_true")
 
+    # generate-samples
+    p_samples = sub.add_parser("generate-samples", help="Generate sample CSV files for upload testing")
+    p_samples.add_argument("--rows",      type=int,   default=100,  help="Rows per file")
+    p_samples.add_argument("--out-dir",   default="output",         help="Output directory")
+    p_samples.add_argument("--violations",type=float, default=0.12, help="Violation rate 0-1")
+
+    # export
+    p_export = sub.add_parser("export", help="Export audit findings to CSV")
+    p_export.add_argument("--status",   nargs="+", default=["open"], help="Finding statuses to include")
+    p_export.add_argument("--severity", nargs="+", default=None,     help="Severities to include")
+    p_export.add_argument("--case",     default=None,                 help="Filter by case number")
+    p_export.add_argument("--out",      default=None,                 help="Output file path")
+
     args = parser.parse_args()
 
     dispatch = {
-        "setup":     cmd_setup,
-        "start":     cmd_start,
-        "seed":      cmd_seed,
-        "rules":     cmd_rules,
-        "run-agent": cmd_run_agent,
-        "status":    cmd_status,
-        "reset":     cmd_reset,
+        "setup":            cmd_setup,
+        "start":            cmd_start,
+        "seed":             cmd_seed,
+        "rules":            cmd_rules,
+        "run-agent":        cmd_run_agent,
+        "status":           cmd_status,
+        "reset":            cmd_reset,
+        "generate-samples": cmd_generate_samples,
+        "export":           cmd_export,
     }
 
     if args.command is None:
