@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "next": "14.2.29",
@@ -38,6 +40,40 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.40",
     "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.29"
+    "eslint-config-next": "14.2.29",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.4.6",
+    "@types/jest": "^29.5.12"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterFramework": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "testPathPattern": "src/__tests__",
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/**/layout.tsx",
+      "!src/**/page.tsx"
+    ],
+    "transform": {
+      "^.+\\.(ts|tsx|js|jsx)$": [
+        "babel-jest",
+        {
+          "presets": [
+            "next/babel"
+          ]
+        }
+      ]
+    },
+    "testMatch": [
+      "**/__tests__/**/*.test.{ts,tsx}"
+    ]
   }
 }
