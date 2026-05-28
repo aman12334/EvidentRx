@@ -673,6 +673,63 @@ async def upload_claims_file(
     )
 
 
+class BatchHistoryItem(BaseModel):
+    batch_id:        str
+    filename:        str
+    status:          str
+    record_count:    int
+    started_at:      str
+    completed_at:    Optional[str]
+    findings_count:  Optional[int]
+
+
+@router.get(
+    "/history",
+    response_model=list[BatchHistoryItem],
+    summary="List recent upload batches",
+    description="Returns the 20 most recent data upload batches for this tenant.",
+)
+def list_upload_history(
+    limit: int = 20,
+    db: Session = Depends(get_db),
+) -> list[BatchHistoryItem]:
+    """Return recent upload batches from meta.ingestion_batches."""
+    try:
+        rows = db.execute(text("""
+            SELECT
+                ib.batch_id::text,
+                COALESCE(ib.source_file_name, 'unknown') AS source_file_name,
+                COALESCE(ib.status, 'unknown') AS status,
+                COALESCE(ib.record_count, 0) AS record_count,
+                ib.started_at,
+                ib.completed_at,
+                COUNT(DISTINCT af.finding_id) AS findings_count
+            FROM meta.ingestion_batches ib
+            LEFT JOIN ops.split_billing sb ON sb.batch_id = ib.batch_id
+            LEFT JOIN audit.audit_findings af ON af.split_billing_id = sb.split_billing_id
+            WHERE ib.source_system = 'upload'
+            GROUP BY ib.batch_id, ib.source_file_name, ib.status,
+                     ib.record_count, ib.started_at, ib.completed_at
+            ORDER BY ib.started_at DESC
+            LIMIT :limit
+        """), {"limit": limit}).fetchall()
+    except Exception:
+        return []
+
+    return [
+        BatchHistoryItem(
+            batch_id=r.batch_id,
+            filename=r.source_file_name,
+            status=r.status,
+            record_count=r.record_count,
+            started_at=r.started_at.isoformat() if r.started_at else "",
+            completed_at=r.completed_at.isoformat() if r.completed_at else None,
+            findings_count=r.findings_count,
+        )
+        for r in rows
+    ]
+
+
 @router.get(
     "/template",
     summary="Download CSV upload template",

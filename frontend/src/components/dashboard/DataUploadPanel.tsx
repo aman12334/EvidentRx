@@ -7,12 +7,26 @@
  * compliance pipeline on the server, and shows a live findings summary.
  *
  * Integration: POST /api/v1/upload/claims
+ *             GET  /api/v1/upload/history
+ *             GET  /api/v1/upload/template?file_type=dispenses
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 // ── Types ─────────────────────────────────────────────────────────────────────
+
+interface BatchHistoryItem {
+  batch_id:       string;
+  filename:       string;
+  status:         string;
+  record_count:   number;
+  started_at:     string;
+  completed_at:   string | null;
+  findings_count: number | null;
+}
 
 interface FindingSummary {
   rule_code:   string;
@@ -41,6 +55,7 @@ interface UploadResult {
 }
 
 type UploadState = "idle" | "dragging" | "uploading" | "done" | "error";
+type ActiveTab  = "upload" | "history";
 
 // ── Severity colours ──────────────────────────────────────────────────────────
 
@@ -62,12 +77,26 @@ const SEVERITY_DOT: Record<string, string> = {
 
 export function DataUploadPanel() {
   const [state,    setState]    = useState<UploadState>("idle");
-  const [progress, setProgress] = useState(0);           // 0–100 fake progress
+  const [progress, setProgress] = useState(0);
   const [result,   setResult]   = useState<UploadResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [filename, setFilename] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("upload");
+  const [history,  setHistory]  = useState<BatchHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load history when tab switches
+  useEffect(() => {
+    if (activeTab !== "history") return;
+    setHistoryLoading(true);
+    fetch(`${API}/api/v1/upload/history`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setHistory)
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [activeTab]);
 
   // -- Fake incremental progress while waiting for API ----------------------
   const startProgress = () => {
@@ -105,7 +134,7 @@ export function DataUploadPanel() {
     formData.append("file", file);
 
     try {
-      const resp = await fetch("/api/v1/upload/claims", {
+      const resp = await fetch(`${API}/api/v1/upload/claims`, {
         method: "POST",
         body:   formData,
       });
@@ -156,24 +185,107 @@ export function DataUploadPanel() {
 
   return (
     <Card padding="lg" className="w-full">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-slate-900 dark:text-white">
-            Upload 340B Data
+            340B Data Upload
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Upload your dispense or claim records — we run full compliance checks instantly.
+            Upload dispense or claim records — compliance checks run instantly.
           </p>
         </div>
         <a
-          href="/api/v1/upload/template?file_type=dispenses"
+          href={`${API}/api/v1/upload/template?file_type=dispenses`}
           className="text-xs text-indigo-600 hover:text-indigo-800 underline"
           target="_blank"
           rel="noreferrer"
         >
-          Download template
+          Download template ↓
         </a>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-slate-200 dark:border-slate-700">
+        {(["upload", "history"] as ActiveTab[]).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`
+              px-3 py-1.5 text-xs font-medium rounded-t capitalize transition-colors
+              ${activeTab === tab
+                ? "border-b-2 border-indigo-600 text-indigo-700 dark:text-indigo-300"
+                : "text-slate-500 hover:text-slate-700"
+              }
+            `}
+          >
+            {tab === "upload" ? "Upload" : "History"}
+          </button>
+        ))}
+      </div>
+
+      {/* ══ History tab ══════════════════════════════════════════════════ */}
+      {activeTab === "history" && (
+        <div>
+          {historyLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500 py-6 justify-center">
+              <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              Loading history…
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-8 text-sm text-slate-400">
+              No uploads yet. Switch to the Upload tab to get started.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    {["File", "Status", "Records", "Findings", "Uploaded"].map(h => (
+                      <th key={h} className="text-left py-2 pr-4 text-slate-500 font-semibold uppercase tracking-wide">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map(row => (
+                    <tr key={row.batch_id}
+                      className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                      <td className="py-2 pr-4 font-mono text-slate-700 dark:text-slate-300 max-w-[160px] truncate">
+                        {row.filename}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <span className={`px-1.5 py-0.5 rounded text-xs ${
+                          row.status === "complete" ? "bg-green-100 text-green-700" :
+                          row.status === "processing" ? "bg-yellow-100 text-yellow-700" :
+                          "bg-slate-100 text-slate-600"
+                        }`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-4 text-slate-600 dark:text-slate-400">
+                        {row.record_count.toLocaleString()}
+                      </td>
+                      <td className={`py-2 pr-4 font-semibold ${
+                        (row.findings_count ?? 0) > 0 ? "text-red-600" : "text-green-600"
+                      }`}>
+                        {row.findings_count ?? 0}
+                      </td>
+                      <td className="py-2 text-slate-400">
+                        {row.started_at ? new Date(row.started_at).toLocaleDateString() : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ══ Upload tab ═══════════════════════════════════════════════════ */}
+      {activeTab === "upload" && <>
 
       {/* ── Upload zone ──────────────────────────────────────────────────── */}
       {(state === "idle" || state === "dragging") && (
@@ -411,6 +523,8 @@ export function DataUploadPanel() {
           </p>
         </div>
       )}
+
+      </>}  {/* end upload tab */}
     </Card>
   );
 }
