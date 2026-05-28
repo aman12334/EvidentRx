@@ -212,6 +212,7 @@ _PAYER_TYPE_MAP = {
     "self_pay": "self_pay", "self pay": "self_pay", "cash": "self_pay",
 }
 
+
 def _normalise_payer(raw: str) -> str:
     """Map raw payer strings to valid DB enum values."""
     clean = raw.strip().lower()
@@ -225,6 +226,7 @@ _CLAIM_TYPE_MAP = {
     "medicare part b": "medicare_part_b",
     "commercial": "commercial", "private": "commercial",
 }
+
 
 def _normalise_claim_type(raw: str) -> str:
     clean = raw.strip().lower()
