@@ -22,6 +22,9 @@ wheels/
 .installed.cfg
 lib/
 lib64/
+# Un-ignore Next.js frontend source lib (matched by lib/ above)
+!frontend/src/lib/
+!frontend/src/lib/**
 pip-log.txt
 
 # Virtual environments

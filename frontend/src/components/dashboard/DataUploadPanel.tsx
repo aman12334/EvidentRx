@@ -13,46 +13,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
+import {
+  uploadClaimsFile,
+  fetchUploadHistory,
+  getTemplateDownloadUrl,
+  validateUploadFile,
+  type BatchHistoryItem,
+  type UploadResult,
+  type FindingSummary,
+} from "@/lib/api/upload";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface BatchHistoryItem {
-  batch_id:       string;
-  filename:       string;
-  status:         string;
-  record_count:   number;
-  started_at:     string;
-  completed_at:   string | null;
-  findings_count: number | null;
-}
-
-interface FindingSummary {
-  rule_code:   string;
-  description: string;
-  count:       number;
-  severity:    "critical" | "high" | "medium" | "low";
-}
-
-interface UploadResult {
-  upload_id:          string;
-  batch_id:           string;
-  status:             "complete" | "partial" | "no_findings";
-  message:            string;
-  rows_parsed:        number;
-  dispenses_inserted: number;
-  claims_inserted:    number;
-  split_billing_rows: number;
-  cases_created:      number;
-  total_findings:     number;
-  critical_findings:  number;
-  high_findings:      number;
-  estimated_exposure: number | null;
-  findings_by_rule:   FindingSummary[];
-  case_ids:           string[];
-  processing_ms:      number;
-}
+// Types are imported from @/lib/api/upload
 
 type UploadState = "idle" | "dragging" | "uploading" | "done" | "error";
 type ActiveTab  = "upload" | "history";
@@ -91,8 +62,7 @@ export function DataUploadPanel() {
   useEffect(() => {
     if (activeTab !== "history") return;
     setHistoryLoading(true);
-    fetch(`${API}/api/v1/upload/history`)
-      .then(r => r.ok ? r.json() : [])
+    fetchUploadHistory()
       .then(setHistory)
       .catch(() => setHistory([]))
       .finally(() => setHistoryLoading(false));
@@ -120,8 +90,9 @@ export function DataUploadPanel() {
 
   // -- File upload -----------------------------------------------------------
   const processFile = useCallback(async (file: File) => {
-    if (!file.name.match(/\.(csv|tsv|txt)$/i)) {
-      setErrorMsg("Please upload a CSV file (.csv, .tsv, or .txt).");
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      setErrorMsg(validationError);
       setState("error");
       return;
     }
@@ -130,23 +101,9 @@ export function DataUploadPanel() {
     setState("uploading");
     startProgress();
 
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const resp = await fetch(`${API}/api/v1/upload/claims`, {
-        method: "POST",
-        body:   formData,
-      });
-
+      const data = await uploadClaimsFile(file);
       stopProgress();
-
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({ detail: resp.statusText }));
-        throw new Error(errBody.detail || `Server error ${resp.status}`);
-      }
-
-      const data: UploadResult = await resp.json();
       setResult(data);
       setState("done");
     } catch (err: unknown) {
@@ -196,7 +153,7 @@ export function DataUploadPanel() {
           </p>
         </div>
         <a
-          href={`${API}/api/v1/upload/template?file_type=dispenses`}
+          href={getTemplateDownloadUrl("dispenses")}
           className="text-xs text-indigo-600 hover:text-indigo-800 underline"
           target="_blank"
           rel="noreferrer"
