@@ -1,0 +1,29 @@
+# PodDisruptionBudgets — ensure minimum availability during node drains,
+# rolling updates, and cluster maintenance windows.
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: evidentrx-api-pdb
+  namespace: evidentrx
+  labels:
+    app: evidentrx-api
+spec:
+  minAvailable: 1          # always keep at least 1 API pod running
+  selector:
+    matchLabels:
+      app: evidentrx-api
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: evidentrx-worker-pdb
+  namespace: evidentrx
+  labels:
+    app: evidentrx-worker
+spec:
+  minAvailable: 1          # always keep at least 1 worker alive
+  selector:
+    matchLabels:
+      app: evidentrx-worker

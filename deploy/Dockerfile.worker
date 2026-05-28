@@ -1,0 +1,47 @@
+# ── Stage 1: dependency builder ──────────────────────────────────────────────
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        libssl-dev \
+        libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml ./
+RUN pip install --upgrade pip \
+ && pip install --prefix=/install --no-cache-dir .
+
+
+# ── Stage 2: runtime image ───────────────────────────────────────────────────
+FROM python:3.11-slim AS runtime
+
+LABEL org.opencontainers.image.title="EvidentRx Worker" \
+      org.opencontainers.image.description="340B Compliance Intelligence — Celery task worker" \
+      org.opencontainers.image.version="9.0.0"
+
+RUN groupadd --gid 1001 evidentrx \
+ && useradd  --uid 1001 --gid evidentrx --no-create-home --shell /bin/false evidentrx
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libssl3 \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY --chown=evidentrx:evidentrx . .
+
+USER evidentrx
+
+# Celery worker — no exposed ports (pulls tasks from Redis queue)
+# Health-check: celery inspect ping
+HEALTHCHECK --interval=60s --timeout=15s --start-period=30s --retries=3 \
+    CMD celery -A tasks.queue.celery_app inspect ping -d "celery@$$HOSTNAME" || exit 1
+
+ENTRYPOINT ["deploy/entrypoint.sh"]
+CMD ["worker"]

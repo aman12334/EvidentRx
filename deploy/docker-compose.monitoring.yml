@@ -1,0 +1,86 @@
+# EvidentRx — Monitoring stack (Prometheus + Grafana + Alertmanager)
+#
+# Overlay onto the main compose stack:
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#
+# Dashboards:
+#   Grafana      → http://localhost:3001   (admin / admin)
+#   Prometheus   → http://localhost:9090
+#   Alertmanager → http://localhost:9093
+
+version: "3.9"
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/alerts/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - evidentrx-net
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - ../monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    ports:
+      - "9093:9093"
+    networks:
+      - evidentrx-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.3
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP:     "false"
+      GF_SERVER_HTTP_PORT:        "3001"
+      GF_PATHS_PROVISIONING:      /etc/grafana/provisioning
+    volumes:
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3001"
+    networks:
+      - evidentrx-net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Node exporter for host-level metrics
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    command:
+      - "--path.rootfs=/host"
+    network_mode: host
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-provisioning:
+  grafana-data:
+
+networks:
+  evidentrx-net:
+    external: true

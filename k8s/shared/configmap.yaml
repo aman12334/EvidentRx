@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evidentrx-config
+  namespace: evidentrx
+  labels:
+    app.kubernetes.io/part-of: evidentrx-platform
+data:
+  # Application
+  ENVIRONMENT:             "production"
+  LOG_LEVEL:               "info"
+  JSON_LOGS:               "true"
+  PHI_MASKING_ENABLED:     "true"
+  AUDIT_RETENTION_DAYS:    "2555"    # 7 years (HRSA requirement)
+  RATE_LIMIT_PER_MINUTE:   "120"
+
+  # Tracing
+  OTEL_SERVICE_NAME:       "evidentrx"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+
+  # Celery
+  CELERY_TASK_SERIALIZER:  "json"
+  CELERY_RESULT_SERIALIZER: "json"
+  CELERY_ACCEPT_CONTENT:   "json"
+  CELERY_TIMEZONE:         "UTC"
+
+  # Model routing
+  DEFAULT_MODEL:           "claude-3-5-sonnet-20241022"
+  MAX_TOKENS_PER_CASE:     "50000"

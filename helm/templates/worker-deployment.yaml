@@ -1,0 +1,133 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "evidentrx.fullname" . }}-worker
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "evidentrx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "evidentrx.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        {{- include "evidentrx.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser:    1001
+        runAsGroup:   1001
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: {{ include "evidentrx.image" (dict "Values" .Values "repo" .Values.worker.image.repository "tag" .Values.global.image.tag) }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: ["deploy/entrypoint.sh", "worker"]
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+            {{- range $key, $val := .Values.worker.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "evidentrx.fullname" . }}-secrets
+                  key: database-url
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "evidentrx.fullname" . }}-secrets
+                  key: jwt-secret-key
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "evidentrx.fullname" . }}-secrets
+                  key: redis-url
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}
+
+{{- if .Values.beat.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "evidentrx.fullname" . }}-beat
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "evidentrx.labels" . | nindent 4 }}
+    app.kubernetes.io/component: beat
+spec:
+  replicas: 1   # beat must always be a singleton
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "evidentrx.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: beat
+  template:
+    metadata:
+      labels:
+        {{- include "evidentrx.labels" . | nindent 8 }}
+        app.kubernetes.io/component: beat
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser:    1001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: beat
+          image: {{ include "evidentrx.image" (dict "Values" .Values "repo" .Values.beat.image.repository "tag" .Values.global.image.tag) }}
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: ["deploy/entrypoint.sh", "beat"]
+          env:
+            - name: ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "evidentrx.fullname" . }}-secrets
+                  key: redis-url
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

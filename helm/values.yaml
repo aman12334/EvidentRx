@@ -1,0 +1,107 @@
+# EvidentRx Helm values — default (development / staging)
+# Override with values.prod.yaml for production deployments.
+
+global:
+  image:
+    registry: ""
+    tag: "9.0.0"
+    pullPolicy: IfNotPresent
+  environment: staging
+
+# ── API service ───────────────────────────────────────────────────────────────
+api:
+  enabled: true
+  image:
+    repository: evidentrx/api
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  env:
+    UVICORN_WORKERS: "1"
+    LOG_LEVEL: "info"
+    JSON_LOGS: "true"
+    PHI_MASKING_ENABLED: "true"
+    AUDIT_RETENTION_DAYS: "2555"
+    RATE_LIMIT_PER_MINUTE: "120"
+  service:
+    type: ClusterIP
+    port: 80
+
+# ── Celery worker ─────────────────────────────────────────────────────────────
+worker:
+  enabled: true
+  image:
+    repository: evidentrx/worker
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 75
+  env:
+    CELERY_CONCURRENCY: "2"
+
+# ── Celery beat ───────────────────────────────────────────────────────────────
+beat:
+  enabled: true
+  image:
+    repository: evidentrx/worker
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: nginx
+  host: evidentrx.local
+  tls: false
+
+# ── Secrets (provide real values via --set or sealed-secrets in production) ───
+secrets:
+  jwtSecretKey: "CHANGE_ME_dev_jwt_secret_key_32chars"
+  databaseUrl: ""     # provided via external secret or --set
+  redisUrl: ""        # provided via external secret or --set
+
+# ── Bundled PostgreSQL (disable in production — use managed RDS) ──────────────
+postgresql:
+  enabled: true
+  auth:
+    username: evidentrx
+    password: evidentrx
+    database: evidentrx
+  primary:
+    persistence:
+      size: 10Gi
+
+# ── Bundled Redis (disable in production — use managed ElastiCache) ───────────
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 2Gi
+
+# ── Pod disruption budgets ────────────────────────────────────────────────────
+podDisruptionBudget:
+  api:
+    enabled: false
+    minAvailable: 1
+  worker:
+    enabled: false
+    minAvailable: 1

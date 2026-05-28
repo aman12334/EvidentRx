@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: evidentrx-tls
+  namespace: evidentrx
+  labels:
+    app.kubernetes.io/part-of: evidentrx-platform
+spec:
+  secretName: evidentrx-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - evidentrx.internal
+    - api.evidentrx.internal
+  renewBefore: 360h    # renew 15 days before expiry

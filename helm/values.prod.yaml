@@ -1,0 +1,71 @@
+# EvidentRx Helm values — PRODUCTION overrides
+#
+# Usage:
+#   helm upgrade --install evidentrx ./helm \
+#     -f helm/values.yaml \
+#     -f helm/values.prod.yaml \
+#     --set secrets.jwtSecretKey=$(aws secretsmanager get-secret-value ...) \
+#     --set secrets.databaseUrl=$(aws secretsmanager get-secret-value ...) \
+#     --set secrets.redisUrl=$(aws secretsmanager get-secret-value ...)
+
+global:
+  image:
+    pullPolicy: Always
+  environment: production
+
+api:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+  env:
+    UVICORN_WORKERS: "3"
+    LOG_LEVEL: "warning"
+
+worker:
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "4Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  env:
+    CELERY_CONCURRENCY: "6"
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.evidentrx.internal
+  tls: true
+  certIssuer: letsencrypt-prod
+
+# Disable bundled databases — use managed services in production
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+podDisruptionBudget:
+  api:
+    enabled: true
+    minAvailable: 2
+  worker:
+    enabled: true
+    minAvailable: 2

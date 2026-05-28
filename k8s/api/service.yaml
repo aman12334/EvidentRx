@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: evidentrx-api
+  namespace: evidentrx
+  labels:
+    app: evidentrx-api
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  selector:
+    app: evidentrx-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP

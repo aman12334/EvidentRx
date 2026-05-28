@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: evidentrx
+  labels:
+    app.kubernetes.io/name: evidentrx
+    app.kubernetes.io/part-of: evidentrx-platform
+    environment: production
+  annotations:
+    # Enforce network policy — deny all ingress by default unless explicitly allowed
+    network-policy: strict

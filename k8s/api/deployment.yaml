@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidentrx-api
+  namespace: evidentrx
+  labels:
+    app: evidentrx-api
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: evidentrx-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: evidentrx-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0   # zero-downtime deployments
+  template:
+    metadata:
+      labels:
+        app: evidentrx-api
+        app.kubernetes.io/component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port:   "8000"
+        prometheus.io/path:   "/api/metrics"
+    spec:
+      serviceAccountName: evidentrx-api
+      securityContext:
+        runAsNonRoot: true
+        runAsUser:    1001
+        runAsGroup:   1001
+        fsGroup:      1001
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: api
+          image: evidentrx/api:9.0.0
+          imagePullPolicy: Always
+          command: ["deploy/entrypoint.sh", "api"]
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: ENVIRONMENT
+              value: production
+            - name: LOG_LEVEL
+              value: info
+            - name: JSON_LOGS
+              value: "true"
+            - name: UVICORN_WORKERS
+              value: "2"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: evidentrx-secrets
+                  key: database-url
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: evidentrx-secrets
+                  key: jwt-secret-key
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: evidentrx-secrets
+                  key: redis-url
+          envFrom:
+            - configMapRef:
+                name: evidentrx-config
+          resources:
+            requests:
+              cpu:    "250m"
+              memory: "512Mi"
+            limits:
+              cpu:    "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds:       15
+            failureThreshold:    3
+            timeoutSeconds:      5
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds:       10
+            failureThreshold:    3
+            timeoutSeconds:      3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem:   true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: runtime-state
+              mountPath: /app/runtime_state
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: runtime-state
+          persistentVolumeClaim:
+            claimName: evidentrx-runtime-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: evidentrx-api
+                topologyKey: kubernetes.io/hostname
