@@ -1,0 +1,24 @@
+# .trivyignore — CVEs acknowledged and accepted for this project.
+#
+# Format: one CVE-ID per line (optionally with an expiry date and comment).
+# Only list CVEs that:
+#   1. Have no upstream patch available (confirmed via NVD / Debian tracker), AND
+#   2. Have been reviewed and accepted by the security team.
+#
+# Review this file quarterly or whenever a new Trivy scan adds findings.
+# Last reviewed: 2026-05-28
+
+# ── libssl3 / openssl (Debian bookworm) ──────────────────────────────────────
+# These affect the libssl3 package in python:3.11-slim (Debian bookworm).
+# No patch is available in the Debian stable channel as of the review date;
+# tracked upstream at https://security-tracker.debian.org/tracker/
+#
+# CVE-2024-0727   # openssl — null-ptr deref in PKCS12 parsing (low exploitability in this context)
+# CVE-2024-2511   # openssl — session caching DoS (TLS server not exposed externally)
+
+# ── curl / libcurl (used only for container HEALTHCHECK) ─────────────────────
+# CVE-2024-6197   # curl — freeing stack memory (no upstream Debian patch)
+
+# NOTE: Uncomment the CVE lines above only after security team sign-off.
+# The workflow uses --ignore-unfixed which already handles most of these;
+# this file provides explicit acknowledgement for the remainder.

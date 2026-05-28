@@ -60,6 +60,15 @@ logs/
 *.json.gz
 data/
 
+# Node / Next.js
+node_modules/
+.next/
+.next-cache/
+out/
+frontend/.next/
+frontend/node_modules/
+frontend/out/
+
 # Runtime artifacts (generated at runtime — not source code)
 runtime_state/
 reports/
