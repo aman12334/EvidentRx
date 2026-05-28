@@ -31,7 +31,44 @@ class ModelSpec:
 # ── Available models ──────────────────────────────────────────────────────────
 
 MODELS: Dict[str, ModelSpec] = {
-    # Anthropic
+    # ── Groq (free tier — hackathon) ─────────────────────────────────────────
+    "groq-compound": ModelSpec(
+        provider="groq",
+        model_id="groq/compound",
+        max_tokens=4096,
+        cost_per_1k=0.0,          # free
+    ),
+    "groq-gpt-oss-120b": ModelSpec(
+        provider="groq",
+        model_id="openai/gpt-oss-120b",
+        max_tokens=8192,
+        cost_per_1k=0.0,          # free
+    ),
+    "groq-gpt-oss-20b": ModelSpec(
+        provider="groq",
+        model_id="openai/gpt-oss-20b",
+        max_tokens=8192,
+        cost_per_1k=0.0,          # free
+    ),
+    "groq-qwen3-32b": ModelSpec(
+        provider="groq",
+        model_id="qwen/qwen3-32b",
+        max_tokens=4096,
+        cost_per_1k=0.0,          # free
+    ),
+    "groq-llama-70b": ModelSpec(
+        provider="groq",
+        model_id="llama-3.3-70b-versatile",
+        max_tokens=8192,
+        cost_per_1k=0.0,          # free
+    ),
+    "groq-llama-8b": ModelSpec(
+        provider="groq",
+        model_id="llama-3.1-8b-instant",
+        max_tokens=1024,
+        cost_per_1k=0.0,          # free
+    ),
+    # ── Anthropic (production upgrade path) ───────────────────────────────────
     "claude-3-5-sonnet": ModelSpec(
         provider="anthropic",
         model_id="claude-3-5-sonnet-20241022",
@@ -46,14 +83,7 @@ MODELS: Dict[str, ModelSpec] = {
         cost_per_1k=0.00025,
         supports_cache=True,
     ),
-    "claude-3-opus": ModelSpec(
-        provider="anthropic",
-        model_id="claude-3-opus-20240229",
-        max_tokens=4096,
-        cost_per_1k=0.015,
-        supports_cache=True,
-    ),
-    # OpenAI
+    # ── OpenAI (production upgrade path) ──────────────────────────────────────
     "gpt-4o": ModelSpec(
         provider="openai",
         model_id="gpt-4o-2024-08-06",
@@ -72,16 +102,20 @@ MODELS: Dict[str, ModelSpec] = {
 
 # Task types map to (primary_model, fallback_models)
 _TASK_ROUTING: Dict[str, List[str]] = {
-    "summarize":         ["claude-3-5-sonnet", "gpt-4o"],
-    "risk_assess":       ["claude-3-5-sonnet", "gpt-4o"],
-    "escalation_decide": ["claude-3-5-sonnet", "claude-3-opus"],
-    "timeline":          ["claude-3-haiku",    "gpt-4o-mini"],
-    "recommend":         ["claude-3-5-sonnet", "gpt-4o"],
-    "explain":           ["claude-3-haiku",    "gpt-4o-mini"],
-    "related_cases":     ["claude-3-haiku",    "gpt-4o-mini"],
-    "narrative":         ["claude-3-5-sonnet", "gpt-4o"],
-    "pattern_analysis":  ["claude-3-5-sonnet", "gpt-4o"],
-    "copilot":           ["claude-3-5-sonnet", "gpt-4o"],
+    # ── Groq free tier (primary) ──────────────────────────────────────────────
+    "orchestration":      ["groq-compound",      "groq-llama-70b"],
+    "evidence_analysis":  ["groq-gpt-oss-120b",  "groq-llama-70b"],
+    "risk_assess":        ["groq-qwen3-32b",      "groq-gpt-oss-20b"],
+    "pattern_analysis":   ["groq-gpt-oss-20b",   "groq-llama-70b"],
+    "narrative":          ["groq-llama-70b",      "groq-gpt-oss-20b"],
+    "classification":     ["groq-llama-8b",       "groq-llama-70b"],
+    "escalation_decide":  ["groq-qwen3-32b",      "groq-llama-70b"],
+    "summarize":          ["groq-llama-70b",      "groq-gpt-oss-20b"],
+    "timeline":           ["groq-llama-8b",       "groq-llama-70b"],
+    "recommend":          ["groq-llama-70b",      "groq-gpt-oss-20b"],
+    "explain":            ["groq-llama-8b",       "groq-llama-70b"],
+    "related_cases":      ["groq-gpt-oss-20b",   "groq-llama-70b"],
+    "copilot":            ["groq-llama-70b",      "groq-gpt-oss-120b"],
 }
 
 
