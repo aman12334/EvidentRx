@@ -99,7 +99,7 @@ jobs:
           tags:    evidentrx/api:scan
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref:        "evidentrx/api:scan"
           format:           "sarif"

@@ -2,9 +2,8 @@ import os
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # Load .env file so DATABASE_URL is available without manual export
 try:
@@ -22,9 +21,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Allow DATABASE_URL env var to override alembic.ini
+# Allow DATABASE_URL env var to override alembic.ini.
+# Alembic runs synchronously; swap the asyncpg driver for psycopg2 if needed.
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    database_url = database_url.replace("postgresql+asyncpg", "postgresql+psycopg2")
+    database_url = database_url.replace("postgresql+aiosqlite", "sqlite")
     config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata

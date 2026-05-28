@@ -1,3 +1,3 @@
-// jest.setup.js — runs after the test framework is installed
+// jest.setup.js — runs before each test file
 // Adds custom DOM matchers from @testing-library/jest-dom
-import '@testing-library/jest-dom'
+require('@testing-library/jest-dom')

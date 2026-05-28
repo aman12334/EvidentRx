@@ -49,13 +49,12 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "setupFilesAfterFramework": [
+    "setupFiles": [
       "<rootDir>/jest.setup.js"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     },
-    "testPathPattern": "src/__tests__",
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",
       "!src/**/*.d.ts",

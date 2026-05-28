@@ -17,10 +17,10 @@ AWS Secrets Manager integration:
 
 from __future__ import annotations
 
-import os
 import logging
-from datetime import datetime, timedelta, timezone
-from typing   import Dict, Optional
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Dict
 
 log = logging.getLogger(__name__)
 
@@ -33,18 +33,18 @@ class _SecretCache:
     def __init__(self) -> None:
         self._store: Dict[str, tuple[str, datetime]] = {}
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         entry = self._store.get(key)
         if not entry:
             return None
         value, fetched_at = entry
-        if datetime.now(tz=timezone.utc) - fetched_at > _CACHE_TTL:
+        if datetime.now(tz=UTC) - fetched_at > _CACHE_TTL:
             del self._store[key]
             return None
         return value
 
     def set(self, key: str, value: str) -> None:
-        self._store[key] = (value, datetime.now(tz=timezone.utc))
+        self._store[key] = (value, datetime.now(tz=UTC))
 
     def flush(self) -> None:
         self._store.clear()
@@ -53,7 +53,7 @@ class _SecretCache:
 _cache = _SecretCache()
 
 
-def get_secret(name: str, default: Optional[str] = None) -> Optional[str]:
+def get_secret(name: str, default: str | None = None) -> str | None:
     """
     Retrieve a secret by name with environment fallback.
 
@@ -68,7 +68,7 @@ def get_secret(name: str, default: Optional[str] = None) -> Optional[str]:
     # Try AWS Secrets Manager in production
     try:
         import boto3  # type: ignore[import]
-        from botocore.exceptions import ClientError  # type: ignore[import]
+        from botocore.exceptions import ClientError  # type: ignore[import]  # noqa: F401
 
         region = os.environ.get("AWS_REGION", "us-east-1")
         client = boto3.client("secretsmanager", region_name=region)

@@ -17,14 +17,18 @@ Production: collected by Prometheus, visualized in Grafana.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
 try:
     from prometheus_client import (
-        Counter, Histogram, Gauge, Summary,
-        CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST,
+        CONTENT_TYPE_LATEST,
+        CollectorRegistry,  # noqa: F401
+        Counter,
+        Gauge,
+        Histogram,
+        Summary,  # noqa: F401
+        generate_latest,
     )
     _PROMETHEUS_AVAILABLE = True
 except ImportError:

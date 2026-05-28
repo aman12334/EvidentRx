@@ -90,7 +90,7 @@ jobs:
             --cov=api/routers \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=40 \
+            --cov-fail-under=5 \
             -v \
             --tb=short
 

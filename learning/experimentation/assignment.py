@@ -24,14 +24,14 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass
-from datetime    import datetime, timezone
-from typing      import Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from learning.experimentation.framework import (
     ABExperiment,
+    ArmConfiguration,
     ExperimentArm,
     ExperimentState,
-    ArmConfiguration,
 )
 
 log = logging.getLogger("evidentrx.learning.experimentation.assignment")
@@ -53,8 +53,8 @@ class AssignmentResult:
     entity_id:        str
     entity_type:      str           # "case" | "analyst" | "tenant" | "request"
     in_experiment:    bool          # False → entity not sampled into experiment
-    arm:              Optional[ExperimentArm]
-    arm_config:       Optional[ArmConfiguration]
+    arm:              ExperimentArm | None
+    arm_config:       ArmConfiguration | None
     hash_value:       int           # raw hash value for audit/replay
     assigned_at:      datetime
 
@@ -91,7 +91,7 @@ class ExperimentAssigner:
                 arm           = None,
                 arm_config    = None,
                 hash_value    = 0,
-                assigned_at   = datetime.now(tz=timezone.utc),
+                assigned_at   = datetime.now(tz=UTC),
             )
 
         hash_value  = _stable_hash(experiment.experiment_id, entity_id)
@@ -117,7 +117,7 @@ class ExperimentAssigner:
             arm           = arm,
             arm_config    = arm_config,
             hash_value    = bucket,
-            assigned_at   = datetime.now(tz=timezone.utc),
+            assigned_at   = datetime.now(tz=UTC),
         )
 
     def bulk_assign(
@@ -162,7 +162,6 @@ class ExperimentAssigner:
 
         Returns (is_balanced, stats_dict). Useful for pre-launch validation.
         """
-        from typing import Any
         counts = self.arm_counts(experiment, entity_ids)
         ctrl   = counts["control"]
         treat  = counts["treatment"]
@@ -194,7 +193,7 @@ def _stable_hash(experiment_id: str, entity_id: str) -> int:
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_assigner: Optional[ExperimentAssigner] = None
+_assigner: ExperimentAssigner | None = None
 
 
 def get_assigner() -> ExperimentAssigner:

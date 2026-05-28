@@ -22,16 +22,11 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
 import logging
-import os
 import random
 import sys
-import time
-from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 import requests
@@ -110,7 +105,7 @@ ENTITY_TYPES = {
     "RHC": "Ryan White HIV/AIDS Program",
     "BLK": "Black Lung Clinic",
     "CMH": "Comprehensive Hemophilia Treatment",
-    "SCH": "SCH Rural Hospital",
+    "SCH-R": "SCH Rural Hospital",
 }
 
 # ── Fallback covered entities (if HRSA API is unreachable) ───────────────────
@@ -212,7 +207,7 @@ FALLBACK_ENTITIES: list[dict] = [
 # HRSA API
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def fetch_hrsa_covered_entities(state: Optional[str] = None, limit: int = 30) -> list[dict]:
+def fetch_hrsa_covered_entities(state: str | None = None, limit: int = 30) -> list[dict]:
     """
     Fetch real covered entities from HRSA OPAIS public API.
     Falls back to curated list if the API is unavailable.

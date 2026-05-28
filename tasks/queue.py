@@ -27,7 +27,7 @@ log = logging.getLogger("evidentrx.tasks")
 
 try:
     from celery import Celery
-    from celery.utils.log import get_task_logger
+    from celery.utils.log import get_task_logger  # noqa: F401
 
     celery_app = Celery(
         "evidentrx",

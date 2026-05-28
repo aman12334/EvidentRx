@@ -28,7 +28,7 @@ spec:
         prometheus.io/scrape: "true"
         prometheus.io/port:   "8000"
         prometheus.io/path:   "/api/metrics"
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secrets: {{ toYaml .Values.secrets | sha256sum }}
     spec:
       securityContext:
         runAsNonRoot: true
