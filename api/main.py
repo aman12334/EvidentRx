@@ -35,6 +35,7 @@ from observability.tracing     import setup_tracing
 
 from api.routers import (
     auth,
+    dashboard,
     evidence,
     findings,
     graph,
@@ -87,6 +88,7 @@ app.include_router(traces.router,          prefix="/api/v1")
 app.include_router(graph.router,           prefix="/api/v1")
 app.include_router(monitoring.router,      prefix="/api/v1")
 app.include_router(upload.router,          prefix="/api/v1")
+app.include_router(dashboard.router,       prefix="/api/v1")
 
 # ── Health & root ─────────────────────────────────────────────────────────────
 
