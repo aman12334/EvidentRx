@@ -422,6 +422,28 @@ finally:
         warn("Dashboard is NOT running")
 
 
+def cmd_validate(args: argparse.Namespace) -> None:
+    header("EvidentRx — Data Validation")
+    cmd = [str(PYTHON), "scripts/validate_data.py"]
+    if getattr(args, "report", False):
+        cmd.append("--report")
+    run(cmd, check=False)
+
+
+def cmd_health(args: argparse.Namespace) -> None:
+    header("EvidentRx — Health Check")
+    cmd = [str(PYTHON), "scripts/health_check.py"]
+    if getattr(args, "verbose", False):
+        cmd.append("--verbose")
+    if getattr(args, "json", False):
+        cmd.append("--json")
+    if getattr(args, "skip_api", False):
+        cmd.append("--skip-api")
+    if getattr(args, "skip_llm", False):
+        cmd.append("--skip-llm")
+    run(cmd, check=False)
+
+
 def cmd_generate_samples(args: argparse.Namespace) -> None:
     header("EvidentRx — Generating Sample Upload Files")
     run([
@@ -593,17 +615,20 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python evidentrx.py setup                 # First-time setup from scratch
-  python evidentrx.py setup --real          # Setup with real HRSA/FDA data
-  python evidentrx.py start                 # Start API + dashboard
-  python evidentrx.py start --api-only      # API only (no frontend)
-  python evidentrx.py seed --real           # Reload real HRSA/CMS data
-  python evidentrx.py rules                 # Run compliance rules engine
-  python evidentrx.py run-agent <id>        # Dispatch AI workflow on a case
-  python evidentrx.py generate-samples      # Generate sample CSV for upload
+  python evidentrx.py setup                    # First-time setup from scratch
+  python evidentrx.py setup --real             # Setup with real HRSA/FDA data
+  python evidentrx.py start                    # Start API + dashboard
+  python evidentrx.py start --api-only         # API only (no frontend)
+  python evidentrx.py seed --real              # Reload real HRSA/CMS data
+  python evidentrx.py rules                    # Run compliance rules engine
+  python evidentrx.py run-agent <id>           # Dispatch AI workflow on a case
+  python evidentrx.py generate-samples         # Generate sample CSV for upload
   python evidentrx.py export --severity critical high  # Export findings CSV
-  python evidentrx.py status                # System health check
-  python evidentrx.py reset                 # Wipe and reseed (dev)
+  python evidentrx.py validate                 # Check data quality
+  python evidentrx.py health                   # Full system health check
+  python evidentrx.py health --json            # CI-friendly health check
+  python evidentrx.py status                   # Quick system stats
+  python evidentrx.py reset                    # Wipe and reseed (dev)
         """,
     )
 
@@ -649,6 +674,17 @@ Examples:
     p_export.add_argument("--case",     default=None,                 help="Filter by case number")
     p_export.add_argument("--out",      default=None,                 help="Output file path")
 
+    # validate
+    p_validate = sub.add_parser("validate", help="Validate data quality")
+    p_validate.add_argument("--report", action="store_true", help="Save validation_report.txt")
+
+    # health
+    p_health = sub.add_parser("health", help="Full system health check")
+    p_health.add_argument("--verbose",   "-v", action="store_true")
+    p_health.add_argument("--json",            action="store_true", help="Machine-readable JSON output")
+    p_health.add_argument("--skip-api",        action="store_true")
+    p_health.add_argument("--skip-llm",        action="store_true")
+
     args = parser.parse_args()
 
     dispatch = {
@@ -661,6 +697,8 @@ Examples:
         "reset":            cmd_reset,
         "generate-samples": cmd_generate_samples,
         "export":           cmd_export,
+        "validate":         cmd_validate,
+        "health":           cmd_health,
     }
 
     if args.command is None:
