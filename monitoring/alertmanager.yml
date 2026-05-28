@@ -1,0 +1,101 @@
+# Alertmanager configuration — EvidentRx Platform
+#
+# Routing:
+#   - CRITICAL alerts  → PagerDuty (immediate on-call page)
+#   - WARNING  alerts  → Slack #compliance-alerts channel
+#   - Security events  → Slack #security-incidents + PagerDuty
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: "${SLACK_WEBHOOK_URL}"   # set via env or secrets
+
+templates:
+  - "/etc/alertmanager/templates/*.tmpl"
+
+route:
+  group_by:        ["alertname", "service", "environment"]
+  group_wait:      30s
+  group_interval:  5m
+  repeat_interval: 4h
+  receiver:        "slack-warnings"
+
+  routes:
+    # Critical — immediate PagerDuty page
+    - match:
+        severity: critical
+      receiver: pagerduty-critical
+      group_wait: 0s
+      repeat_interval: 1h
+
+    # Security events — both channels
+    - match:
+        category: security
+      receiver: security-incidents
+      group_wait: 0s
+      repeat_interval: 30m
+      continue: true   # also falls through to default receiver
+
+    # Compliance-specific alerts
+    - match:
+        category: compliance
+      receiver: slack-compliance
+      repeat_interval: 2h
+
+receivers:
+
+  - name: slack-warnings
+    slack_configs:
+      - channel: "#compliance-alerts"
+        send_resolved: true
+        title: "[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Environment:* {{ .Labels.environment }}
+          {{ end }}
+
+  - name: pagerduty-critical
+    pagerduty_configs:
+      - service_key: "${PAGERDUTY_SERVICE_KEY}"
+        send_resolved: true
+        description: "{{ .GroupLabels.alertname }} — {{ .CommonAnnotations.summary }}"
+        severity: critical
+
+  - name: security-incidents
+    slack_configs:
+      - channel: "#security-incidents"
+        send_resolved: true
+        color: "danger"
+        title: "🔴 SECURITY ALERT: {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          Tenant: {{ .Labels.tenant_id }}
+          Time: {{ .StartsAt }}
+          {{ end }}
+    pagerduty_configs:
+      - service_key: "${PAGERDUTY_SECURITY_KEY}"
+        send_resolved: true
+        severity: critical
+
+  - name: slack-compliance
+    slack_configs:
+      - channel: "#compliance-alerts"
+        send_resolved: true
+        title: "[COMPLIANCE] {{ .GroupLabels.alertname }}"
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+
+inhibit_rules:
+  # Suppress warning-level alerts when a critical is already firing for the same alertname
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ["alertname", "service"]

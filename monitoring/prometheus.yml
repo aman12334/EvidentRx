@@ -1,0 +1,73 @@
+# Prometheus configuration — EvidentRx Platform
+# Scrapes the API, worker metrics, and host-level exporters.
+
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  scrape_timeout:      10s
+  external_labels:
+    service:     evidentrx
+    environment: production
+
+# Load alerting rules
+rule_files:
+  - "rules.yml"
+
+# Alertmanager integration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+
+  # ── EvidentRx API ────────────────────────────────────────────────────────────
+  - job_name: evidentrx-api
+    metrics_path: /api/metrics
+    static_configs:
+      - targets:
+          - api:8000
+        labels:
+          component: api
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label:  instance
+
+  # ── Celery workers (via prometheus-celery-exporter or direct) ────────────────
+  - job_name: evidentrx-worker
+    static_configs:
+      - targets:
+          - worker:9808   # celery-prometheus-exporter default port
+        labels:
+          component: worker
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - postgres-exporter:9187
+        labels:
+          component: database
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  - job_name: redis
+    static_configs:
+      - targets:
+          - redis-exporter:9121
+        labels:
+          component: cache
+
+  # ── Node exporter (host metrics) ─────────────────────────────────────────────
+  - job_name: node
+    static_configs:
+      - targets:
+          - node-exporter:9100
+        labels:
+          component: host
+
+  # ── Prometheus self-monitoring ────────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090

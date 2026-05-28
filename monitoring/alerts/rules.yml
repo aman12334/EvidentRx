@@ -1,0 +1,185 @@
+groups:
+
+  # ── API health ───────────────────────────────────────────────────────────────
+  - name: api.health
+    rules:
+      - alert: APIHighErrorRate
+        expr: |
+          rate(evidentrx_http_requests_total{status=~"5.."}[5m])
+          / rate(evidentrx_http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service:  api
+          category: reliability
+        annotations:
+          summary:     "API error rate > 5% for 2 minutes"
+          description: "Error rate is {{ $value | humanizePercentage }} — check application logs."
+
+      - alert: APIHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(evidentrx_http_request_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          service:  api
+          category: performance
+        annotations:
+          summary:     "API p95 latency > 2 seconds"
+          description: "p95 response time is {{ $value | humanizeDuration }}."
+
+      - alert: APIPodDown
+        expr: up{job="evidentrx-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service:  api
+          category: reliability
+        annotations:
+          summary:     "EvidentRx API pod is unreachable"
+          description: "Prometheus cannot scrape the API — pod may be down."
+
+  # ── Rate limiting ────────────────────────────────────────────────────────────
+  - name: api.rate_limits
+    rules:
+      - alert: HighRateLimitHits
+        expr: |
+          rate(evidentrx_http_requests_total{status="429"}[10m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service:  api
+          category: security
+        annotations:
+          summary:     "Elevated 429 rate — possible brute-force"
+          description: "{{ $value | humanize }} rate-limit rejections per second."
+
+  # ── Compliance / business metrics ────────────────────────────────────────────
+  - name: compliance.business
+    rules:
+      - alert: HighCriticalCaseVolume
+        expr: evidentrx_cases_open{severity="critical"} > 50
+        for: 0m
+        labels:
+          severity: warning
+          service:  platform
+          category: compliance
+        annotations:
+          summary:     "More than 50 open critical cases"
+          description: "{{ $value }} critical cases are currently open — review escalation queue."
+
+      - alert: EscalationBacklog
+        expr: evidentrx_escalations_pending > 20
+        for: 30m
+        labels:
+          severity: warning
+          service:  platform
+          category: compliance
+        annotations:
+          summary:     "Escalation queue backlog > 20"
+          description: "{{ $value }} cases pending escalation review for > 30 minutes."
+
+      - alert: AgentRunFailureRate
+        expr: |
+          rate(evidentrx_agent_runs_total{status="error"}[15m])
+          / rate(evidentrx_agent_runs_total[15m]) > 0.10
+        for: 10m
+        labels:
+          severity: critical
+          service:  agents
+          category: reliability
+        annotations:
+          summary:     "Agent run failure rate > 10%"
+          description: "Agent error rate is {{ $value | humanizePercentage }}."
+
+  # ── Security events ──────────────────────────────────────────────────────────
+  - name: security.events
+    rules:
+      - alert: TenantIsolationViolation
+        expr: increase(evidentrx_security_events_total{event_type="tenant_isolation_violation"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service:  platform
+          category: security
+        annotations:
+          summary:     "TENANT ISOLATION VIOLATION DETECTED"
+          description: "{{ $value }} tenant isolation violation(s) in the last 5 minutes. Immediate investigation required."
+
+      - alert: AuditLogFlushFailure
+        expr: increase(evidentrx_audit_flush_errors_total[10m]) > 3
+        for: 0m
+        labels:
+          severity: critical
+          service:  platform
+          category: compliance
+        annotations:
+          summary:     "Audit log flush failures"
+          description: "{{ $value }} audit log flush errors — events may be lost. Check database connectivity."
+
+      - alert: SuspiciousAuthActivity
+        expr: |
+          rate(evidentrx_http_requests_total{path="/api/v1/auth/login", status="401"}[5m]) > 1
+        for: 3m
+        labels:
+          severity: warning
+          service:  auth
+          category: security
+        annotations:
+          summary:     "Elevated login failure rate"
+          description: "{{ $value | humanize }} failed login attempts per second — possible credential stuffing."
+
+  # ── Database ─────────────────────────────────────────────────────────────────
+  - name: database
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: evidentrx_db_pool_size - evidentrx_db_pool_available < 2
+        for: 2m
+        labels:
+          severity: critical
+          service:  database
+          category: reliability
+        annotations:
+          summary:     "Database connection pool nearly exhausted"
+          description: "Fewer than 2 connections available in the pool."
+
+      - alert: SlowQueries
+        expr: |
+          histogram_quantile(0.99,
+            rate(evidentrx_db_query_duration_seconds_bucket[5m])
+          ) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+          service:  database
+          category: performance
+        annotations:
+          summary:     "Database p99 query latency > 5 seconds"
+          description: "p99 query time is {{ $value | humanizeDuration }}."
+
+  # ── Worker / task queue ───────────────────────────────────────────────────────
+  - name: workers
+    rules:
+      - alert: WorkerDown
+        expr: up{job="evidentrx-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service:  worker
+          category: reliability
+        annotations:
+          summary:     "Celery worker is unreachable"
+          description: "Worker metrics scrape failing — worker pod may be down."
+
+      - alert: DeadLetterQueueGrowing
+        expr: evidentrx_dlq_size > 10
+        for: 15m
+        labels:
+          severity: warning
+          service:  worker
+          category: reliability
+        annotations:
+          summary:     "Dead letter queue has > 10 items"
+          description: "{{ $value }} tasks in the DLQ — review failed tasks."

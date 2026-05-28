@@ -1,0 +1,208 @@
+{
+  "__inputs": [
+    {
+      "name":        "DS_PROMETHEUS",
+      "label":       "Prometheus",
+      "type":        "datasource",
+      "pluginId":    "prometheus",
+      "pluginName":  "Prometheus"
+    }
+  ],
+  "title":       "EvidentRx — Platform Overview",
+  "description": "340B Compliance Intelligence Platform — operational dashboard",
+  "uid":         "evidentrx-overview",
+  "version":     9,
+  "schemaVersion": 38,
+  "refresh":     "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "tags": ["evidentrx", "compliance", "340b"],
+
+  "templating": {
+    "list": [
+      {
+        "name":       "environment",
+        "type":       "query",
+        "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+        "query":      "label_values(up, environment)",
+        "refresh":    2,
+        "multi":      false
+      }
+    ]
+  },
+
+  "panels": [
+
+    {
+      "id": 1,
+      "title": "API Request Rate",
+      "type":  "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr":  "rate(evidentrx_http_requests_total{environment=~\"$environment\"}[2m])",
+          "legendFormat": "{{method}} {{path}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } }
+      }
+    },
+
+    {
+      "id": 2,
+      "title": "API Error Rate",
+      "type":  "timeseries",
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "rate(evidentrx_http_requests_total{status=~\"5..\",environment=~\"$environment\"}[2m]) / rate(evidentrx_http_requests_total{environment=~\"$environment\"}[2m])",
+          "legendFormat": "5xx rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "thresholds": {
+          "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 0.01 },
+            { "color": "red",    "value": 0.05 }
+          ]
+        }}
+      }
+    },
+
+    {
+      "id": 3,
+      "title": "API p95 Latency",
+      "type":  "timeseries",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(evidentrx_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(evidentrx_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+
+    {
+      "id": 4,
+      "title": "Open Cases by Severity",
+      "type":  "bargauge",
+      "gridPos": { "x": 0, "y": 6, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "evidentrx_cases_open",
+          "legendFormat": "{{severity}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "thresholds": {
+          "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 5 },
+            { "color": "red",    "value": 20 }
+          ]
+        }}
+      },
+      "options": { "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+
+    {
+      "id": 5,
+      "title": "Agent Runs / min",
+      "type":  "timeseries",
+      "gridPos": { "x": 6, "y": 6, "w": 9, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "rate(evidentrx_agent_runs_total{status=\"success\"}[2m]) * 60",
+          "legendFormat": "success"
+        },
+        {
+          "expr": "rate(evidentrx_agent_runs_total{status=\"error\"}[2m]) * 60",
+          "legendFormat": "error"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+
+    {
+      "id": 6,
+      "title": "Security Events",
+      "type":  "timeseries",
+      "gridPos": { "x": 15, "y": 6, "w": 9, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "increase(evidentrx_security_events_total[5m])",
+          "legendFormat": "{{event_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "fixedColor": "red", "mode": "fixed" } }
+      }
+    },
+
+    {
+      "id": 7,
+      "title": "DB Query Latency (p95)",
+      "type":  "timeseries",
+      "gridPos": { "x": 0, "y": 11, "w": 12, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(evidentrx_db_query_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95 DB latency"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+
+    {
+      "id": 8,
+      "title": "Dead Letter Queue Size",
+      "type":  "stat",
+      "gridPos": { "x": 12, "y": 11, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "evidentrx_dlq_size", "legendFormat": "DLQ items" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "thresholds": {
+          "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 5 },
+            { "color": "red",    "value": 10 }
+          ]
+        }}
+      },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+
+    {
+      "id": 9,
+      "title": "Rate Limit Rejections",
+      "type":  "timeseries",
+      "gridPos": { "x": 18, "y": 11, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        {
+          "expr": "rate(evidentrx_http_requests_total{status=\"429\"}[2m])",
+          "legendFormat": "429 rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "fixedColor": "orange", "mode": "fixed" } }
+      }
+    }
+
+  ]
+}
