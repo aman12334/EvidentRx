@@ -94,6 +94,23 @@ class UploadResult(BaseModel):
     processing_ms:      int
 
 
+class ColumnMapping(BaseModel):
+    source_column: str
+    target_field:  str
+    mapped:        bool
+    sample_value:  Optional[str] = None
+
+
+class UploadPreview(BaseModel):
+    filename:          str
+    rows_detected:     int
+    file_type:         str    # "dispenses" | "claims" | "mixed"
+    column_mappings:   list[ColumnMapping]
+    unmapped_columns:  list[str]
+    sample_rows:       list[dict]
+    warnings:          list[str]
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -499,6 +516,103 @@ def _get_batch_findings_summary(db: Session, batch_id: str) -> dict:
         "findings_by_rule":   findings_by_rule,
         "case_ids":           [r.case_id for r in case_rows],
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
+# Validate (dry-run) route
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_KNOWN_DISPENSE_FIELDS = {
+    "ndc_11": "ndc_11", "ndc": "ndc_11", "national_drug_code": "ndc_11",
+    "patient_id": "patient_id_hash", "mrn": "patient_id_hash",
+    "member_id": "patient_id_hash", "patient": "patient_id_hash",
+    "dispense_date": "dispense_date", "fill_date": "dispense_date",
+    "dispensed_date": "dispense_date",
+    "quantity": "quantity", "qty": "quantity",
+    "days_supply": "days_supply", "days": "days_supply",
+    "payer_type": "payer_type", "payer": "payer_type",
+    "covered_entity_id": "covered_entity_id",
+}
+_KNOWN_CLAIM_FIELDS = {
+    "ndc_11": "ndc_11", "ndc": "ndc_11",
+    "patient_id": "patient_id_hash", "mrn": "patient_id_hash",
+    "member_id": "patient_id_hash",
+    "service_date": "service_date", "claim_date": "service_date",
+    "date_of_service": "service_date",
+    "payer_type": "claim_type", "payer": "claim_type",
+    "billed_amount": "billed_amount", "charge_amount": "billed_amount",
+    "paid_amount": "paid_amount", "payment_amount": "paid_amount",
+    "claim_number": "external_id", "claim_id": "external_id",
+    "covered_entity_id": "covered_entity_id",
+}
+
+
+@router.post(
+    "/validate",
+    response_model=UploadPreview,
+    summary="Validate upload file (dry run)",
+    description=(
+        "Parse and inspect a CSV file without committing any data. "
+        "Returns column mappings, detected file type, sample rows, and warnings."
+    ),
+)
+async def validate_upload_file(
+    file: UploadFile = File(..., description="CSV file to inspect"),
+) -> UploadPreview:
+    if not file.filename:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No file provided")
+
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "File too large")
+    if not content.strip():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File is empty")
+
+    try:
+        headers, rows = _read_csv_rows(content)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"CSV parse error: {exc}")
+
+    has_dispenses, has_claims = _detect_file_type(headers)
+    file_type = "mixed" if (has_dispenses and has_claims) else ("claims" if has_claims else "dispenses")
+    field_map = _KNOWN_CLAIM_FIELDS if has_claims else _KNOWN_DISPENSE_FIELDS
+
+    mappings: list[ColumnMapping] = []
+    unmapped: list[str] = []
+    for col in headers:
+        norm = _normalise_col(col)
+        target = field_map.get(norm)
+        sample = str(rows[0].get(col, "")) if rows else None
+        if target:
+            mappings.append(ColumnMapping(source_column=col, target_field=target,
+                                          mapped=True, sample_value=sample))
+        else:
+            mappings.append(ColumnMapping(source_column=col, target_field="(ignored)",
+                                          mapped=False, sample_value=sample))
+            unmapped.append(col)
+
+    warnings: list[str] = []
+    if "ndc_11" not in (m.target_field for m in mappings if m.mapped):
+        warnings.append("No NDC column detected — 'ndc_11' or 'ndc' required.")
+    if not any(m.target_field in ("dispense_date", "service_date") for m in mappings if m.mapped):
+        warnings.append("No date column detected — 'dispense_date' or 'service_date' required.")
+
+    # Sample: first 3 rows
+    sample_rows = [
+        {col: str(row.get(col, "")) for col in headers}
+        for row in rows[:3]
+    ]
+
+    return UploadPreview(
+        filename=file.filename or "unknown",
+        rows_detected=len(rows),
+        file_type=file_type,
+        column_mappings=mappings,
+        unmapped_columns=unmapped,
+        sample_rows=sample_rows,
+        warnings=warnings,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
