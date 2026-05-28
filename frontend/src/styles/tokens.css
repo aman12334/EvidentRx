@@ -1,0 +1,53 @@
+/* EvidentRx Design Tokens — Enterprise Compliance Workspace */
+:root {
+  /* Severity colors */
+  --severity-critical:    #dc2626;
+  --severity-critical-bg: #fef2f2;
+  --severity-high:        #ea580c;
+  --severity-high-bg:     #fff7ed;
+  --severity-medium:      #ca8a04;
+  --severity-medium-bg:   #fefce8;
+  --severity-low:         #16a34a;
+  --severity-low-bg:      #f0fdf4;
+
+  /* Status colors */
+  --status-open:          #2563eb;
+  --status-triaged:       #7c3aed;
+  --status-investigating: #ea580c;
+  --status-escalated:     #dc2626;
+  --status-resolved:      #16a34a;
+  --status-closed:        #6b7280;
+
+  /* Surface */
+  --surface-default:      #ffffff;
+  --surface-subtle:       #f8fafc;
+  --surface-muted:        #f1f5f9;
+  --surface-border:       #e2e8f0;
+
+  /* Text */
+  --text-primary:         #0f172a;
+  --text-secondary:       #475569;
+  --text-muted:           #94a3b8;
+
+  /* Brand */
+  --brand-500:            #1a4fff;
+  --brand-600:            #0033eb;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+
+.dark {
+  --surface-default:  #0f172a;
+  --surface-subtle:   #1e293b;
+  --surface-muted:    #334155;
+  --surface-border:   #475569;
+  --text-primary:     #f8fafc;
+  --text-secondary:   #cbd5e1;
+  --text-muted:       #64748b;
+}
