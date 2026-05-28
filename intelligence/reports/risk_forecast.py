@@ -1,0 +1,207 @@
+"""
+RiskForecastReporter — renders entity risk scoring and 30-day forecasts.
+
+Accepts RiskScoringReport from PredictiveRiskService and produces
+structured reports for investigator review and regulatory briefings.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from pathlib import Path
+
+from intelligence.services.predictive_risk import (
+    EntityRiskScore,
+    RiskForecast,
+    RiskScoringReport,
+)
+
+
+_TIER_EMOJI = {
+    "critical": "🔴",
+    "high":     "🟠",
+    "medium":   "🟡",
+    "low":      "🟢",
+}
+
+_CHANGE_EMOJI = {
+    "worsening": "⬆️",
+    "stable":    "➡️",
+    "improving": "⬇️",
+}
+
+
+class RiskForecastReporter:
+
+    def render_markdown(self, report: RiskScoringReport) -> str:
+        lines: list[str] = []
+
+        lines += [
+            "# Entity Risk Scoring & 30-Day Forecast",
+            f"**As of:** {report.as_of}  |  **Window:** {report.window_type}  "
+            f"|  **Generated:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}",
+            "",
+            "---",
+            "",
+            "## Risk Tier Distribution",
+            "",
+            f"| Tier | Count |",
+            f"|------|-------|",
+            f"| 🔴 Critical | {report.critical_count} |",
+            f"| 🟠 High     | {report.high_count} |",
+            f"| 🟡 Medium   | {report.medium_count} |",
+            f"| 🟢 Low      | {report.low_count} |",
+            f"| **Total**   | **{report.total_entities}** |",
+            "",
+        ]
+
+        top_scores = report.top_risk(10)
+        if top_scores:
+            lines += [
+                "## Top 10 Risk Entities",
+                "",
+                "| Tier | Entity | Score | Velocity (/day) | Escalation Prob | Direction |",
+                "|------|--------|-------|-----------------|-----------------|-----------|",
+            ]
+            for s in top_scores:
+                tier_em = _TIER_EMOJI.get(s.risk_tier, "")
+                lines.append(
+                    f"| {tier_em} {s.risk_tier} "
+                    f"| `{s.entity_id[:16]}` "
+                    f"| {s.composite_score:.4f} "
+                    f"| {s.finding_velocity:+.4f} "
+                    f"| {s.escalation_probability:.2%} "
+                    f"| {s.trend_direction} |"
+                )
+            lines.append("")
+
+        # Forecasts for top-risk entities
+        top_entity_ids = {s.entity_id for s in top_scores}
+        top_forecasts = [f for f in report.forecasts if f.entity_id in top_entity_ids]
+        top_forecasts.sort(key=lambda f: f.projected_score, reverse=True)
+
+        if top_forecasts:
+            lines += [
+                "## 30-Day Risk Forecast (Top Entities)",
+                "",
+                "| Entity | Current Score | Projected Score | Δ | Projected Findings | Trajectory | Confidence |",
+                "|--------|---------------|-----------------|---|--------------------|------------|------------|",
+            ]
+            for f in top_forecasts[:10]:
+                delta = f.projected_score - f.current_score
+                change_em = _CHANGE_EMOJI.get(f.risk_tier_change, "")
+                lines.append(
+                    f"| `{f.entity_id[:16]}` "
+                    f"| {f.current_score:.4f} "
+                    f"| {f.projected_score:.4f} "
+                    f"| {delta:+.4f} "
+                    f"| ~{f.projected_findings} "
+                    f"| {change_em} {f.risk_tier_change} "
+                    f"| {f.confidence:.0%} |"
+                )
+            lines.append("")
+
+        # Worsening forecasts narrative
+        worsening_forecasts = [f for f in report.forecasts if f.risk_tier_change == "worsening"]
+        if worsening_forecasts:
+            lines += [
+                "## Worsening Trajectory Narratives",
+                "",
+            ]
+            for f in sorted(worsening_forecasts, key=lambda x: x.projected_score, reverse=True)[:5]:
+                lines += [
+                    f"**Entity `{f.entity_id[:16]}`** (forecast date: {f.forecast_date})",
+                    f"> {f.narrative}",
+                    "",
+                ]
+
+        lines += [
+            "## Full Entity Score Table",
+            "",
+            "| Entity | Tier | Score | Velocity | Exposure ($) | Escalation Prob | Direction |",
+            "|--------|------|-------|----------|--------------|-----------------|-----------|",
+        ]
+        for s in report.scores:
+            tier_em = _TIER_EMOJI.get(s.risk_tier, "")
+            lines.append(
+                f"| `{s.entity_id[:16]}` "
+                f"| {tier_em} {s.risk_tier} "
+                f"| {s.composite_score:.4f} "
+                f"| {s.finding_velocity:+.4f} "
+                f"| ${s.exposure_trajectory:,.0f} "
+                f"| {s.escalation_probability:.2%} "
+                f"| {s.trend_direction} |"
+            )
+
+        lines += [
+            "",
+            "---",
+            f"*Report generated by EvidentRx Intelligence Layer — PredictiveRiskService ({report.window_type} window)*",
+        ]
+        return "\n".join(lines)
+
+    def render_json(self, report: RiskScoringReport) -> dict:
+        return {
+            "schema_version":  "1.0",
+            "report_type":     "entity_risk_forecast",
+            "generated_at":    datetime.utcnow().isoformat(),
+            "as_of":           report.as_of.isoformat(),
+            "window_type":     report.window_type,
+            "distribution": {
+                "total":    report.total_entities,
+                "critical": report.critical_count,
+                "high":     report.high_count,
+                "medium":   report.medium_count,
+                "low":      report.low_count,
+            },
+            "top_risk":      [_score_to_dict(s) for s in report.top_risk(10)],
+            "all_scores":    [_score_to_dict(s) for s in report.scores],
+            "forecasts":     [_forecast_to_dict(f) for f in report.forecasts],
+        }
+
+    def write(
+        self,
+        report: RiskScoringReport,
+        output_dir: str | Path,
+        fmt: str = "markdown",
+    ) -> Path:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = f"risk_forecast_{report.as_of}_{report.window_type}"
+        if fmt == "json":
+            path = output_dir / f"{stem}.json"
+            path.write_text(json.dumps(self.render_json(report), indent=2, default=str))
+        else:
+            path = output_dir / f"{stem}.md"
+            path.write_text(self.render_markdown(report))
+        return path
+
+
+def _score_to_dict(s: EntityRiskScore) -> dict:
+    return {
+        "entity_id":              s.entity_id,
+        "entity_type":            s.entity_type,
+        "score_date":             s.score_date.isoformat(),
+        "composite_score":        s.composite_score,
+        "risk_tier":              s.risk_tier,
+        "finding_velocity":       s.finding_velocity,
+        "exposure_trajectory":    s.exposure_trajectory,
+        "escalation_probability": s.escalation_probability,
+        "trend_direction":        s.trend_direction,
+        "score_components":       s.score_components,
+    }
+
+
+def _forecast_to_dict(f: RiskForecast) -> dict:
+    return {
+        "entity_id":          f.entity_id,
+        "entity_type":        f.entity_type,
+        "as_of":              f.as_of.isoformat(),
+        "forecast_date":      f.forecast_date.isoformat(),
+        "current_score":      f.current_score,
+        "projected_score":    f.projected_score,
+        "projected_findings": f.projected_findings,
+        "confidence":         f.confidence,
+        "risk_tier_change":   f.risk_tier_change,
+        "narrative":          f.narrative,
+    }
