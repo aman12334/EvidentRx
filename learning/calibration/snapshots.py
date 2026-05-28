@@ -22,10 +22,10 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from learning.calibration.risk import RiskCalibrationResult
 
@@ -56,14 +56,14 @@ class CalibrationSnapshot:
     calibration:       RiskCalibrationResult
     created_at:        datetime
     created_by:        str                    # analyst or "system"
-    approved_by:       Optional[str]          = None
-    approved_at:       Optional[datetime]     = None
-    rejected_by:       Optional[str]          = None
-    rejection_reason:  Optional[str]          = None
-    activated_at:      Optional[datetime]     = None
-    superseded_by:     Optional[str]          = None   # snapshot_id of successor
+    approved_by:       str | None          = None
+    approved_at:       datetime | None     = None
+    rejected_by:       str | None          = None
+    rejection_reason:  str | None          = None
+    activated_at:      datetime | None     = None
+    superseded_by:     str | None          = None   # snapshot_id of successor
     change_summary:    str                    = ""
-    parent_snapshot_id: Optional[str]         = None   # prior active snapshot
+    parent_snapshot_id: str | None         = None   # prior active snapshot
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,7 +91,7 @@ class CalibrationSnapshotStore:
     table. This implementation is fully correct for single-node and test use.
     """
 
-    def __init__(self, db_writer: Optional[Any] = None) -> None:
+    def __init__(self, db_writer: Any | None = None) -> None:
         self._snapshots:     dict[str, CalibrationSnapshot] = {}   # snapshot_id → snapshot
         self._by_tenant:     dict[str, list[str]] = {}              # tenant_id → [snapshot_ids]
         self._active:        dict[str, str] = {}                    # tenant_id → active snapshot_id
@@ -115,7 +115,7 @@ class CalibrationSnapshotStore:
             version            = calibration.version,
             status             = SnapshotStatus.DRAFT,
             calibration        = calibration,
-            created_at         = datetime.now(tz=timezone.utc),
+            created_at         = datetime.now(tz=UTC),
             created_by         = created_by,
             change_summary     = change_summary,
             parent_snapshot_id = parent_id,
@@ -152,7 +152,7 @@ class CalibrationSnapshotStore:
         snap = self._require(snapshot_id, SnapshotStatus.PENDING_APPROVAL)
         snap.status      = SnapshotStatus.APPROVED
         snap.approved_by = approved_by
-        snap.approved_at = datetime.now(tz=timezone.utc)
+        snap.approved_at = datetime.now(tz=UTC)
 
         # Also mark calibration as approved
         snap.calibration.approved    = True
@@ -205,7 +205,7 @@ class CalibrationSnapshotStore:
                 await self._persist("update", current)
 
         snap.status       = SnapshotStatus.ACTIVE
-        snap.activated_at = datetime.now(tz=timezone.utc)
+        snap.activated_at = datetime.now(tz=UTC)
         self._active[tenant_id] = snapshot_id
         await self._persist("update", snap)
 
@@ -240,23 +240,23 @@ class CalibrationSnapshotStore:
         # Re-approve so activate() accepts it
         target.status      = SnapshotStatus.APPROVED
         target.approved_by = rolled_by
-        target.approved_at = datetime.now(tz=timezone.utc)
+        target.approved_at = datetime.now(tz=UTC)
 
         return await self.activate(target_id, activated_by=rolled_by)
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get_active(self, tenant_id: str) -> Optional[CalibrationSnapshot]:
+    def get_active(self, tenant_id: str) -> CalibrationSnapshot | None:
         snap_id = self._active.get(tenant_id)
         return self._snapshots.get(snap_id) if snap_id else None
 
-    def get(self, snapshot_id: str) -> Optional[CalibrationSnapshot]:
+    def get(self, snapshot_id: str) -> CalibrationSnapshot | None:
         return self._snapshots.get(snapshot_id)
 
     def list_for_tenant(
         self,
         tenant_id: str,
-        status:    Optional[SnapshotStatus] = None,
+        status:    SnapshotStatus | None = None,
     ) -> list[CalibrationSnapshot]:
         ids = self._by_tenant.get(tenant_id, [])
         snaps = [self._snapshots[i] for i in ids if i in self._snapshots]
@@ -300,10 +300,10 @@ class SnapshotTransitionError(Exception):
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_store: Optional[CalibrationSnapshotStore] = None
+_store: CalibrationSnapshotStore | None = None
 
 
-def get_snapshot_store(db_writer: Optional[Any] = None) -> CalibrationSnapshotStore:
+def get_snapshot_store(db_writer: Any | None = None) -> CalibrationSnapshotStore:
     global _store
     if _store is None:
         _store = CalibrationSnapshotStore(db_writer=db_writer)

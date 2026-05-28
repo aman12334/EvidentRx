@@ -27,11 +27,11 @@ import asyncio
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime    import datetime, timezone
-from enum        import Enum
-from pathlib     import Path
-from typing      import Any, Optional
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
+from pathlib import Path
+from typing import Any
 
 from interoperability.hl7.parser import HL7Message
 
@@ -89,7 +89,7 @@ class HL7DeadLetterQueue:
     def __init__(
         self,
         tenant_id:      str,
-        db_writer:      Optional[Any] = None,   # callable: async (list[DLQEntry]) → None
+        db_writer:      Any | None = None,   # callable: async (list[DLQEntry]) → None
         fallback_dir:   Path          = _FALLBACK_DIR,
         buffer_size:    int           = MAX_BUFFER_SIZE,
     ) -> None:
@@ -108,7 +108,7 @@ class HL7DeadLetterQueue:
         msg:    HL7Message,
         reason: DLQReason,
         detail: str = "",
-        tags:   Optional[dict[str, str]] = None,
+        tags:   dict[str, str] | None = None,
     ) -> DLQEntry:
         """
         Add a message to the dead-letter queue.
@@ -126,7 +126,7 @@ class HL7DeadLetterQueue:
             sending_facility= msg.sending_facility,
             parse_errors    = list(msg.parse_errors),
             detail          = detail[:500],
-            enqueued_at     = datetime.now(tz=timezone.utc),
+            enqueued_at     = datetime.now(tz=UTC),
             tags            = tags or {},
         )
 
@@ -153,8 +153,8 @@ class HL7DeadLetterQueue:
         raw_message: str,
         reason:      DLQReason,
         detail:      str = "",
-        tenant_id:   Optional[str] = None,
-        tags:        Optional[dict[str, str]] = None,
+        tenant_id:   str | None = None,
+        tags:        dict[str, str] | None = None,
     ) -> DLQEntry:
         """
         Enqueue raw (unparseable) HL7 bytes that could not even be parsed.
@@ -173,7 +173,7 @@ class HL7DeadLetterQueue:
             sending_facility= "",
             parse_errors    = [detail] if detail else [],
             detail          = detail[:500],
-            enqueued_at     = datetime.now(tz=timezone.utc),
+            enqueued_at     = datetime.now(tz=UTC),
             tags            = tags or {},
         )
 
@@ -229,7 +229,7 @@ class HL7DeadLetterQueue:
         """Write entries to newline-delimited JSON files in fallback directory."""
         try:
             self._fallback_dir.mkdir(parents=True, exist_ok=True)
-            path = self._fallback_dir / f"dlq_{datetime.now(tz=timezone.utc):%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}.ndjson"
+            path = self._fallback_dir / f"dlq_{datetime.now(tz=UTC):%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}.ndjson"
             with path.open("w", encoding="utf-8") as fh:
                 for entry in entries:
                     fh.write(json.dumps(entry.to_dict()) + "\n")

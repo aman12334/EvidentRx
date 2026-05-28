@@ -21,11 +21,10 @@ platform user ID, not patient data).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing   import Any, Optional
+from typing import Any
 
-from learning.feedback.models   import FeedbackRecord, FeedbackType
-from learning.feedback.lineage  import LineageEntry
+from learning.feedback.lineage import LineageEntry
+from learning.feedback.models import FeedbackRecord
 
 log = logging.getLogger("evidentrx.learning.feedback.events")
 
@@ -38,7 +37,7 @@ class FeedbackEventEmitter:
     layer does not directly depend on Kafka or any specific broker.
     """
 
-    def __init__(self, event_bus: Optional[Any] = None) -> None:
+    def __init__(self, event_bus: Any | None = None) -> None:
         self._bus = event_bus
 
     async def emit_feedback(self, feedback: FeedbackRecord) -> None:
@@ -48,7 +47,7 @@ class FeedbackEventEmitter:
             return
 
         try:
-            from interoperability.streaming.event_bus import BusMessage, canonical_topic
+            from interoperability.streaming.event_bus import BusMessage
 
             topic = f"evidentrx.{feedback.tenant_id}.feedback.{feedback.feedback_type.value}"
             msg   = BusMessage(

@@ -20,7 +20,7 @@ Metrics registered
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.observability.metrics")
 
@@ -40,7 +40,7 @@ def register_metrics() -> None:
         return
 
     try:
-        from prometheus_client import Counter, Histogram, Gauge
+        from prometheus_client import Counter, Gauge, Histogram
 
         _metrics["records_ingested"] = Counter(
             "evidentrx_interop_records_ingested_total",

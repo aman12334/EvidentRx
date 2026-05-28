@@ -26,8 +26,9 @@ import functools
 import logging
 import random
 import time
-from dataclasses import dataclass, field
-from typing      import Callable, Optional, Tuple, Type
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Tuple, Type
 
 log = logging.getLogger("evidentrx.retry")
 
@@ -59,7 +60,7 @@ class RetryPolicy:
     exponential_base: float = 2.0
 
     # Exception types to retry on (None = retry all non-fatal)
-    retryable_exceptions: Optional[Tuple[Type[Exception], ...]] = None
+    retryable_exceptions: Tuple[Type[Exception], ...] | None = None
 
     def delay_for_attempt(self, attempt: int) -> float:
         """Compute delay before attempt N (0-indexed)."""
@@ -77,14 +78,14 @@ class RetryPolicy:
 
 # ─── Sync retry decorator ─────────────────────────────────────────────────────
 
-def with_retry(policy: Optional[RetryPolicy] = None):
+def with_retry(policy: RetryPolicy | None = None):
     """Synchronous retry decorator."""
     _policy = policy or RetryPolicy()
 
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
-            last_exc: Optional[Exception] = None
+            last_exc: Exception | None = None
             for attempt in range(_policy.max_retries + 1):
                 try:
                     return fn(*args, **kwargs)
@@ -106,14 +107,14 @@ def with_retry(policy: Optional[RetryPolicy] = None):
 
 # ─── Async retry decorator ────────────────────────────────────────────────────
 
-def with_async_retry(policy: Optional[RetryPolicy] = None):
+def with_async_retry(policy: RetryPolicy | None = None):
     """Async retry decorator."""
     _policy = policy or RetryPolicy()
 
     def decorator(fn: Callable) -> Callable:
         @functools.wraps(fn)
         async def wrapper(*args, **kwargs):
-            last_exc: Optional[Exception] = None
+            last_exc: Exception | None = None
             for attempt in range(_policy.max_retries + 1):
                 try:
                     return await fn(*args, **kwargs)

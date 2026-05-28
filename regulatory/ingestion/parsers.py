@@ -16,13 +16,12 @@ All parsers are synchronous; async wrapping is handled by the pipeline.
 
 from __future__ import annotations
 
-import html
 import json
 import logging
 import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from typing      import Any, Optional
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.ingestion.parsers")
 
@@ -32,12 +31,12 @@ class ParseResult:
     """Output of a parser run against raw document bytes."""
     success:       bool
     raw_text:      str                = ""
-    title:         Optional[str]      = None
-    summary:       Optional[str]      = None
+    title:         str | None      = None
+    summary:       str | None      = None
     key_changes:   list[str]          = field(default_factory=list)
     metadata:      dict[str, Any]     = field(default_factory=dict)
-    error:         Optional[str]      = None
-    page_count:    Optional[int]      = None
+    error:         str | None      = None
+    page_count:    int | None      = None
     word_count:    int                = 0
 
     def __post_init__(self) -> None:
@@ -57,8 +56,9 @@ class PDFParser:
 
     def parse(self, raw: bytes, filename: str = "") -> ParseResult:
         try:
-            from pdfminer.high_level import extract_text
             import io
+
+            from pdfminer.high_level import extract_text
             text = extract_text(io.BytesIO(raw))
             title = self._extract_title(text, filename)
             return ParseResult(

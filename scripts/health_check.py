@@ -24,12 +24,12 @@ import sys
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
+
 load_dotenv(ROOT / ".env")
 
 G = "\033[92m" if sys.stdout.isatty() else ""
@@ -90,10 +90,11 @@ def check_env_vars(report: HealthReport) -> None:
     )
 
 
-def check_database(report: HealthReport, verbose: bool = False) -> Optional[object]:
+def check_database(report: HealthReport, verbose: bool = False) -> object | None:
     try:
-        from app.database import SessionLocal
         from sqlalchemy import text
+
+        from app.database import SessionLocal
         db = SessionLocal()
         db.execute(text("SELECT 1"))
         report.add("DB:connectivity", True)

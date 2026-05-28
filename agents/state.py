@@ -13,7 +13,8 @@ Design rules:
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, Optional
+from typing import Annotated
+
 from typing_extensions import TypedDict
 
 
@@ -73,7 +74,7 @@ class InvestigationState(TypedDict):
     # Timing
     # ------------------------------------------------------------------
     started_at: str
-    completed_at: Optional[str]
+    completed_at: str | None
 
 
 def initial_state(case_id: str, run_id: str, session_id: str) -> InvestigationState:

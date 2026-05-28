@@ -18,14 +18,11 @@ Template types
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
-import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.marketplace.templates")
 
@@ -75,12 +72,12 @@ class WorkflowTemplate:
     publisher_tenant_id: str
     created_at:          datetime
     created_by:          str
-    published_at:        Optional[datetime]  = None
+    published_at:        datetime | None  = None
     tags:                list[str]           = field(default_factory=list)
     compatible_tiers:    list[str]           = field(default_factory=list)  # TenantTier values
     install_count:       int                 = 0
-    avg_rating:          Optional[float]     = None
-    parent_template_id:  Optional[str]       = None
+    avg_rating:          float | None     = None
+    parent_template_id:  str | None       = None
     allowed_tenant_ids:  list[str]           = field(default_factory=list)  # for PARTNER visibility
     metadata:            dict[str, Any]      = field(default_factory=dict)
 
@@ -135,10 +132,10 @@ class PlaybookEntry:
     template_version: str
     name:           str            # tenant-customised name
     active:         bool           = True
-    installed_at:   datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    installed_at:   datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
     installed_by:   str            = "system"
     custom_config:  dict[str, Any] = field(default_factory=dict)
-    org_id:         Optional[str]  = None    # scope to specific org if needed
+    org_id:         str | None  = None    # scope to specific org if needed
 
     def to_dict(self) -> dict[str, Any]:
         return {

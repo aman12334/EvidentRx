@@ -1,12 +1,12 @@
 import hashlib
 import re
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 
-def normalize_ndc_11(ndc: Any) -> Optional[str]:
+def normalize_ndc_11(ndc: Any) -> str | None:
     """Any FDA NDC format → 11-digit 5-4-2, no hyphens."""
     if ndc is None or (isinstance(ndc, float) and pd.isna(ndc)):
         return None
@@ -24,7 +24,7 @@ def record_hash(*fields: Any) -> str:
     return hashlib.sha256(val.encode()).hexdigest()[:20]
 
 
-def parse_date(val: Any) -> Optional[date]:
+def parse_date(val: Any) -> date | None:
     if val is None:
         return None
     if isinstance(val, float) and pd.isna(val):
@@ -39,7 +39,7 @@ def parse_date(val: Any) -> Optional[date]:
         return None
 
 
-def clean_str(val: Any, maxlen: Optional[int] = None) -> Optional[str]:
+def clean_str(val: Any, maxlen: int | None = None) -> str | None:
     if val is None:
         return None
     if isinstance(val, float) and pd.isna(val):
@@ -50,7 +50,7 @@ def clean_str(val: Any, maxlen: Optional[int] = None) -> Optional[str]:
     return s[:maxlen] if maxlen else s
 
 
-def filing_period_from_filename(path: str) -> tuple[str, date, Optional[date]]:
+def filing_period_from_filename(path: str) -> tuple[str, date, date | None]:
     """
     Extract filing_period label and start/end dates from filename like:
     340B_Medicaid_Exclusion_File_for_20260401-20260630.xlsx → ('2026Q2', date(2026,4,1), date(2026,6,30))

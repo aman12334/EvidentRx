@@ -17,10 +17,11 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.scaling.orchestration")
 
@@ -80,9 +81,9 @@ class ScalingEvent:
     to_replicas:    int
     utilisation:    float
     reason:         str
-    decided_at:     datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    decided_at:     datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     applied:        bool     = False
-    apply_error:    Optional[str] = None
+    apply_error:    str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -131,7 +132,7 @@ class HorizontalScalingManager:
 
     def __init__(
         self,
-        actuator: Optional[Callable] = None,
+        actuator: Callable | None = None,
     ) -> None:
         # pool_name → ScalingConfig
         self._configs:      dict[str, ScalingConfig] = {}
@@ -247,7 +248,7 @@ class HorizontalScalingManager:
 
     def event_history(
         self,
-        pool_name: Optional[str] = None,
+        pool_name: str | None = None,
         limit:     int           = 50,
     ) -> list[ScalingEvent]:
         events = [
@@ -299,11 +300,11 @@ class ScalingError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_manager: Optional[HorizontalScalingManager] = None
+_manager: HorizontalScalingManager | None = None
 
 
 def get_scaling_manager(
-    actuator: Optional[Callable] = None,
+    actuator: Callable | None = None,
 ) -> HorizontalScalingManager:
     global _manager
     if _manager is None:

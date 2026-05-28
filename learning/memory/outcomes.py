@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import logging
 import statistics
-from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from learning.memory.store import MemoryStore, MemoryType, get_memory_store
 
@@ -52,16 +52,16 @@ class InvestigationOutcome:
     tenant_id:             str
     case_id:               str
     verdict:               OutcomeVerdict
-    rule_code:             Optional[str]
+    rule_code:             str | None
     initial_severity:      str            # system-assigned severity at alert time
-    actual_severity:       Optional[str]  # verified severity (may differ)
-    system_confidence:     Optional[float]
-    resolution_hours:      Optional[float]
-    estimated_exposure:    Optional[float]  # dollar amount if applicable
-    actual_exposure:       Optional[float]
+    actual_severity:       str | None  # verified severity (may differ)
+    system_confidence:     float | None
+    resolution_hours:      float | None
+    estimated_exposure:    float | None  # dollar amount if applicable
+    actual_exposure:       float | None
     recorded_by:           str
     recorded_at:           datetime
-    investigation_quality: Optional[int]   = None  # 1–5 analyst rating
+    investigation_quality: int | None   = None  # 1–5 analyst rating
     notes:                 str             = ""
 
 
@@ -76,7 +76,7 @@ class OutcomeMemory:
     - Intelligence analytics reports
     """
 
-    def __init__(self, store: Optional[MemoryStore] = None) -> None:
+    def __init__(self, store: MemoryStore | None = None) -> None:
         self._store = store or get_memory_store()
 
     # ── Write ──────────────────────────────────────────────────────────────────
@@ -87,14 +87,14 @@ class OutcomeMemory:
         case_id:            str,
         verdict:            OutcomeVerdict,
         recorded_by:        str,
-        rule_code:          Optional[str]   = None,
+        rule_code:          str | None   = None,
         initial_severity:   str             = "unknown",
-        actual_severity:    Optional[str]   = None,
-        system_confidence:  Optional[float] = None,
-        resolution_hours:   Optional[float] = None,
-        estimated_exposure: Optional[float] = None,
-        actual_exposure:    Optional[float] = None,
-        investigation_quality: Optional[int] = None,
+        actual_severity:    str | None   = None,
+        system_confidence:  float | None = None,
+        resolution_hours:   float | None = None,
+        estimated_exposure: float | None = None,
+        actual_exposure:    float | None = None,
+        investigation_quality: int | None = None,
         notes:              str             = "",
     ) -> InvestigationOutcome:
         """Record the verified outcome of an investigation."""
@@ -146,9 +146,9 @@ class OutcomeMemory:
     def get_outcomes(
         self,
         tenant_id:  str,
-        verdict:    Optional[OutcomeVerdict] = None,
-        rule_code:  Optional[str]            = None,
-        since:      Optional[datetime]       = None,
+        verdict:    OutcomeVerdict | None = None,
+        rule_code:  str | None            = None,
+        since:      datetime | None       = None,
         limit:      int                      = 500,
     ) -> list[InvestigationOutcome]:
         """Query outcomes with optional filters."""
@@ -171,7 +171,7 @@ class OutcomeMemory:
         self,
         tenant_id: str,
         case_id:   str,
-    ) -> Optional[InvestigationOutcome]:
+    ) -> InvestigationOutcome | None:
         """Return the most recent outcome record for a specific case."""
         entries = self._store.query(
             tenant_id   = tenant_id,
@@ -186,8 +186,8 @@ class OutcomeMemory:
     def verdict_summary(
         self,
         tenant_id:  str,
-        rule_code:  Optional[str]      = None,
-        since:      Optional[datetime] = None,
+        rule_code:  str | None      = None,
+        since:      datetime | None = None,
     ) -> dict[str, Any]:
         """
         Aggregate verdict counts and rates for a tenant (optionally per rule).
@@ -231,7 +231,7 @@ class OutcomeMemory:
     def calibration_error_summary(
         self,
         tenant_id: str,
-        since:     Optional[datetime] = None,
+        since:     datetime | None = None,
     ) -> dict[str, Any]:
         """
         Compute average confidence calibration error from outcome records.
@@ -272,7 +272,7 @@ class OutcomeMemory:
     def resolution_latency_summary(
         self,
         tenant_id: str,
-        since:     Optional[datetime] = None,
+        since:     datetime | None = None,
     ) -> dict[str, Any]:
         """Average and p90 resolution time from outcome records."""
         outcomes = self.get_outcomes(tenant_id=tenant_id, since=since, limit=10_000)

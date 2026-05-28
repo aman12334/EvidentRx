@@ -16,9 +16,9 @@ import io
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.reporting.export")
 
@@ -39,7 +39,7 @@ class ExportResult:
     content:      bytes
     filename:     str
     size_bytes:   int
-    exported_at:  datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    exported_at:  datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     mime_type:    str      = "application/octet-stream"
 
     def to_dict(self) -> dict[str, Any]:
@@ -78,7 +78,7 @@ class ReportExporter:
         report_id:   str,
         tenant_id:   str,
         fmt:         ExportFormat,
-        filename:    Optional[str] = None,
+        filename:    str | None = None,
     ) -> ExportResult:
         import uuid as _uuid
 

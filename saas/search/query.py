@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing      import Any, Optional
+from typing import Any
 
 from saas.search.index import (
     DocumentType,
@@ -33,11 +33,11 @@ log = logging.getLogger("evidentrx.saas.search.query")
 @dataclass
 class SearchFilter:
     """Structured filter applied before text scoring."""
-    doc_type:  Optional[DocumentType] = None
-    tags:      Optional[list[str]]    = None
-    org_id:    Optional[str]          = None    # restrict to one org
-    date_from: Optional[str]          = None    # ISO-8601 date string
-    date_to:   Optional[str]          = None
+    doc_type:  DocumentType | None = None
+    tags:      list[str] | None    = None
+    org_id:    str | None          = None    # restrict to one org
+    date_from: str | None          = None    # ISO-8601 date string
+    date_to:   str | None          = None
 
 
 @dataclass
@@ -104,7 +104,7 @@ class RBACSearchFilter:
         self,
         query:       SearchQuery,
         user_role:   str,
-        user_org_id: Optional[str],
+        user_org_id: str | None,
     ) -> SearchQuery:
         """
         Return a new SearchQuery with RBAC constraints applied.
@@ -150,8 +150,8 @@ class SearchQueryExecutor:
 
     def __init__(
         self,
-        index:       Optional[TenantAwareIndex] = None,
-        rbac_filter: Optional[RBACSearchFilter] = None,
+        index:       TenantAwareIndex | None = None,
+        rbac_filter: RBACSearchFilter | None = None,
     ) -> None:
         self._index       = index or get_search_index()
         self._rbac_filter = rbac_filter or RBACSearchFilter()
@@ -160,7 +160,7 @@ class SearchQueryExecutor:
         self,
         query:       SearchQuery,
         user_role:   str                = "analyst",
-        user_org_id: Optional[str]     = None,
+        user_org_id: str | None     = None,
     ) -> SearchResponse:
         import time
         start = time.monotonic()
@@ -195,12 +195,12 @@ class SearchQueryExecutor:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_executor: Optional[SearchQueryExecutor] = None
+_executor: SearchQueryExecutor | None = None
 
 
 def get_query_executor(
-    index:       Optional[TenantAwareIndex] = None,
-    rbac_filter: Optional[RBACSearchFilter] = None,
+    index:       TenantAwareIndex | None = None,
+    rbac_filter: RBACSearchFilter | None = None,
 ) -> SearchQueryExecutor:
     global _executor
     if _executor is None:

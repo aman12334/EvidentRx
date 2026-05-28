@@ -18,9 +18,10 @@ from __future__ import annotations
 import logging
 import math
 import statistics
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from learning.experimentation.framework import ABExperiment, ExperimentArm
 
@@ -39,10 +40,10 @@ class ArmMetrics:
     std_devs:        dict[str, float]   = field(default_factory=dict)
     raw_values:      dict[str, list[float]] = field(default_factory=dict)
 
-    def mean(self, metric: str) -> Optional[float]:
+    def mean(self, metric: str) -> float | None:
         return self.metrics.get(metric)
 
-    def std(self, metric: str) -> Optional[float]:
+    def std(self, metric: str) -> float | None:
         return self.std_devs.get(metric)
 
 
@@ -50,12 +51,12 @@ class ArmMetrics:
 class MetricComparison:
     """Statistical comparison for one metric between two arms."""
     metric:            str
-    control_mean:      Optional[float]
-    treatment_mean:    Optional[float]
-    absolute_delta:    Optional[float]      # treatment – control
-    relative_delta:    Optional[float]      # (treatment – control) / |control|
-    p_value:           Optional[float]
-    effect_size:       Optional[float]      # Cohen's d
+    control_mean:      float | None
+    treatment_mean:    float | None
+    absolute_delta:    float | None      # treatment – control
+    relative_delta:    float | None      # (treatment – control) / |control|
+    p_value:           float | None
+    effect_size:       float | None      # Cohen's d
     is_significant:    bool
     meets_mde:         bool                 # delta ≥ min_detectable_effect
     direction:         str                  # "improvement" | "regression" | "neutral"
@@ -78,7 +79,7 @@ class ExperimentResult:
     treatment_metrics: ArmMetrics
     comparisons:       list[MetricComparison]
     primary_metric:    str
-    primary_comparison: Optional[MetricComparison]
+    primary_comparison: MetricComparison | None
     recommendation:    str       # "promote" | "reject" | "extend" | "inconclusive"
     summary:           str       # human-readable narrative
 
@@ -108,7 +109,7 @@ class ExperimentResultStore:
     record with a fresh computed_at timestamp.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._results: dict[str, ExperimentResult] = {}
         # experiment_id → list of result_ids (chronological)
         self._by_experiment: dict[str, list[str]] = {}
@@ -131,7 +132,7 @@ class ExperimentResultStore:
         """
         import uuid as _uuid
         result_id  = str(_uuid.uuid4())
-        now        = datetime.now(tz=timezone.utc)
+        now        = datetime.now(tz=UTC)
 
         ctrl_metrics  = _build_arm_metrics(ExperimentArm.CONTROL, control_data)
         treat_metrics = _build_arm_metrics(ExperimentArm.TREATMENT, treatment_data)
@@ -186,10 +187,10 @@ class ExperimentResultStore:
         )
         return result
 
-    def get_result(self, result_id: str) -> Optional[ExperimentResult]:
+    def get_result(self, result_id: str) -> ExperimentResult | None:
         return self._results.get(result_id)
 
-    def latest_result(self, experiment_id: str) -> Optional[ExperimentResult]:
+    def latest_result(self, experiment_id: str) -> ExperimentResult | None:
         ids = self._by_experiment.get(experiment_id, [])
         return self._results.get(ids[-1]) if ids else None
 
@@ -263,7 +264,7 @@ def _compare_metric(
     )
 
 
-def _welch_t_pvalue(a: list[float], b: list[float]) -> Optional[float]:
+def _welch_t_pvalue(a: list[float], b: list[float]) -> float | None:
     """Two-sided Welch's t-test p-value (no scipy dependency)."""
     n1, n2 = len(a), len(b)
     if n1 < 2 or n2 < 2:
@@ -279,7 +280,7 @@ def _welch_t_pvalue(a: list[float], b: list[float]) -> Optional[float]:
     # Welch–Satterthwaite degrees of freedom
     df_num  = (v1 / n1 + v2 / n2) ** 2
     df_den  = (v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1)
-    df      = df_num / df_den if df_den > 0 else 1.0
+    df_num / df_den if df_den > 0 else 1.0
 
     # Approximation: use normal distribution for large df
     z = abs(t_stat)
@@ -293,7 +294,7 @@ def _normal_cdf(z: float) -> float:
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
 
-def _cohens_d(a: list[float], b: list[float]) -> Optional[float]:
+def _cohens_d(a: list[float], b: list[float]) -> float | None:
     """Cohen's d effect size."""
     if len(a) < 2 or len(b) < 2:
         return None
@@ -307,7 +308,7 @@ def _cohens_d(a: list[float], b: list[float]) -> Optional[float]:
 
 
 def _recommend(
-    comparison: Optional[MetricComparison],
+    comparison: MetricComparison | None,
     experiment: ABExperiment,
 ) -> str:
     if comparison is None:
@@ -327,7 +328,7 @@ def _narrative(
     experiment:    ABExperiment,
     ctrl:          ArmMetrics,
     treat:         ArmMetrics,
-    primary_comp:  Optional[MetricComparison],
+    primary_comp:  MetricComparison | None,
 ) -> str:
     lines = [
         f"Experiment: {experiment.name}",
@@ -349,10 +350,10 @@ def _narrative(
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_store: Optional[ExperimentResultStore] = None
+_store: ExperimentResultStore | None = None
 
 
-def get_result_store(db_writer: Optional[Callable] = None) -> ExperimentResultStore:
+def get_result_store(db_writer: Callable | None = None) -> ExperimentResultStore:
     global _store
     if _store is None:
         _store = ExperimentResultStore(db_writer=db_writer)

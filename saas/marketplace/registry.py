@@ -8,20 +8,18 @@ available. All operations are tenant-isolated and RBAC-gated.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from saas.marketplace.templates import (
-    WorkflowTemplate,
-    PlaybookEntry,
     MarketplaceStatus,
+    PlaybookEntry,
     TemplateType,
-    TemplateVisibility,
+    WorkflowTemplate,
 )
 
 log = logging.getLogger("evidentrx.saas.marketplace.registry")
@@ -35,7 +33,7 @@ class TemplateRating:
     template_id: str
     score:       int          # 1–5
     review:      str          = ""
-    rated_at:    datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    rated_at:    datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
     rated_by:    str          = "system"
 
 
@@ -54,7 +52,7 @@ class UpgradeNotification:
     new_template_id: str
     new_version:     str
     change_summary:  str
-    created_at:      datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:      datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
     acknowledged:    bool         = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -84,7 +82,7 @@ class MarketplaceRegistry:
     - Upgrade notification dispatch when a new version is published
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         # template_id → WorkflowTemplate
         self._templates: dict[str, WorkflowTemplate] = {}
         # (template_name, version) → template_id  (for version lookup)
@@ -124,9 +122,9 @@ class MarketplaceRegistry:
         self,
         tenant_id:       str,
         tier:            str,
-        template_type:   Optional[TemplateType] = None,
-        tags:            Optional[list[str]]    = None,
-        query:           Optional[str]          = None,
+        template_type:   TemplateType | None = None,
+        tags:            list[str] | None    = None,
+        query:           str | None          = None,
         include_deprecated: bool               = False,
         limit:           int                   = 50,
         offset:          int                   = 0,
@@ -159,18 +157,18 @@ class MarketplaceRegistry:
         )
         return results[offset : offset + limit]
 
-    def get_template(self, template_id: str) -> Optional[WorkflowTemplate]:
+    def get_template(self, template_id: str) -> WorkflowTemplate | None:
         return self._templates.get(template_id)
 
     def get_by_name_version(
         self,
         name:    str,
         version: str,
-    ) -> Optional[WorkflowTemplate]:
+    ) -> WorkflowTemplate | None:
         tid = self._by_name_version.get((name, version))
         return self._templates.get(tid) if tid else None
 
-    def latest_version(self, name: str) -> Optional[WorkflowTemplate]:
+    def latest_version(self, name: str) -> WorkflowTemplate | None:
         """Return the most-recently published version of a named template."""
         candidates = [
             t for t in self._templates.values()
@@ -188,9 +186,9 @@ class MarketplaceRegistry:
         template_id:  str,
         installed_by: str,
         tier:         str,
-        custom_name:  Optional[str] = None,
-        org_id:       Optional[str] = None,
-        custom_config: Optional[dict[str, Any]] = None,
+        custom_name:  str | None = None,
+        org_id:       str | None = None,
+        custom_config: dict[str, Any] | None = None,
     ) -> PlaybookEntry:
         """
         Install a template into a tenant's playbook library.
@@ -286,13 +284,13 @@ class MarketplaceRegistry:
         )
         return new_entry
 
-    def get_entry(self, entry_id: str) -> Optional[PlaybookEntry]:
+    def get_entry(self, entry_id: str) -> PlaybookEntry | None:
         return self._entries.get(entry_id)
 
     def list_installed(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
         active_only: bool        = True,
     ) -> list[PlaybookEntry]:
         return [
@@ -440,11 +438,11 @@ class NotificationNotFoundError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_registry: Optional[MarketplaceRegistry] = None
+_registry: MarketplaceRegistry | None = None
 
 
 def get_marketplace_registry(
-    db_writer: Optional[Callable] = None,
+    db_writer: Callable | None = None,
 ) -> MarketplaceRegistry:
     global _registry
     if _registry is None:

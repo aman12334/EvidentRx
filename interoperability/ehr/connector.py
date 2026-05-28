@@ -21,11 +21,12 @@ the shared FHIR normaliser, so downstream pipelines need no vendor awareness.
 from __future__ import annotations
 
 import logging
-from abc        import ABC, abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime   import datetime, timezone
-from enum       import Enum
-from typing     import Any, AsyncIterator, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.ehr.connector")
 
@@ -62,10 +63,10 @@ class EHRConnectorConfig:
 
     # Auth
     auth_type:          str             = "bearer"      # bearer | oauth2 | basic | apikey
-    auth_token:         Optional[str]   = None          # pre-resolved bearer token
-    client_id:          Optional[str]   = None          # OAuth2 client ID
-    client_secret:      Optional[str]   = None          # OAuth2 client secret (resolved)
-    token_url:          Optional[str]   = None          # OAuth2 token endpoint
+    auth_token:         str | None   = None          # pre-resolved bearer token
+    client_id:          str | None   = None          # OAuth2 client ID
+    client_secret:      str | None   = None          # OAuth2 client secret (resolved)
+    token_url:          str | None   = None          # OAuth2 token endpoint
 
     # Operational
     timeout_sec:        int             = 30
@@ -82,10 +83,10 @@ class EHRConnectorConfig:
 @dataclass
 class EHRConnectorHealth:
     state:                EHRConnectorState
-    last_checked:         Optional[datetime]
-    last_success:         Optional[datetime]
-    error_message:        Optional[str]
-    latency_ms:           Optional[float]
+    last_checked:         datetime | None
+    last_success:         datetime | None
+    error_message:        str | None
+    latency_ms:           float | None
     consecutive_failures: int              = 0
 
 
@@ -158,7 +159,7 @@ class EHRConnector(ABC):
     async def fetch(
         self,
         resource_type: str,
-        since:         Optional[datetime] = None,
+        since:         datetime | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         """
         Fetch FHIR resources of the given type.
@@ -189,11 +190,11 @@ class EHRConnector(ABC):
     def _set_state(
         self,
         state:      EHRConnectorState,
-        error:      Optional[str]   = None,
-        latency_ms: Optional[float] = None,
+        error:      str | None   = None,
+        latency_ms: float | None = None,
     ) -> None:
         self._state = state
-        now         = datetime.now(tz=timezone.utc)
+        now         = datetime.now(tz=UTC)
         self._health = EHRConnectorHealth(
             state               = state,
             last_checked        = now,
@@ -209,7 +210,7 @@ class EHRConnector(ABC):
 
     # ── Context manager ────────────────────────────────────────────────────────
 
-    async def __aenter__(self) -> "EHRConnector":
+    async def __aenter__(self) -> EHRConnector:
         await self.initialise()
         return self
 
@@ -230,13 +231,15 @@ class GenericFHIRConnector(EHRConnector):
 
     def __init__(self, config: EHRConnectorConfig) -> None:
         super().__init__(config)
-        self._fhir_connector: Optional[Any] = None
+        self._fhir_connector: Any | None = None
 
     async def initialise(self) -> None:
-        from interoperability.fhir.sync import FHIRConnector
         from interoperability.base.connector import (
-            ConnectorConfig, SourceType, IngestMode,
+            ConnectorConfig,
+            IngestMode,
+            SourceType,
         )
+        from interoperability.fhir.sync import FHIRConnector
         self._set_state(EHRConnectorState.INITIALIZING)
 
         fhir_config = ConnectorConfig(
@@ -267,7 +270,7 @@ class GenericFHIRConnector(EHRConnector):
     async def fetch(
         self,
         resource_type: str,
-        since:         Optional[datetime] = None,
+        since:         datetime | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         if self._fhir_connector is None:
             raise RuntimeError(f"EHRConnector [{self.connector_id}] not initialised")

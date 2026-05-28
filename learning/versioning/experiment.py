@@ -21,10 +21,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.versioning.experiment")
 
@@ -57,7 +58,7 @@ class VersionSnapshot:
     snapshot_id:          str
     prompt_versions:      dict[str, str]  # prompt_name → version string
     workflow_versions:    dict[str, str]  # workflow_name → version string
-    calibration_snapshot: Optional[str]  # CalibrationSnapshot.snapshot_id
+    calibration_snapshot: str | None  # CalibrationSnapshot.snapshot_id
     model_config:         str            # model routing config identifier
     captured_at:          datetime
     content_hash:         str
@@ -87,10 +88,10 @@ class ExperimentRun:
     tenant_id:       str
     snapshot:        VersionSnapshot
     benchmark_id:    str
-    evaluation_run_id: Optional[str]   = None   # set when harness run completes
+    evaluation_run_id: str | None   = None   # set when harness run completes
     status:          ExperimentStatus  = ExperimentStatus.RUNNING
-    started_at:      datetime          = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    completed_at:    Optional[datetime]= None
+    started_at:      datetime          = field(default_factory=lambda: datetime.now(tz=UTC))
+    completed_at:    datetime | None= None
     summary_metrics: dict[str, Any]   = field(default_factory=dict)
     notes:           str               = ""
 
@@ -129,7 +130,7 @@ class Experiment:
     created_at:        datetime
     created_by:        str
     runs:              list[ExperimentRun] = field(default_factory=list)
-    concluded_at:      Optional[datetime]  = None
+    concluded_at:      datetime | None  = None
     conclusion:        str                 = ""
     metadata:          dict[str, Any]      = field(default_factory=dict)
 
@@ -180,7 +181,7 @@ class ExperimentTracker:
     workflow, and calibration versions were in use when a run starts.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._experiments: dict[str, Experiment] = {}
         self._runs:        dict[str, ExperimentRun] = {}
         self._snapshots:   dict[str, VersionSnapshot] = {}
@@ -198,7 +199,7 @@ class ExperimentTracker:
         benchmark_id:     str,
         success_criteria: dict[str, Any],
         created_by:       str,
-        metadata:         Optional[dict] = None,
+        metadata:         dict | None = None,
     ) -> Experiment:
         exp = Experiment(
             experiment_id   = str(uuid.uuid4()),
@@ -210,7 +211,7 @@ class ExperimentTracker:
             benchmark_id    = benchmark_id,
             success_criteria= success_criteria,
             status          = ExperimentStatus.PLANNED,
-            created_at      = datetime.now(tz=timezone.utc),
+            created_at      = datetime.now(tz=UTC),
             created_by      = created_by,
             metadata        = metadata or {},
         )
@@ -230,7 +231,7 @@ class ExperimentTracker:
     ) -> Experiment:
         exp = self._get_experiment(experiment_id)
         exp.status       = ExperimentStatus.COMPLETED if success else ExperimentStatus.FAILED
-        exp.concluded_at = datetime.now(tz=timezone.utc)
+        exp.concluded_at = datetime.now(tz=UTC)
         exp.conclusion   = conclusion
         await self._persist("update_experiment", exp)
         return exp
@@ -242,7 +243,7 @@ class ExperimentTracker:
         prompt_versions:      dict[str, str],
         workflow_versions:    dict[str, str],
         model_config:         str,
-        calibration_snapshot: Optional[str] = None,
+        calibration_snapshot: str | None = None,
     ) -> VersionSnapshot:
         """
         Capture the currently active set of versions.
@@ -267,7 +268,7 @@ class ExperimentTracker:
             workflow_versions    = dict(workflow_versions),
             calibration_snapshot = calibration_snapshot,
             model_config         = model_config,
-            captured_at          = datetime.now(tz=timezone.utc),
+            captured_at          = datetime.now(tz=UTC),
             content_hash         = content_hash,
         )
         self._snapshots[snap.snapshot_id] = snap
@@ -309,13 +310,13 @@ class ExperimentTracker:
     async def complete_run(
         self,
         run_id:            str,
-        evaluation_run_id: Optional[str],
+        evaluation_run_id: str | None,
         summary_metrics:   dict[str, Any],
     ) -> ExperimentRun:
         """Mark a run as completed and attach evaluation results."""
         run = self._get_run(run_id)
         run.status            = ExperimentStatus.COMPLETED
-        run.completed_at      = datetime.now(tz=timezone.utc)
+        run.completed_at      = datetime.now(tz=UTC)
         run.evaluation_run_id = evaluation_run_id
         run.summary_metrics   = summary_metrics
         await self._persist("update_run", run)
@@ -332,26 +333,26 @@ class ExperimentTracker:
     async def fail_run(self, run_id: str, reason: str) -> ExperimentRun:
         run = self._get_run(run_id)
         run.status             = ExperimentStatus.FAILED
-        run.completed_at       = datetime.now(tz=timezone.utc)
+        run.completed_at       = datetime.now(tz=UTC)
         run.summary_metrics["failure_reason"] = reason
         await self._persist("update_run", run)
         return run
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get_experiment(self, experiment_id: str) -> Optional[Experiment]:
+    def get_experiment(self, experiment_id: str) -> Experiment | None:
         return self._experiments.get(experiment_id)
 
-    def get_run(self, run_id: str) -> Optional[ExperimentRun]:
+    def get_run(self, run_id: str) -> ExperimentRun | None:
         return self._runs.get(run_id)
 
-    def get_snapshot(self, snapshot_id: str) -> Optional[VersionSnapshot]:
+    def get_snapshot(self, snapshot_id: str) -> VersionSnapshot | None:
         return self._snapshots.get(snapshot_id)
 
     def list_experiments(
         self,
         tenant_id: str,
-        status:    Optional[ExperimentStatus] = None,
+        status:    ExperimentStatus | None = None,
     ) -> list[Experiment]:
         result = [
             e for e in self._experiments.values()
@@ -393,10 +394,10 @@ class ExperimentNotFoundError(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_tracker: Optional[ExperimentTracker] = None
+_tracker: ExperimentTracker | None = None
 
 
-def get_experiment_tracker(db_writer: Optional[Callable] = None) -> ExperimentTracker:
+def get_experiment_tracker(db_writer: Callable | None = None) -> ExperimentTracker:
     global _tracker
     if _tracker is None:
         _tracker = ExperimentTracker(db_writer=db_writer)

@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Dict, List, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Dict, List
 
 
 class ApprovalStatus(str, Enum):
@@ -45,35 +45,35 @@ class ApprovalGate:
     """A single approval gate instance for a workflow decision."""
     gate_id:       str = field(default_factory=lambda: str(uuid.uuid4()))
     gate_type:     GateType = GateType.ESCALATION
-    case_id:       Optional[str] = None
-    workflow_id:   Optional[str] = None
+    case_id:       str | None = None
+    workflow_id:   str | None = None
     tenant_id:     str = ""
     requested_by:  str = ""
     context:       Dict = field(default_factory=dict)
     status:        ApprovalStatus = ApprovalStatus.PENDING
-    reviewed_by:   Optional[str] = None
-    reviewed_at:   Optional[datetime] = None
-    notes:         Optional[str] = None
-    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    expires_at:    Optional[datetime] = None
+    reviewed_by:   str | None = None
+    reviewed_at:   datetime | None = None
+    notes:         str | None = None
+    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    expires_at:    datetime | None = None
 
-    def approve(self, reviewer_id: str, notes: Optional[str] = None) -> None:
+    def approve(self, reviewer_id: str, notes: str | None = None) -> None:
         self.status      = ApprovalStatus.APPROVED
         self.reviewed_by = reviewer_id
-        self.reviewed_at = datetime.now(tz=timezone.utc)
+        self.reviewed_at = datetime.now(tz=UTC)
         self.notes       = notes
 
-    def reject(self, reviewer_id: str, notes: Optional[str] = None) -> None:
+    def reject(self, reviewer_id: str, notes: str | None = None) -> None:
         self.status      = ApprovalStatus.REJECTED
         self.reviewed_by = reviewer_id
-        self.reviewed_at = datetime.now(tz=timezone.utc)
+        self.reviewed_at = datetime.now(tz=UTC)
         self.notes       = notes
 
     def bypass(self, actor_id: str, reason: str) -> None:
         """Admin bypass — recorded but still audited."""
         self.status      = ApprovalStatus.BYPASSED
         self.reviewed_by = actor_id
-        self.reviewed_at = datetime.now(tz=timezone.utc)
+        self.reviewed_at = datetime.now(tz=UTC)
         self.notes       = f"BYPASSED: {reason}"
 
     @property
@@ -110,8 +110,8 @@ class ApprovalGateRegistry:
         gate_type:   GateType,
         tenant_id:   str,
         requested_by: str,
-        case_id:     Optional[str] = None,
-        context:     Optional[dict] = None,
+        case_id:     str | None = None,
+        context:     dict | None = None,
     ) -> ApprovalGate:
         gate = ApprovalGate(
             gate_type=gate_type,
@@ -123,7 +123,7 @@ class ApprovalGateRegistry:
         self._gates[gate.gate_id] = gate
         return gate
 
-    def get(self, gate_id: str) -> Optional[ApprovalGate]:
+    def get(self, gate_id: str) -> ApprovalGate | None:
         return self._gates.get(gate_id)
 
     def list_pending(self, tenant_id: str) -> List[ApprovalGate]:

@@ -21,10 +21,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Callable, Iterator, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.memory.store")
 
@@ -62,12 +63,12 @@ class MemoryEntry:
     recorded_by:   str           # analyst_id or "system"
     expires_at:    datetime
     tags:          list[str]     = field(default_factory=list)
-    supersedes_id: Optional[str] = None   # links to corrected/superseded entry
-    artifact_id:   Optional[str] = None   # case_id / finding_id / recommendation_id
+    supersedes_id: str | None = None   # links to corrected/superseded entry
+    artifact_id:   str | None = None   # case_id / finding_id / recommendation_id
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(tz=timezone.utc) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -96,7 +97,7 @@ class MemoryStore:
 
     def __init__(
         self,
-        db_writer:        Optional[Callable] = None,
+        db_writer:        Callable | None = None,
         retention_days:   int                = _DEFAULT_RETENTION_DAYS,
     ) -> None:
         self._entries:    dict[str, MemoryEntry] = {}
@@ -113,17 +114,17 @@ class MemoryStore:
         memory_type:   MemoryType,
         content:       dict[str, Any],
         recorded_by:   str,
-        tags:          Optional[list[str]] = None,
-        artifact_id:   Optional[str]       = None,
-        supersedes_id: Optional[str]       = None,
-        retention_days: Optional[int]      = None,
+        tags:          list[str] | None = None,
+        artifact_id:   str | None       = None,
+        supersedes_id: str | None       = None,
+        retention_days: int | None      = None,
     ) -> MemoryEntry:
         """
         Write a new memory entry.
 
         Returns the entry immediately; DB persistence is best-effort.
         """
-        now        = datetime.now(tz=timezone.utc)
+        now        = datetime.now(tz=UTC)
         ttl_days   = retention_days if retention_days is not None else self._retention
         expires_at = now + timedelta(days=ttl_days)
         content_hash = _hash_content(content)
@@ -160,18 +161,18 @@ class MemoryStore:
 
     # ── Read ───────────────────────────────────────────────────────────────────
 
-    def get(self, entry_id: str) -> Optional[MemoryEntry]:
+    def get(self, entry_id: str) -> MemoryEntry | None:
         entry = self._entries.get(entry_id)
         return entry if entry and not entry.is_expired else None
 
     def query(
         self,
         tenant_id:    str,
-        memory_type:  Optional[MemoryType] = None,
-        since:        Optional[datetime]   = None,
-        until:        Optional[datetime]   = None,
-        tags:         Optional[list[str]]  = None,
-        artifact_id:  Optional[str]        = None,
+        memory_type:  MemoryType | None = None,
+        since:        datetime | None   = None,
+        until:        datetime | None   = None,
+        tags:         list[str] | None  = None,
+        artifact_id:  str | None        = None,
         limit:        int                  = 500,
         include_expired: bool              = False,
     ) -> list[MemoryEntry]:
@@ -206,7 +207,7 @@ class MemoryStore:
     def count(
         self,
         tenant_id:   str,
-        memory_type: Optional[MemoryType] = None,
+        memory_type: MemoryType | None = None,
     ) -> int:
         return len(self.query(tenant_id, memory_type=memory_type, limit=10_000))
 
@@ -248,11 +249,11 @@ def _hash_content(content: dict[str, Any]) -> str:
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_store: Optional[MemoryStore] = None
+_store: MemoryStore | None = None
 
 
 def get_memory_store(
-    db_writer:      Optional[Callable] = None,
+    db_writer:      Callable | None = None,
     retention_days: int                = _DEFAULT_RETENTION_DAYS,
 ) -> MemoryStore:
     global _store

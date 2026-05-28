@@ -17,12 +17,12 @@ or 5 seconds, whichever comes first, to reduce DB round-trips.
 from __future__ import annotations
 
 import asyncio
-import uuid
 import logging
+import uuid
 from collections import deque
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Deque, Dict, List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -87,8 +87,8 @@ class AuditEvent:
         actor_id:      str,
         tenant_id:     str,
         payload:       Dict[str, Any],
-        resource_id:   Optional[str] = None,
-        resource_type: Optional[str] = None,
+        resource_id:   str | None = None,
+        resource_type: str | None = None,
     ) -> None:
         self.event_id     = str(uuid.uuid4())
         self.event_type   = event_type
@@ -97,7 +97,7 @@ class AuditEvent:
         self.resource_id  = resource_id
         self.resource_type = resource_type
         self.payload      = payload
-        self.timestamp    = datetime.now(tz=timezone.utc)
+        self.timestamp    = datetime.now(tz=UTC)
         self.signature    = sign_audit_event(
             self.event_id, self.timestamp, actor_id, tenant_id,
             event_type.value, payload,
@@ -139,8 +139,8 @@ class AuditLog:
         actor_id:      str,
         tenant_id:     str,
         payload:       Dict[str, Any],
-        resource_id:   Optional[str] = None,
-        resource_type: Optional[str] = None,
+        resource_id:   str | None = None,
+        resource_type: str | None = None,
     ) -> AuditEvent:
         """
         Create and buffer an audit event.
@@ -158,7 +158,7 @@ class AuditLog:
         log.debug("Audit event buffered: %s actor=%s", event_type.value, actor_id)
         return event
 
-    async def flush(self, session: Optional[AsyncSession] = None) -> int:
+    async def flush(self, session: AsyncSession | None = None) -> int:
         """
         Flush buffered events to the database.
         Returns the number of events written.

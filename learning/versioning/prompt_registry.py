@@ -22,10 +22,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.versioning.prompt_registry")
 
@@ -72,9 +73,9 @@ class PromptVersion:
     created_at:       datetime
     created_by:       str
     change_summary:   str               = ""     # human-readable change description
-    approved_by:      Optional[str]     = None
-    approved_at:      Optional[datetime]= None
-    parent_version_id: Optional[str]   = None   # previous version in lineage chain
+    approved_by:      str | None     = None
+    approved_at:      datetime | None= None
+    parent_version_id: str | None   = None   # previous version in lineage chain
     test_coverage:    float             = 0.0    # fraction of benchmark cases passing
     metadata:         dict[str, Any]   = field(default_factory=dict)
 
@@ -111,7 +112,7 @@ class PromptRegistry:
     version history and exposes the currently active version per slot.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._versions:    dict[str, PromptVersion] = {}
         # (tenant_id, prompt_name) → prompt_id of ACTIVE version
         self._active:      dict[tuple[str, str], str] = {}
@@ -130,9 +131,9 @@ class PromptRegistry:
         model_target:     str,
         created_by:       str,
         change_summary:   str              = "",
-        parent_version_id: Optional[str]  = None,
+        parent_version_id: str | None  = None,
         test_coverage:    float            = 0.0,
-        metadata:         Optional[dict]  = None,
+        metadata:         dict | None  = None,
     ) -> PromptVersion:
         """Register a new prompt version in DRAFT status."""
         content_hash = _hash_prompt(template, system_context)
@@ -148,7 +149,7 @@ class PromptRegistry:
             model_target      = model_target,
             status            = PromptStatus.DRAFT,
             content_hash      = content_hash,
-            created_at        = datetime.now(tz=timezone.utc),
+            created_at        = datetime.now(tz=UTC),
             created_by        = created_by,
             change_summary    = change_summary,
             parent_version_id = parent_version_id,
@@ -194,7 +195,7 @@ class PromptRegistry:
         pv = self._require(prompt_id, PromptStatus.REVIEW)
         pv.status      = PromptStatus.ACTIVE
         pv.approved_by = approved_by
-        pv.approved_at = datetime.now(tz=timezone.utc)
+        pv.approved_at = datetime.now(tz=UTC)
 
         # Deprecate current active for this slot
         key = (pv.tenant_id, pv.prompt_name)
@@ -223,7 +224,7 @@ class PromptRegistry:
         pv.status = PromptStatus.REJECTED
         pv.metadata["rejection_reason"] = reason
         pv.metadata["rejected_by"]      = rejected_by
-        pv.metadata["rejected_at"]      = datetime.now(tz=timezone.utc).isoformat()
+        pv.metadata["rejected_at"]      = datetime.now(tz=UTC).isoformat()
         await self._persist("update", pv)
         return pv
 
@@ -259,7 +260,7 @@ class PromptRegistry:
         target.approved_by   = None
         target.approved_at   = None
         target.metadata["rolled_back_by"] = rolled_by
-        target.metadata["rolled_back_at"] = datetime.now(tz=timezone.utc).isoformat()
+        target.metadata["rolled_back_at"] = datetime.now(tz=UTC).isoformat()
 
         log.info(
             "PromptRegistry: rollback %s to v%s by %s",
@@ -273,19 +274,19 @@ class PromptRegistry:
         self,
         tenant_id:   str,
         prompt_name: str,
-    ) -> Optional[PromptVersion]:
+    ) -> PromptVersion | None:
         key = (tenant_id, prompt_name)
         pid = self._active.get(key)
         return self._versions.get(pid) if pid else None
 
-    def get(self, prompt_id: str) -> Optional[PromptVersion]:
+    def get(self, prompt_id: str) -> PromptVersion | None:
         return self._versions.get(prompt_id)
 
     def list_versions(
         self,
         tenant_id:   str,
-        prompt_name: Optional[str]    = None,
-        status:      Optional[PromptStatus] = None,
+        prompt_name: str | None    = None,
+        status:      PromptStatus | None = None,
     ) -> list[PromptVersion]:
         result = [
             pv for pv in self._versions.values()
@@ -353,10 +354,10 @@ class PromptRegistryError(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_registry: Optional[PromptRegistry] = None
+_registry: PromptRegistry | None = None
 
 
-def get_prompt_registry(db_writer: Optional[Callable] = None) -> PromptRegistry:
+def get_prompt_registry(db_writer: Callable | None = None) -> PromptRegistry:
     global _registry
     if _registry is None:
         _registry = PromptRegistry(db_writer=db_writer)

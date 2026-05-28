@@ -29,9 +29,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from regulatory.ingestion.models import RegulatoryDocument
 
@@ -64,8 +64,8 @@ class PolicyChange:
     severity:     ChangeSeverity
     section:      str              # section heading or "global"
     description:  str              # human-readable change description
-    prior_text:   Optional[str]    # excerpt from prior version
-    new_text:     Optional[str]    # excerpt from new version
+    prior_text:   str | None    # excerpt from prior version
+    new_text:     str | None    # excerpt from new version
     keywords:     list[str]        # compliance terms driving the severity assessment
     operational_areas: list[str]   # e.g. ["contract_pharmacy", "medicaid_carve_in"]
     confidence:   float            = 1.0   # diff confidence (1.0 = text-level match)
@@ -259,7 +259,7 @@ class PolicyDiffEngine:
             family_id        = prior.document_family_id,
             prior_version    = prior.version,
             new_version      = new.version,
-            computed_at      = datetime.now(tz=timezone.utc),
+            computed_at      = datetime.now(tz=UTC),
             changes          = changes,
             summary          = summary,
             overall_severity = severity,

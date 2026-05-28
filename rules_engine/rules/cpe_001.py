@@ -3,14 +3,13 @@ CPE-001: Dispense at Unregistered Contract Pharmacy
 """
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from rules_engine.context import RuleContext
 from rules_engine.finding_builder import build_finding
 
 
-def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> Optional[dict]:
+def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> dict | None:
     # cp_registered=False means the pharmacy was not an active CP at service_date
     if ctx.is_340b_purchase and ctx.cp_registered is False:
         return build_finding(

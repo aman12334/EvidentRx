@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing      import Any, Optional
+from typing import Any
 
 from saas.tenancy.models import Organization
 
@@ -35,7 +35,7 @@ class OrgNode:
     Carries the organization and its resolved children for tree traversal.
     """
     org:      Organization
-    children: list["OrgNode"] = field(default_factory=list)
+    children: list[OrgNode] = field(default_factory=list)
     depth:    int             = 0
 
     @property
@@ -101,7 +101,7 @@ class OrgHierarchyManager:
 
     # ── Subtree operations ─────────────────────────────────────────────────────
 
-    def subtree(self, tenant_id: str, root_org_id: str) -> Optional[OrgNode]:
+    def subtree(self, tenant_id: str, root_org_id: str) -> OrgNode | None:
         """
         Return the subtree rooted at a specific org.
 
@@ -170,7 +170,7 @@ class OrgHierarchyManager:
 
 # ── Tree helpers ───────────────────────────────────────────────────────────────
 
-def _find_node(nodes: list[OrgNode], org_id: str) -> Optional[OrgNode]:
+def _find_node(nodes: list[OrgNode], org_id: str) -> OrgNode | None:
     for node in nodes:
         if node.org_id == org_id:
             return node

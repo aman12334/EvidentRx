@@ -1,10 +1,10 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import Date, DateTime, Numeric, String, func, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -23,7 +23,7 @@ class IntelligenceGraphEdge(Base):
     weight:       Mapped[Decimal]        = mapped_column(Numeric(8, 4), nullable=False, default=Decimal("1.0"))
     properties:   Mapped[dict]           = mapped_column(JSONB(), nullable=False, server_default=text("'{}'::jsonb"))
     valid_from:   Mapped[date]           = mapped_column(Date(), nullable=False)
-    valid_to:     Mapped[Optional[date]] = mapped_column(Date())
+    valid_to:     Mapped[date | None] = mapped_column(Date())
     created_at:   Mapped[datetime]       = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     def __repr__(self) -> str:

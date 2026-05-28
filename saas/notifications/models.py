@@ -17,9 +17,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class NotificationType(str, Enum):
@@ -86,27 +86,27 @@ class Notification:
     priority:        NotificationPriority
     channel:         NotificationChannel
     status:          NotificationStatus = NotificationStatus.PENDING
-    created_at:      datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    sent_at:         Optional[datetime] = None
-    read_at:         Optional[datetime] = None
-    expires_at:      Optional[datetime] = None
-    reference_id:    Optional[str]      = None     # linked entity (investigation_id, template_id, …)
-    reference_type:  Optional[str]      = None     # "investigation" | "template" | "quota" | …
+    created_at:      datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
+    sent_at:         datetime | None = None
+    read_at:         datetime | None = None
+    expires_at:      datetime | None = None
+    reference_id:    str | None      = None     # linked entity (investigation_id, template_id, …)
+    reference_type:  str | None      = None     # "investigation" | "template" | "quota" | …
     metadata:        dict[str, Any]     = field(default_factory=dict)
 
     @property
     def is_expired(self) -> bool:
         if self.expires_at is None:
             return False
-        return datetime.now(tz=timezone.utc) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at
 
     def mark_sent(self) -> None:
         self.status  = NotificationStatus.SENT
-        self.sent_at = datetime.now(tz=timezone.utc)
+        self.sent_at = datetime.now(tz=UTC)
 
     def mark_read(self) -> None:
         self.status  = NotificationStatus.READ
-        self.read_at = datetime.now(tz=timezone.utc)
+        self.read_at = datetime.now(tz=UTC)
 
     def dismiss(self) -> None:
         self.status = NotificationStatus.DISMISSED
@@ -145,9 +145,9 @@ class NotificationPreference:
     notification_type: NotificationType
     channels:        list[NotificationChannel] = field(default_factory=list)
     enabled:         bool                      = True
-    quiet_start_utc: Optional[int]             = None   # 0–23
-    quiet_end_utc:   Optional[int]             = None   # 0–23
-    updated_at:      datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    quiet_start_utc: int | None             = None   # 0–23
+    quiet_end_utc:   int | None             = None   # 0–23
+    updated_at:      datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def effective_channels(self) -> list[NotificationChannel]:
         return self.channels or [NotificationChannel.IN_APP]
@@ -158,7 +158,7 @@ class NotificationPreference:
             return False
         if self.quiet_start_utc is None or self.quiet_end_utc is None:
             return False
-        hour = datetime.now(tz=timezone.utc).hour
+        hour = datetime.now(tz=UTC).hour
         s, e = self.quiet_start_utc, self.quiet_end_utc
         if s <= e:
             return s <= hour < e

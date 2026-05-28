@@ -14,27 +14,24 @@ Architecture constraints:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ingestion.base import bulk_insert
-from rules_engine.context import RuleContext
-from rules_engine.finding_builder import reset_counters
-from rules_engine.loader import load_rules, RuleRecord
-from rules_engine.query import iter_contexts
-
-import rules_engine.rules.dd_001 as dd_001
-import rules_engine.rules.dd_002 as dd_002
-import rules_engine.rules.meo_001 as meo_001
-import rules_engine.rules.meo_002 as meo_002
 import rules_engine.rules.cpe_001 as cpe_001
 import rules_engine.rules.cpe_002 as cpe_002
-import rules_engine.rules.sb_001 as sb_001
-import rules_engine.rules.ee_001 as ee_001
+import rules_engine.rules.dd_001 as dd_001
+import rules_engine.rules.dd_002 as dd_002
 import rules_engine.rules.dq_001 as dq_001
 import rules_engine.rules.dq_002 as dq_002
+import rules_engine.rules.ee_001 as ee_001
+import rules_engine.rules.meo_001 as meo_001
+import rules_engine.rules.meo_002 as meo_002
+import rules_engine.rules.sb_001 as sb_001
+from ingestion.base import bulk_insert
+from rules_engine.finding_builder import reset_counters
+from rules_engine.loader import load_rules
+from rules_engine.query import iter_contexts
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +56,7 @@ class RulesEngine:
     def run(
         self,
         session: Session,
-        batch_id: Optional[str] = None,
+        batch_id: str | None = None,
         query_batch_size: int = 5000,
     ) -> dict:
         """
@@ -124,7 +121,7 @@ class RulesEngine:
         bulk_insert(session, "audit.audit_findings", findings)
 
     def _load_existing_finding_keys(
-        self, session: Session, batch_id: Optional[str]
+        self, session: Session, batch_id: str | None
     ) -> set[tuple[str, str]]:
         """
         Load (split_billing_id, rule_code) for all open findings to prevent duplicates.

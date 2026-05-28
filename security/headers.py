@@ -15,8 +15,8 @@ OWASP API Security Top 10 compliance.
 """
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests        import Request
-from starlette.responses       import Response
+from starlette.requests import Request
+from starlette.responses import Response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

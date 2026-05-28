@@ -14,7 +14,7 @@ These policies are enforced by workflow_governance/policy.py at execution time.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing      import Dict, Optional
+from typing import Dict
 
 
 @dataclass
@@ -79,8 +79,8 @@ class WorkflowPolicy:
     def is_ai_action_permitted(
         self,
         action:     str,
-        severity:   Optional[str] = None,
-        confidence: Optional[float] = None,
+        severity:   str | None = None,
+        confidence: float | None = None,
     ) -> tuple[bool, str]:
         """
         Check whether an AI-proposed action is permitted under current policy.

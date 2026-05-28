@@ -12,9 +12,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, date, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, date, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 from saas.reporting.reports import ReportType
 
@@ -47,12 +47,12 @@ class ReportSchedule:
     frequency:    ScheduleFrequency
     status:       ScheduleStatus
     created_by:   str
-    org_id:       Optional[str]
+    org_id:       str | None
     recipients:   list[str]         = field(default_factory=list)   # user_ids
     export_format: str              = "pdf"   # "pdf" | "csv" | "json"
-    created_at:   datetime          = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    next_run_at:  Optional[datetime] = None
-    last_run_at:  Optional[datetime] = None
+    created_at:   datetime          = field(default_factory=lambda: datetime.now(tz=UTC))
+    next_run_at:  datetime | None = None
+    last_run_at:  datetime | None = None
     run_count:    int               = 0
     metadata:     dict[str, Any]    = field(default_factory=dict)
 
@@ -62,7 +62,7 @@ class ReportSchedule:
             return False
         if self.next_run_at is None:
             return True
-        return datetime.now(tz=timezone.utc) >= self.next_run_at
+        return datetime.now(tz=UTC) >= self.next_run_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,13 +90,13 @@ class ScheduledReportRun:
     report_type:  ReportType
     period_from:  str
     period_to:    str
-    org_id:       Optional[str]
+    org_id:       str | None
     queued_at:    datetime
-    started_at:   Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    started_at:   datetime | None = None
+    completed_at: datetime | None = None
     status:       str                = "queued"   # "queued"|"running"|"done"|"failed"
-    error:        Optional[str]      = None
-    report_id:    Optional[str]      = None       # set on completion
+    error:        str | None      = None
+    report_id:    str | None      = None       # set on completion
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -135,10 +135,10 @@ class ReportScheduler:
         title:         str,
         frequency:     ScheduleFrequency,
         created_by:    str,
-        org_id:        Optional[str]   = None,
-        recipients:    Optional[list[str]] = None,
+        org_id:        str | None   = None,
+        recipients:    list[str] | None = None,
         export_format: str             = "pdf",
-        metadata:      Optional[dict[str, Any]] = None,
+        metadata:      dict[str, Any] | None = None,
     ) -> ReportSchedule:
         schedule = ReportSchedule(
             schedule_id   = str(uuid.uuid4()),
@@ -180,7 +180,7 @@ class ReportScheduler:
     def list_schedules(
         self,
         tenant_id: str,
-        status:    Optional[ScheduleStatus] = None,
+        status:    ScheduleStatus | None = None,
     ) -> list[ReportSchedule]:
         return [
             s for s in self._schedules.values()
@@ -196,7 +196,7 @@ class ReportScheduler:
 
         Advances next_run_at immediately to prevent double-firing.
         """
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         today  = now.date()
         queued: list[ScheduledReportRun] = []
 
@@ -232,7 +232,7 @@ class ReportScheduler:
         if run is None:
             raise SchedulerError(f"Run {run_id} not found")
         run.status       = "done"
-        run.completed_at = datetime.now(tz=timezone.utc)
+        run.completed_at = datetime.now(tz=UTC)
         run.report_id    = report_id
         return run
 
@@ -241,14 +241,14 @@ class ReportScheduler:
         if run is None:
             raise SchedulerError(f"Run {run_id} not found")
         run.status       = "failed"
-        run.completed_at = datetime.now(tz=timezone.utc)
+        run.completed_at = datetime.now(tz=UTC)
         run.error        = error
         return run
 
     def list_runs(
         self,
         tenant_id:   str,
-        schedule_id: Optional[str] = None,
+        schedule_id: str | None = None,
         limit:       int           = 50,
     ) -> list[ScheduledReportRun]:
         runs = [
@@ -263,7 +263,7 @@ class ReportScheduler:
 
     @staticmethod
     def _next_run(freq: ScheduleFrequency) -> datetime:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if freq == ScheduleFrequency.DAILY:
             return now + timedelta(days=1)
         if freq == ScheduleFrequency.WEEKLY:
@@ -305,7 +305,7 @@ class SchedulerError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_scheduler: Optional[ReportScheduler] = None
+_scheduler: ReportScheduler | None = None
 
 
 def get_report_scheduler() -> ReportScheduler:

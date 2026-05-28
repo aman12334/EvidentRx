@@ -20,11 +20,10 @@ from __future__ import annotations
 
 import logging
 import re
-from abc        import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime   import datetime, timedelta, timezone
-from enum       import Enum
-from typing     import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from interoperability.governance.access_control import validate_source_system
 
@@ -180,13 +179,13 @@ class RecordFreshnessPolicy(IngestionPolicy):
 
     def evaluate(self, record: dict, context: dict) -> PolicyResult:
         threshold_days = int(context.get("freshness_days", 365))
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=threshold_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=threshold_days)
 
         for date_field in ("dispense_date", "service_date", "period_start", "authored_on"):
             raw = record.get(date_field)
             if raw:
                 try:
-                    dt = datetime.strptime(str(raw)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                    dt = datetime.strptime(str(raw)[:10], "%Y-%m-%d").replace(tzinfo=UTC)
                     if dt < cutoff:
                         return PolicyResult(
                             passed      = False,
@@ -241,7 +240,7 @@ class PolicyEngine:
     All policies are evaluated (not short-circuit) to collect all violations.
     """
 
-    def __init__(self, policies: Optional[list[IngestionPolicy]] = None) -> None:
+    def __init__(self, policies: list[IngestionPolicy] | None = None) -> None:
         self._policies = policies or _DEFAULT_POLICIES
 
     def evaluate(
@@ -302,7 +301,7 @@ _DEFAULT_POLICIES: list[IngestionPolicy] = [
 
 
 def get_policy_engine(
-    extra_policies: Optional[list[IngestionPolicy]] = None,
+    extra_policies: list[IngestionPolicy] | None = None,
 ) -> PolicyEngine:
     """Return a PolicyEngine with the default policy set + any extras."""
     policies = list(_DEFAULT_POLICIES)

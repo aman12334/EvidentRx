@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
-from typing   import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict
 
-from governance.audit_log import audit_log, AuditEventType
+from governance.audit_log import AuditEventType, audit_log
 
 log = logging.getLogger(__name__)
 
@@ -29,10 +29,10 @@ def log_analyst_action(
     tenant_id:     str,
     action:        str,
     resource_type: str,
-    resource_id:   Optional[str] = None,
-    details:       Optional[Dict[str, Any]] = None,
-    ip_address:    Optional[str] = None,
-    user_agent:    Optional[str] = None,
+    resource_id:   str | None = None,
+    details:       Dict[str, Any] | None = None,
+    ip_address:    str | None = None,
+    user_agent:    str | None = None,
 ) -> None:
     """
     Log an analyst or admin action to the immutable audit log.
@@ -45,7 +45,7 @@ def log_analyst_action(
     payload: Dict[str, Any] = {
         "action":        action,
         "resource_type": resource_type,
-        "occurred_at":   datetime.now(tz=timezone.utc).isoformat(),
+        "occurred_at":   datetime.now(tz=UTC).isoformat(),
     }
 
     if ip_address:

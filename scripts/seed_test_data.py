@@ -15,15 +15,17 @@ Run from project root:
 from __future__ import annotations
 
 import json
+import os
 import random
 import sys
-import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import text
+
 from app.database import SessionLocal
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -51,7 +53,7 @@ NDCS       = [
 random.seed(42)   # reproducible
 
 def ts(days_ago: float = 0, hours: float = 0) -> str:
-    t = datetime.now(tz=timezone.utc) - timedelta(days=days_ago, hours=hours)
+    t = datetime.now(tz=UTC) - timedelta(days=days_ago, hours=hours)
     return t.isoformat()
 
 def risk_from_priority(priority: str, jitter: float = 0.0) -> float:

@@ -24,8 +24,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -52,7 +51,7 @@ class AgentRouter:
         result = router.dispatch(case_id="...", session=db_session)
     """
 
-    def __init__(self, llm_router: Optional[ModelRouter] = None) -> None:
+    def __init__(self, llm_router: ModelRouter | None = None) -> None:
         self._llm_router = llm_router or get_llm_router()
         self._graph = get_graph()
         self._agents = self._build_agent_registry()
@@ -113,7 +112,7 @@ class AgentRouter:
             run_id=run_id,
             session_id=session_id,
         )
-        state["started_at"] = datetime.now(tz=timezone.utc).isoformat()
+        state["started_at"] = datetime.now(tz=UTC).isoformat()
 
         # ── Step 1: Orchestrator planning (LLM call) ──────────────────────────
         try:
@@ -169,7 +168,7 @@ class AgentRouter:
 
         try:
             result = self._graph.invoke(state, config=graph_config)
-            result["completed_at"] = datetime.now(tz=timezone.utc).isoformat()
+            result["completed_at"] = datetime.now(tz=UTC).isoformat()
             logger.info(
                 "Workflow complete | case=%s | escalation_route=%s | tokens_in=%d tokens_out=%d",
                 case_id_str,
@@ -178,13 +177,13 @@ class AgentRouter:
                 result.get("total_output_tokens", 0),
             )
             return result
-        except Exception as e:
+        except Exception:
             logger.exception("Workflow failed for case %s", case_id_str)
             raise
 
 
 # Module-level singleton
-_agent_router: Optional[AgentRouter] = None
+_agent_router: AgentRouter | None = None
 
 
 def get_agent_router() -> AgentRouter:

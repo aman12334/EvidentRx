@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -10,23 +10,23 @@ from pydantic import BaseModel, Field
 
 class FindingSchema(BaseModel):
     finding_id:         UUID
-    case_id:            Optional[UUID] = None
+    case_id:            UUID | None = None
     finding_code:       str
     rule_code:          str
     severity:           str
     covered_entity_id:  UUID
-    entity_name:        Optional[str] = None
+    entity_name:        str | None = None
     evidence_payload:   dict[str, Any] = Field(default_factory=dict)
-    created_at:         Optional[datetime] = None
+    created_at:         datetime | None = None
 
     model_config = {"from_attributes": True}
 
 
 class FindingDetail(FindingSchema):
     entity_references:  dict[str, Any] = Field(default_factory=dict)
-    ndc_11:             Optional[str] = None
-    pharmacy_id:        Optional[str] = None
-    pharmacy_name:      Optional[str] = None
+    ndc_11:             str | None = None
+    pharmacy_id:        str | None = None
+    pharmacy_name:      str | None = None
     financial_exposure: float = 0.0
 
 

@@ -12,7 +12,6 @@ Injection strategy:
 from __future__ import annotations
 
 import random
-from datetime import date
 
 
 def inject(

@@ -30,8 +30,9 @@ logger = logging.getLogger(__name__)
 
 def cmd_single(args) -> None:
     from uuid import UUID
-    from app.database import SessionLocal
+
     from agents.runner import InvestigationRunner
+    from app.database import SessionLocal
 
     case_id = UUID(args.case_id)
 
@@ -53,9 +54,10 @@ def cmd_single(args) -> None:
 
 
 def cmd_batch(args) -> None:
-    from app.database import SessionLocal
-    from agents.runner import InvestigationRunner
     from sqlalchemy import text
+
+    from agents.runner import InvestigationRunner
+    from app.database import SessionLocal
 
     runner = InvestigationRunner.from_env()
 
@@ -108,7 +110,7 @@ def _print_result(result: dict) -> None:
     if result.get("executive_summary"):
         print(f"\nExecutive Summary:\n{result['executive_summary'][:500]}...")
     if result.get("errors"):
-        print(f"\nErrors encountered:")
+        print("\nErrors encountered:")
         for e in result["errors"]:
             print(f"  [{e.get('node')}] {e.get('error')}")
 

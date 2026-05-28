@@ -16,13 +16,13 @@ Template lifecycle
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from learning.recommendations.tracker import RecommendationType
 
@@ -57,9 +57,9 @@ class RecommendationTemplate:
     content_hash:    str                    # SHA-256 of content_pattern
     created_at:      datetime
     created_by:      str
-    approved_by:     Optional[str]          = None
-    approved_at:     Optional[datetime]     = None
-    parent_version:  Optional[str]          = None
+    approved_by:     str | None          = None
+    approved_at:     datetime | None     = None
+    parent_version:  str | None          = None
     effectiveness_threshold: float          = 0.50   # minimum score before flagging
     metadata:        dict[str, Any]         = field(default_factory=dict)
 
@@ -86,7 +86,7 @@ class RecommendationTemplateRegistry:
     Provides CRUD with approval workflow and rollback support.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._templates:     dict[str, RecommendationTemplate] = {}
         self._active_by_type: dict[tuple[str, str], str] = {}
         # (tenant_id, rec_type.value) → template_id
@@ -103,8 +103,8 @@ class RecommendationTemplateRegistry:
         content_pattern: str,
         guidance:        str,
         created_by:      str,
-        parent_version:  Optional[str]  = None,
-        metadata:        Optional[dict] = None,
+        parent_version:  str | None  = None,
+        metadata:        dict | None = None,
     ) -> RecommendationTemplate:
         """Register a new template in DRAFT status."""
         content_hash = hashlib.sha256(content_pattern.encode()).hexdigest()
@@ -119,7 +119,7 @@ class RecommendationTemplateRegistry:
             guidance         = guidance,
             status           = TemplateStatus.DRAFT,
             content_hash     = content_hash,
-            created_at       = datetime.now(tz=timezone.utc),
+            created_at       = datetime.now(tz=UTC),
             created_by       = created_by,
             parent_version   = parent_version,
             metadata         = metadata or {},
@@ -146,7 +146,7 @@ class RecommendationTemplateRegistry:
         t = self._require(template_id, TemplateStatus.REVIEW)
         t.status      = TemplateStatus.ACTIVE
         t.approved_by = approved_by
-        t.approved_at = datetime.now(tz=timezone.utc)
+        t.approved_at = datetime.now(tz=UTC)
 
         # Deprecate current active template for this type
         key = (t.tenant_id, t.rec_type.value)
@@ -197,7 +197,7 @@ class RecommendationTemplateRegistry:
         self,
         tenant_id: str,
         rec_type:  RecommendationType,
-    ) -> Optional[RecommendationTemplate]:
+    ) -> RecommendationTemplate | None:
         key = (tenant_id, rec_type.value)
         tid = self._active_by_type.get(key)
         return self._templates.get(tid) if tid else None
@@ -205,7 +205,7 @@ class RecommendationTemplateRegistry:
     def list_for_tenant(
         self,
         tenant_id: str,
-        rec_type:  Optional[RecommendationType] = None,
+        rec_type:  RecommendationType | None = None,
     ) -> list[RecommendationTemplate]:
         result = [
             t for t in self._templates.values()

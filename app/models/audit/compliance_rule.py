@@ -1,9 +1,9 @@
 from datetime import date
-from typing import List
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Date, ForeignKey, String, Text, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AuditMixin, Base

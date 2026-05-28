@@ -12,8 +12,6 @@ Does NOT reason about violations. Only categorises what the rules engine confirm
 """
 from __future__ import annotations
 
-from typing import ClassVar, Optional
-
 from agents.agents.base import BaseAgent
 from agents.llm.base import LLMResponse, Message
 from agents.memory.case import CaseMemory
@@ -83,7 +81,7 @@ class ClassificationAgent(BaseAgent):
             )),
         ]
 
-    def _parse_response(self, response: LLMResponse) -> tuple[dict, Optional[float]]:
+    def _parse_response(self, response: LLMResponse) -> tuple[dict, float | None]:
         structured = response.structured or {}
         confidence = float(structured.get("confidence", 0.7))
         return structured, confidence

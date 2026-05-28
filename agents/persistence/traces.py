@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -21,7 +20,7 @@ from agents.llm.base import LLMResponse
 
 logger = logging.getLogger(__name__)
 
-UTC = timezone.utc
+UTC = UTC
 
 # Maps internal agent_type identifiers to the values allowed by ck_trace_agent_type
 _AGENT_TYPE_MAP: dict[str, str] = {
@@ -56,12 +55,12 @@ class TraceWriter:
         agent_type: str,
         workflow_node: str,
         workflow_step: int,
-        parent_trace_id: Optional[UUID],
+        parent_trace_id: UUID | None,
         input_context: dict,
         response: LLMResponse,
-        confidence_score: Optional[float] = None,
+        confidence_score: float | None = None,
         human_review_required: bool = False,
-        citations: Optional[list] = None,
+        citations: list | None = None,
     ) -> UUID:
         """
         Writes an immutable reasoning trace row.

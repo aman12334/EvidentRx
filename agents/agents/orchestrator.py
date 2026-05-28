@@ -10,14 +10,11 @@ Also provides pure-logic routing decisions used by conditional graph edges.
 """
 from __future__ import annotations
 
-import json
 import logging
-from typing import Optional
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from agents.llm.base import LLMConfig, Message
+from agents.llm.base import Message
 from agents.llm.router import ModelRouter
 from agents.state import InvestigationState
 
@@ -52,7 +49,7 @@ class InvestigationOrchestratorAgent:
     plus pure-logic routing decisions for conditional graph edges.
     """
 
-    def __init__(self, router: Optional[ModelRouter] = None) -> None:
+    def __init__(self, router: ModelRouter | None = None) -> None:
         self._router = router
 
     def plan(self, state: InvestigationState) -> dict:
@@ -140,7 +137,7 @@ class InvestigationOrchestratorAgent:
         # Override: always escalate critical cases with significant exposure
         snap = state.get("risk_snapshot", {})
         by_sev = snap.get("by_severity", {})
-        exposure = snap.get("total_financial_exposure") or 0
+        _exposure = snap.get("total_financial_exposure") or 0  # reserved for future threshold
 
         if by_sev.get("critical", 0) >= 10:
             return True

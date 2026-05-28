@@ -30,20 +30,15 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import statistics
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime
 
 from learning.feedback.models import (
-    FeedbackType,
-    FeedbackRecord,
-    FalsePositiveReport,
     FalseNegativeEscalation,
-    OutcomeLabel,
+    FalsePositiveReport,
+    FeedbackRecord,
     InvestigationOutcome,
-    RemediationOutcomeReport,
-    RemediationEffectiveness,
+    OutcomeLabel,
 )
 
 log = logging.getLogger("evidentrx.learning.calibration.risk")
@@ -67,7 +62,7 @@ class RuleCalibration:
     fn_count:            int                    = 0
     outcome_confirmed:   int                    = 0    # times confirmed as violation
     outcome_cleared:     int                    = 0    # times cleared
-    last_calibrated:     Optional[datetime]     = None
+    last_calibrated:     datetime | None     = None
 
     @property
     def confirmation_rate(self) -> float:
@@ -112,8 +107,8 @@ class RiskCalibrationResult:
     total_feedback_used:  int                      = 0
     content_hash:      str                         = ""          # reproducibility fingerprint
     approved:          bool                        = False        # requires human approval
-    approved_by:       Optional[str]               = None
-    approved_at:       Optional[datetime]          = None
+    approved_by:       str | None               = None
+    approved_at:       datetime | None          = None
     notes:             str                         = ""
 
 
@@ -129,7 +124,7 @@ class RiskCalibrationEngine:
     def calibrate(
         self,
         feedback_records:   list[FeedbackRecord],
-        prior_calibration:  Optional[RiskCalibrationResult],
+        prior_calibration:  RiskCalibrationResult | None,
         tenant_id:          str,
         version:            str,
         feedback_window_days: int = 90,
@@ -189,7 +184,7 @@ class RiskCalibrationEngine:
 
             if rc.feedback_count >= _MIN_FEEDBACK_COUNT:
                 rc.calibrated_confidence = _compute_adjusted_confidence(rc)
-                rc.last_calibrated       = datetime.now(tz=timezone.utc)
+                rc.last_calibrated       = datetime.now(tz=UTC)
 
         # Adjust escalation thresholds based on overall FP/FN ratio
         total_fp = sum(fp_by_rule.values())
@@ -200,7 +195,7 @@ class RiskCalibrationEngine:
             calibration_id       = str(uuid.uuid4()),
             tenant_id            = tenant_id,
             version              = version,
-            computed_at          = datetime.now(tz=timezone.utc),
+            computed_at          = datetime.now(tz=UTC),
             rule_calibrations    = rule_calibrations,
             thresholds           = thresholds,
             feedback_window_days = feedback_window_days,
@@ -301,7 +296,7 @@ def _adjust_thresholds(
 
 
 def _seed_calibrations(
-    prior: Optional[RiskCalibrationResult],
+    prior: RiskCalibrationResult | None,
 ) -> dict[str, RuleCalibration]:
     if prior is None:
         return {}
@@ -321,7 +316,7 @@ def _seed_calibrations(
     }
 
 
-def _seed_thresholds(prior: Optional[RiskCalibrationResult]) -> EscalationThresholds:
+def _seed_thresholds(prior: RiskCalibrationResult | None) -> EscalationThresholds:
     if prior is None:
         return EscalationThresholds()
     return EscalationThresholds(

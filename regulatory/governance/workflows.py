@@ -34,9 +34,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.governance.workflows")
 
@@ -64,12 +64,12 @@ class WorkflowAuditEntry:
     """One immutable audit record for a workflow state transition."""
     entry_id:    str
     workflow_id: str
-    from_status: Optional[WorkflowStatus]
+    from_status: WorkflowStatus | None
     to_status:   WorkflowStatus
     actor_id:    str
     action:      str       # human-readable action label
     notes:       str       = ""
-    occurred_at: datetime  = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    occurred_at: datetime  = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,18 +100,18 @@ class PolicyActivationWorkflow:
     status:          WorkflowStatus
     priority:        WorkflowPriority
     created_by:      str
-    created_at:      datetime          = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    reviewer_id:     Optional[str]     = None
-    review_started_at: Optional[datetime] = None
-    approver_id:     Optional[str]     = None
-    approved_at:     Optional[datetime]   = None
+    created_at:      datetime          = field(default_factory=lambda: datetime.now(tz=UTC))
+    reviewer_id:     str | None     = None
+    review_started_at: datetime | None = None
+    approver_id:     str | None     = None
+    approved_at:     datetime | None   = None
     approval_notes:  str               = ""
-    activator_id:    Optional[str]     = None
-    activated_at:    Optional[datetime]   = None
-    rejected_by:     Optional[str]     = None
-    rejected_at:     Optional[datetime]   = None
+    activator_id:    str | None     = None
+    activated_at:    datetime | None   = None
+    rejected_by:     str | None     = None
+    rejected_at:     datetime | None   = None
     rejection_reason: str              = ""
-    action_required_by: Optional[str] = None   # ISO-8601 date deadline
+    action_required_by: str | None = None   # ISO-8601 date deadline
     audit_trail:     list[WorkflowAuditEntry] = field(default_factory=list)
     metadata:        dict[str, Any]    = field(default_factory=dict)
 
@@ -184,8 +184,8 @@ class RegulatoryReviewWorkflow:
         doc_title:           str,
         created_by:          str,
         priority:            WorkflowPriority = WorkflowPriority.NORMAL,
-        action_required_by:  Optional[str]   = None,
-        metadata:            Optional[dict]  = None,
+        action_required_by:  str | None   = None,
+        metadata:            dict | None  = None,
     ) -> PolicyActivationWorkflow:
         """Create a new governance workflow for a document awaiting review."""
         wf = PolicyActivationWorkflow(
@@ -226,7 +226,7 @@ class RegulatoryReviewWorkflow:
         prev                  = wf.status
         wf.status             = WorkflowStatus.UNDER_REVIEW
         wf.reviewer_id        = reviewer_id
-        wf.review_started_at  = datetime.now(tz=timezone.utc)
+        wf.review_started_at  = datetime.now(tz=UTC)
         wf.audit_trail.append(self._audit(workflow_id, prev, wf.status, reviewer_id, "review_started"))
         return wf
 
@@ -292,7 +292,7 @@ class RegulatoryReviewWorkflow:
         prev               = wf.status
         wf.status          = WorkflowStatus.APPROVED
         wf.approver_id     = approver_id
-        wf.approved_at     = datetime.now(tz=timezone.utc)
+        wf.approved_at     = datetime.now(tz=UTC)
         wf.approval_notes  = notes
         wf.audit_trail.append(
             self._audit(workflow_id, prev, wf.status, approver_id, "approved", notes)
@@ -319,7 +319,7 @@ class RegulatoryReviewWorkflow:
         prev                 = wf.status
         wf.status            = WorkflowStatus.REJECTED
         wf.rejected_by       = rejected_by
-        wf.rejected_at       = datetime.now(tz=timezone.utc)
+        wf.rejected_at       = datetime.now(tz=UTC)
         wf.rejection_reason  = reason
         wf.audit_trail.append(
             self._audit(workflow_id, prev, wf.status, rejected_by, "rejected", reason)
@@ -351,7 +351,7 @@ class RegulatoryReviewWorkflow:
         prev               = wf.status
         wf.status          = WorkflowStatus.ACTIVATED
         wf.activator_id    = activator_id
-        wf.activated_at    = datetime.now(tz=timezone.utc)
+        wf.activated_at    = datetime.now(tz=UTC)
         wf.audit_trail.append(
             self._audit(workflow_id, prev, wf.status, activator_id, "activated")
         )
@@ -407,13 +407,13 @@ class RegulatoryReviewWorkflow:
 
     # ── Queries ─────────────────────────────────────────────────────────────────
 
-    def get(self, workflow_id: str) -> Optional[PolicyActivationWorkflow]:
+    def get(self, workflow_id: str) -> PolicyActivationWorkflow | None:
         return self._workflows.get(workflow_id)
 
     def list_workflows(
         self,
         tenant_id: str,
-        status:    Optional[WorkflowStatus] = None,
+        status:    WorkflowStatus | None = None,
         limit:     int = 50,
     ) -> list[PolicyActivationWorkflow]:
         wfs = [
@@ -454,7 +454,7 @@ class RegulatoryReviewWorkflow:
     @staticmethod
     def _audit(
         workflow_id:  str,
-        from_status:  Optional[WorkflowStatus],
+        from_status:  WorkflowStatus | None,
         to_status:    WorkflowStatus,
         actor_id:     str,
         action:       str,
@@ -479,7 +479,7 @@ class WorkflowError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[RegulatoryReviewWorkflow] = None
+_service: RegulatoryReviewWorkflow | None = None
 
 
 def get_review_workflow() -> RegulatoryReviewWorkflow:

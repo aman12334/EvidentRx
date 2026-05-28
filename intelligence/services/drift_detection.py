@@ -15,10 +15,8 @@ Output is structured drift records — no LLMs involved.
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -91,7 +89,7 @@ class DriftDetectionService:
     def detect(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
         min_magnitude: str = "low",
     ) -> DriftReport:
@@ -140,7 +138,7 @@ class DriftDetectionService:
     def detect_rule_drift(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
     ) -> list[DriftSignal]:
         """
@@ -190,7 +188,7 @@ class DriftDetectionService:
     def detect_entity_drift(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
     ) -> list[DriftSignal]:
         """
@@ -243,7 +241,7 @@ class DriftDetectionService:
     def detect_model_drift(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
     ) -> list[DriftSignal]:
         """

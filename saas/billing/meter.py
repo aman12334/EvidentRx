@@ -23,10 +23,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, date, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.billing.meter")
 
@@ -58,9 +59,9 @@ class UsageEvent:
     quantity:   float               # in natural units for the event type
     unit:       str                 # "runs" | "tokens" | "records" | "gb_days" | …
     occurred_at: datetime
-    org_id:     Optional[str]       = None
-    entity_id:  Optional[str]       = None   # covered_entity_id
-    model_id:   Optional[str]       = None   # for token events
+    org_id:     str | None       = None
+    entity_id:  str | None       = None   # covered_entity_id
+    model_id:   str | None       = None   # for token events
     metadata:   dict[str, Any]      = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -101,7 +102,7 @@ class UsageMeter:
 
     def __init__(
         self,
-        db_writer:      Optional[Callable] = None,
+        db_writer:      Callable | None = None,
         flush_size:     int                = 200,
     ) -> None:
         self._buffer:    list[UsageEvent] = []
@@ -117,10 +118,10 @@ class UsageMeter:
         tenant_id:  str,
         event_type: UsageEventType,
         quantity:   float            = 1.0,
-        org_id:     Optional[str]   = None,
-        entity_id:  Optional[str]   = None,
-        model_id:   Optional[str]   = None,
-        metadata:   Optional[dict]  = None,
+        org_id:     str | None   = None,
+        entity_id:  str | None   = None,
+        model_id:   str | None   = None,
+        metadata:   dict | None  = None,
     ) -> UsageEvent:
         event = UsageEvent(
             event_id    = str(uuid.uuid4()),
@@ -128,7 +129,7 @@ class UsageMeter:
             event_type  = event_type,
             quantity    = quantity,
             unit        = _UNITS.get(event_type, "units"),
-            occurred_at = datetime.now(tz=timezone.utc),
+            occurred_at = datetime.now(tz=UTC),
             org_id      = org_id,
             entity_id   = entity_id,
             model_id    = model_id,
@@ -148,8 +149,8 @@ class UsageMeter:
     async def record_investigation(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
-        entity_id: Optional[str] = None,
+        org_id:    str | None = None,
+        entity_id: str | None = None,
     ) -> UsageEvent:
         return await self.record(tenant_id, UsageEventType.INVESTIGATION_RUN,
                                  org_id=org_id, entity_id=entity_id)
@@ -160,7 +161,7 @@ class UsageMeter:
         tokens_in:  int,
         tokens_out: int,
         model_id:   str,
-        org_id:     Optional[str] = None,
+        org_id:     str | None = None,
     ) -> None:
         if tokens_in > 0:
             await self.record(
@@ -181,7 +182,7 @@ class UsageMeter:
         self,
         tenant_id: str,
         endpoint:  str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> UsageEvent:
         return await self.record(
             tenant_id, UsageEventType.API_REQUEST,
@@ -194,7 +195,7 @@ class UsageMeter:
         tenant_id:  str,
         record_count: int,
         source:     str,
-        org_id:     Optional[str] = None,
+        org_id:     str | None = None,
     ) -> UsageEvent:
         return await self.record(
             tenant_id, UsageEventType.INGESTION_RECORD,
@@ -231,10 +232,10 @@ class UsageMeter:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_meter: Optional[UsageMeter] = None
+_meter: UsageMeter | None = None
 
 
-def get_usage_meter(db_writer: Optional[Callable] = None) -> UsageMeter:
+def get_usage_meter(db_writer: Callable | None = None) -> UsageMeter:
     global _meter
     if _meter is None:
         _meter = UsageMeter(db_writer=db_writer)

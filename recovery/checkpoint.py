@@ -21,9 +21,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from pathlib  import Path
-from typing   import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Dict, List
 
 log = logging.getLogger("evidentrx.recovery.checkpoint")
 
@@ -60,7 +60,7 @@ class CheckpointRestorer:
             "tenant_id":     tenant_id,
             "node_name":     node_name,
             "state":         state,
-            "saved_at":      datetime.now(tz=timezone.utc).isoformat(),
+            "saved_at":      datetime.now(tz=UTC).isoformat(),
         }
 
         path = self.checkpoint_dir / f"{case_id}_{checkpoint_id}.json"
@@ -76,7 +76,7 @@ class CheckpointRestorer:
         case_id:       str,
         checkpoint_id: str,
         tenant_id:     str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         Load a saved checkpoint.
         Returns None if not found. Enforces tenant isolation.

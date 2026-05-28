@@ -26,8 +26,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from interoperability.hl7.parser import (
     HL7Message,
@@ -35,7 +35,6 @@ from interoperability.hl7.parser import (
     HL7Segment,
     extract_ndc,
     extract_npi,
-    extract_patient_id,
 )
 
 log = logging.getLogger("evidentrx.interop.hl7.normalizer")
@@ -46,7 +45,7 @@ _PHI_SALT = "evidentrx_phi_hash_v1"
 
 # ── Public entry point ────────────────────────────────────────────────────────
 
-def normalise_hl7(msg: HL7Message, tenant_id: str) -> Optional[dict[str, Any]]:
+def normalise_hl7(msg: HL7Message, tenant_id: str) -> dict[str, Any] | None:
     """
     Map a parsed HL7Message to a canonical dict.
 
@@ -211,7 +210,7 @@ def _normalise_dft(msg: HL7Message, tenant_id: str) -> dict[str, Any]:
 # ── Patient canonical (from PID segment) ─────────────────────────────────────
 
 def _pid_to_patient(
-    pid:       Optional[HL7Segment],
+    pid:       HL7Segment | None,
     tenant_id: str,
     msg:       HL7Message,
 ) -> dict[str, Any]:
@@ -244,7 +243,7 @@ _DISPATCH: dict[HL7MessageType, Callable[[HL7Message, str], dict[str, Any]]] = {
 
 # ── PHI helpers ───────────────────────────────────────────────────────────────
 
-def _hash_patient(pid: Optional[HL7Segment], tenant_id: str) -> str:
+def _hash_patient(pid: HL7Segment | None, tenant_id: str) -> str:
     """
     Hash PID-3 (patient identifier list) into a stable anonymous ID.
     Falls back to PID-2 (external patient ID) if PID-3 is absent.
@@ -273,14 +272,14 @@ def _hash_ref(ref: str, tenant_id: str) -> str:
 
 # ── Segment helpers ───────────────────────────────────────────────────────────
 
-def _seg_get(seg: Optional[HL7Segment], index: int, component: int = 0) -> Optional[str]:
+def _seg_get(seg: HL7Segment | None, index: int, component: int = 0) -> str | None:
     """Safe field access on a potentially-None segment."""
     if seg is None:
         return None
     return seg.get(index, component)
 
 
-def _extract_xcn_npi(seg: Optional[HL7Segment], field_index: int) -> Optional[str]:
+def _extract_xcn_npi(seg: HL7Segment | None, field_index: int) -> str | None:
     """
     Extract NPI from an XCN field.
 
@@ -307,7 +306,7 @@ def _adt_event_type(trigger: str) -> str:
     return _MAP.get(trigger, f"adt_{trigger.lower()}")
 
 
-def _birth_year(dob: Optional[str]) -> Optional[int]:
+def _birth_year(dob: str | None) -> int | None:
     """Extract year-only from HL7 DTM birthdate (never store full DOB)."""
     if not dob:
         return None
@@ -317,7 +316,7 @@ def _birth_year(dob: Optional[str]) -> Optional[int]:
         return None
 
 
-def _date(val: Optional[str]) -> Optional[str]:
+def _date(val: str | None) -> str | None:
     """Truncate HL7 DTM to YYYY-MM-DD if possible."""
     if not val:
         return None
@@ -331,14 +330,14 @@ def _date(val: Optional[str]) -> Optional[str]:
     return None
 
 
-def _float(val: Optional[str]) -> Optional[float]:
+def _float(val: str | None) -> float | None:
     try:
         return float(val) if val else None
     except (TypeError, ValueError):
         return None
 
 
-def _int(val: Optional[str]) -> Optional[int]:
+def _int(val: str | None) -> int | None:
     try:
         return int(val) if val else None
     except (TypeError, ValueError):

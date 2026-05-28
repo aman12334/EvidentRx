@@ -18,12 +18,11 @@ scores across all recommendations generated from that template.
 
 from __future__ import annotations
 
-import math
 import logging
+import math
 import statistics
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime
 
 from learning.recommendations.tracker import (
     RecommendationRecord,
@@ -51,8 +50,8 @@ class TemplateScore:
     dismissed_count:     int
     effective_count:     int
     ineffective_count:   int
-    avg_time_to_decision_hours: Optional[float]
-    computed_at:         datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    avg_time_to_decision_hours: float | None
+    computed_at:         datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def is_performing(self) -> bool:
@@ -99,7 +98,7 @@ class RecommendationScorer:
         version   : Template version
         tenant_id : Tenant context
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Filter to this template
         template_records = [

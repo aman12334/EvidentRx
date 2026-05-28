@@ -8,8 +8,7 @@ pure rendering logic.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy import text
@@ -21,7 +20,7 @@ class ReportData:
     case_id:          str
     case:             dict                  # investigation_cases row
     findings:         list[dict]            # audit_findings rows
-    risk_snapshot:    Optional[dict]        # latest case_risk_snapshots row
+    risk_snapshot:    dict | None        # latest case_risk_snapshots row
     timeline:         list[dict]            # investigation_timeline rows (ordered)
     reasoning_traces: list[dict]            # reasoning_traces rows
     agent_runs:       list[dict]            # agent_runs rows
@@ -49,7 +48,7 @@ class ReportData:
         return sum(1 for f in self.findings if f.get("severity") == "high")
 
     @property
-    def financial_exposure(self) -> Optional[float]:
+    def financial_exposure(self) -> float | None:
         snap = self.risk_snapshot or {}
         return snap.get("total_financial_exposure")
 
@@ -141,7 +140,7 @@ class ReportDataLoader:
             result.append(d)
         return result
 
-    def _load_risk_snapshot(self, session: Session, case_id: str) -> Optional[dict]:
+    def _load_risk_snapshot(self, session: Session, case_id: str) -> dict | None:
         row = session.execute(text("""
             SELECT
                 snapshot_id,

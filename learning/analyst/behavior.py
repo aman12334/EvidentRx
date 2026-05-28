@@ -26,8 +26,8 @@ from __future__ import annotations
 import logging
 import statistics
 from dataclasses import dataclass, field
-from datetime    import datetime, date, timedelta, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.analyst.behavior")
 
@@ -41,7 +41,7 @@ class CaseEvent:
     stage:          str             # "opened" | "investigating" | "escalated" | "closed"
     severity:       str
     occurred_at:    datetime
-    duration_hours: Optional[float] = None   # time spent in this stage
+    duration_hours: float | None = None   # time spent in this stage
     metadata:       dict[str, Any]  = field(default_factory=dict)
 
 
@@ -56,7 +56,7 @@ class WorkflowBottleneck:
     case_count:         int
     severity_breakdown: dict[str, float]    # severity → avg hours
     bottleneck_score:   float               # relative to fleet average
-    computed_at:        datetime            = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    computed_at:        datetime            = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -68,7 +68,7 @@ class EscalationPattern:
     by_rule_code:        dict[str, int]     # rule_code → escalation count
     avg_time_before_escalation_hours: float
     period_days:         int
-    computed_at:         datetime   = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    computed_at:         datetime   = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -86,7 +86,7 @@ class WorkloadDistribution:
     min_cases:        int
     gini_coefficient: float         # 0 = perfectly equal, 1 = maximally unequal
     overloaded_cohort_count: int    # analysts above 1.5× avg
-    computed_at:      datetime      = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    computed_at:      datetime      = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -100,7 +100,7 @@ class InvestigationLatencyReport:
     by_severity:             dict[str, float]   # severity → median hours
     sla_breach_rate:         float              # fraction exceeding SLA
     sla_hours_by_severity:   dict[str, int]     # configured SLA thresholds
-    computed_at:             datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    computed_at:             datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class AnalystBehaviorAnalyzer:
@@ -185,7 +185,7 @@ class AnalystBehaviorAnalyzer:
         period_days: int = 90,
     ) -> EscalationPattern:
         """Compute escalation rates and patterns for a tenant."""
-        cutoff   = datetime.now(tz=timezone.utc) - timedelta(days=period_days)
+        cutoff   = datetime.now(tz=UTC) - timedelta(days=period_days)
         relevant = [e for e in events if e.tenant_id == tenant_id and e.occurred_at >= cutoff]
 
         all_case_ids      = {e.case_id for e in relevant}
@@ -280,10 +280,10 @@ class AnalystBehaviorAnalyzer:
         events:      list[CaseEvent],
         tenant_id:   str,
         period_days: int                    = 90,
-        sla_hours:   Optional[dict] = None,
+        sla_hours:   dict | None = None,
     ) -> InvestigationLatencyReport:
         """Compute resolution latency metrics and SLA breach rates."""
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=period_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=period_days)
         closed = [
             e for e in events
             if e.tenant_id == tenant_id

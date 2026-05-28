@@ -13,11 +13,10 @@ token boundary without a DB round-trip per request.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing   import Optional
+from datetime import UTC, datetime, timedelta
 
-from jose        import JWTError, jwt
-from pydantic    import BaseModel
+from jose import JWTError, jwt
+from pydantic import BaseModel
 
 from config.settings import settings
 
@@ -40,8 +39,8 @@ class TokenPayload(BaseModel):
     jti:       str            # unique token ID (for revocation)
     iss:       str = ISSUER
     aud:       str = AUDIENCE
-    exp:       Optional[int] = None
-    iat:       Optional[int] = None
+    exp:       int | None = None
+    iat:       int | None = None
     is_refresh: bool = False
 
 
@@ -55,7 +54,7 @@ class TokenPairResponse(BaseModel):
 # ─── Token Creation ───────────────────────────────────────────────────────────
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def create_access_token(

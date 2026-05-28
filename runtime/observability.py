@@ -25,10 +25,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # JSON log formatter
@@ -44,7 +42,7 @@ class _JsonFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         obj: dict = {
-            "ts":     datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "ts":     datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level":  record.levelname,
             "logger": record.name,
             "msg":    record.getMessage(),
@@ -83,9 +81,9 @@ def setup_structured_logging(
     run_id: str = "",
     stage: str  = "",
     level: str  = "INFO",
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     console: bool = True,
-) -> Optional[Path]:
+) -> Path | None:
     """
     Configures the root logger with:
       - A JSON file handler writing to logs/{run_id}.jsonl
@@ -103,7 +101,7 @@ def setup_structured_logging(
     formatter = _JsonFormatter(run_id=run_id, stage=stage)
 
     # File handler (JSON)
-    log_file: Optional[Path] = None
+    log_file: Path | None = None
     if run_id:
         ldir = log_dir or _LOG_DIR
         ldir.mkdir(parents=True, exist_ok=True)
@@ -132,17 +130,17 @@ def setup_structured_logging(
 class StageMetrics:
     stage:       str
     started_at:  float = field(default_factory=time.monotonic)
-    finished_at: Optional[float] = None
+    finished_at: float | None = None
     status:      str  = "running"   # running | completed | failed | skipped
     stats:       dict = field(default_factory=dict)
 
     @property
-    def elapsed_seconds(self) -> Optional[float]:
+    def elapsed_seconds(self) -> float | None:
         if self.finished_at is not None:
             return round(self.finished_at - self.started_at, 3)
         return None
 
-    def complete(self, stats: Optional[dict] = None) -> None:
+    def complete(self, stats: dict | None = None) -> None:
         self.finished_at = time.monotonic()
         self.status      = "completed"
         if stats:

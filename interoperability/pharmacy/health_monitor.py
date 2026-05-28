@@ -18,13 +18,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
 
 from interoperability.pharmacy.connector import (
     PharmacyConnector,
-    PharmacyConnectorState,
     PullResult,
 )
 
@@ -47,8 +45,8 @@ class ConnectorHealthSnapshot:
     tenant_id:       str
     feed_type:       str
     status:          ConnectorHealthStatus
-    last_checked:    Optional[datetime]
-    last_success:    Optional[datetime]
+    last_checked:    datetime | None
+    last_success:    datetime | None
     last_pull_count: int
     error_rate:      float              # 0.0 – 1.0 over recent window
     is_reachable:    bool
@@ -63,7 +61,7 @@ class FleetHealthSummary:
     down_count:     int
     stale_count:    int
     total:          int
-    checked_at:     datetime            = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    checked_at:     datetime            = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def all_healthy(self) -> bool:
@@ -102,7 +100,7 @@ class PharmacyHealthMonitor:
         self._stale_hours  = stale_hours
         self._err_threshold= error_rate_threshold
         self._fail_threshold= failure_down_threshold
-        self._check_task:  Optional[asyncio.Task] = None
+        self._check_task:  asyncio.Task | None = None
 
     # ── Registration ───────────────────────────────────────────────────────────
 
@@ -155,7 +153,7 @@ class PharmacyHealthMonitor:
 
     async def _check_one(self, cid: str, connector: PharmacyConnector) -> None:
         """Ping one connector and compute its health snapshot."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         try:
             is_reachable = await asyncio.wait_for(connector.ping(), timeout=10)
         except Exception:
@@ -169,7 +167,7 @@ class PharmacyHealthMonitor:
             now          = now,
         )
 
-        last_success: Optional[datetime] = None
+        last_success: datetime | None = None
         last_count   = 0
         if history:
             for r in reversed(history):
@@ -259,7 +257,7 @@ class PharmacyHealthMonitor:
 
     # ── Snapshots ──────────────────────────────────────────────────────────────
 
-    def get_snapshot(self, connector_id: str) -> Optional[ConnectorHealthSnapshot]:
+    def get_snapshot(self, connector_id: str) -> ConnectorHealthSnapshot | None:
         return self._snapshots.get(connector_id)
 
     def all_snapshots(self) -> list[ConnectorHealthSnapshot]:

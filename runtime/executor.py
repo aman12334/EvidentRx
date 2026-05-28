@@ -25,9 +25,8 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Optional
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -75,7 +74,7 @@ class StageResult:
     status:      str    # completed | failed | skipped
     elapsed_s:   float  = 0.0
     stats:       dict   = field(default_factory=dict)
-    error:       Optional[str] = None
+    error:       str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -111,7 +110,7 @@ class PipelineRun:
             }, f, indent=2, default=str)
 
     @classmethod
-    def load(cls, path: Path) -> "PipelineRun":
+    def load(cls, path: Path) -> PipelineRun:
         with open(path) as f:
             data = json.load(f)
         obj = cls(
@@ -130,18 +129,18 @@ class PipelineExecutor:
     partial progress from being saved.
     """
 
-    def run(self, config: Optional[PipelineConfig] = None) -> PipelineRun:
+    def run(self, config: PipelineConfig | None = None) -> PipelineRun:
         cfg    = config or PipelineConfig()
         run_id = str(uuid4())
         run    = PipelineRun(
             run_id=run_id,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
             config=cfg.__dict__ if hasattr(cfg, "__dict__") else {},
         )
         checkpoint_path = _STATE_DIR / f"{run_id}.json"
         return self._execute(run, cfg, checkpoint_path)
 
-    def resume(self, run_id: str, config: Optional[PipelineConfig] = None) -> PipelineRun:
+    def resume(self, run_id: str, config: PipelineConfig | None = None) -> PipelineRun:
         checkpoint_path = _STATE_DIR / f"{run_id}.json"
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"No checkpoint found for run_id={run_id}")
@@ -237,9 +236,9 @@ class PipelineExecutor:
         return {"status": "ingestion complete"}
 
     def _stage_simulation(self, cfg: PipelineConfig) -> dict:
+        from app.database import SessionLocal
         from simulation.config import SimConfig
         from simulation.orchestrator import SimulationOrchestrator
-        from app.database import SessionLocal
 
         sim_cfg = SimConfig(
             period_start=cfg.sim_start,
@@ -260,8 +259,8 @@ class PipelineExecutor:
         }
 
     def _stage_rules_engine(self, cfg: PipelineConfig) -> dict:
-        from rules_engine.engine import RulesEngine
         from app.database import SessionLocal
+        from rules_engine.engine import RulesEngine
 
         engine = RulesEngine(db_batch_size=cfg.db_batch_size)
         with SessionLocal() as session:
@@ -272,9 +271,9 @@ class PipelineExecutor:
         return stats
 
     def _stage_investigation(self, cfg: PipelineConfig) -> dict:
+        from app.database import SessionLocal
         from investigation.domain.clustering import ClusterConfig
         from investigation.services.case_builder import CaseBuilderService
-        from app.database import SessionLocal
 
         cluster_cfg = ClusterConfig(
             window_days=cfg.window_days,
@@ -289,9 +288,10 @@ class PipelineExecutor:
         if cfg.skip_agents:
             return {"skipped": True, "reason": "skip_agents=True"}
 
+        from sqlalchemy import text
+
         from agents.runner import InvestigationRunner
         from app.database import SessionLocal
-        from sqlalchemy import text
 
         runner = InvestigationRunner.from_env()
 
@@ -351,7 +351,7 @@ class PipelineExecutor:
         return runs
 
     @staticmethod
-    def load_run(run_id: str) -> Optional[dict]:
+    def load_run(run_id: str) -> dict | None:
         p = _STATE_DIR / f"{run_id}.json"
         if not p.exists():
             return None

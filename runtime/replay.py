@@ -26,8 +26,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import text
@@ -49,10 +48,10 @@ class ReplayDiff:
 @dataclass
 class ReplayReport:
     case_id:       str
-    prior_run_id:  Optional[str]
+    prior_run_id:  str | None
     current_run_id: str
     started_at:    str
-    completed_at:  Optional[str] = None
+    completed_at:  str | None = None
     run_result:    dict = field(default_factory=dict)
     diffs:         list[ReplayDiff] = field(default_factory=list)
     errors:        list[dict] = field(default_factory=list)
@@ -84,7 +83,7 @@ class ReplayReport:
         print(f"  Cache hits: {result.get('cache_read_tokens', 0):,}")
 
         if result.get("executive_summary"):
-            print(f"\n  Executive Summary (first 300 chars):")
+            print("\n  Executive Summary (first 300 chars):")
             print(f"  {result['executive_summary'][:300]}...")
 
         if self.diffs:
@@ -95,10 +94,10 @@ class ReplayReport:
                 changed_marker = "  ← CHANGED" if d.changed else ""
                 print(f"  {d.field:<30} {d.delta_str or str(d.current)}{changed_marker}")
         elif self.prior_run_id:
-            print(f"\n  No diff computed (no prior run data available).")
+            print("\n  No diff computed (no prior run data available).")
 
         if self.errors:
-            print(f"\n  Errors:")
+            print("\n  Errors:")
             for e in self.errors:
                 print(f"    [{e.get('node')}] {e.get('error')}")
 
@@ -132,7 +131,7 @@ class InvestigationReplayer:
         self._runner = runner
 
     @classmethod
-    def from_env(cls) -> "InvestigationReplayer":
+    def from_env(cls) -> InvestigationReplayer:
         from agents.runner import InvestigationRunner
         return cls(runner=InvestigationRunner.from_env())
 
@@ -147,7 +146,7 @@ class InvestigationReplayer:
         If diff=True, compares key output fields against the most recent prior run.
         """
         cid = str(case_id)
-        started_at = datetime.now(timezone.utc).isoformat()
+        started_at = datetime.now(UTC).isoformat()
 
         # Load prior run data before running (so we can diff)
         prior_run_id  = None
@@ -161,7 +160,7 @@ class InvestigationReplayer:
         result = self._runner.run(session, case_id)
         session.commit()
 
-        completed_at = datetime.now(timezone.utc).isoformat()
+        completed_at = datetime.now(UTC).isoformat()
 
         report = ReplayReport(
             case_id=cid,
@@ -241,7 +240,7 @@ class InvestigationReplayer:
     # DB helpers
     # ------------------------------------------------------------------
 
-    def _load_prior_outputs(self, session: Session, case_id: str) -> tuple[Optional[str], dict]:
+    def _load_prior_outputs(self, session: Session, case_id: str) -> tuple[str | None, dict]:
         """
         Loads the most recently completed agent run batch for this case
         and reconstructs a run_result-like dict for diffing.

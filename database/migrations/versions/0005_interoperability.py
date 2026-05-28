@@ -12,8 +12,8 @@ Revision: 0005
 Previous: 0004 (auth_tables)
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision  = "0005"

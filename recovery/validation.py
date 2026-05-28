@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing      import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List
 
 log = logging.getLogger("evidentrx.recovery.validation")
 
@@ -36,7 +36,7 @@ class FindingFingerprint:
     rule_code:  str
     severity:   str
     entity_id:  str
-    finding_code: Optional[str] = None
+    finding_code: str | None = None
 
     def __hash__(self) -> int:
         return hash((self.rule_code, self.severity, self.entity_id))

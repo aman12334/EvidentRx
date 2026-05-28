@@ -25,9 +25,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
 
 log = logging.getLogger("evidentrx.interop.governance.access_control")
 
@@ -89,7 +88,7 @@ class AccessDecision:
 
     def __post_init__(self) -> None:
         if self.decided_at is None:
-            self.decided_at = datetime.now(tz=timezone.utc)
+            self.decided_at = datetime.now(tz=UTC)
 
 
 class ConnectorAccessControl:

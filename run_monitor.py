@@ -27,7 +27,6 @@ import argparse
 import json
 import logging
 import sys
-from datetime import date
 
 from app.database import get_session_factory
 from monitoring.engine import MonitoringEngine
@@ -63,7 +62,7 @@ def cmd_run(args: argparse.Namespace, session_factory) -> int:
         session.commit()
 
         print(f"\n{'='*55}")
-        print(f"MONITORING RUN COMPLETE")
+        print("MONITORING RUN COMPLETE")
         print(f"{'='*55}")
         print(f"  Run ID:             {result.run_id}")
         print(f"  Status:             {result.status}")
@@ -107,8 +106,8 @@ def cmd_status(args: argparse.Namespace, session_factory) -> int:
 
 
 def cmd_trends(args: argparse.Namespace, session_factory) -> int:
-    from intelligence.services.trend_analysis import TrendAnalysisService
     from intelligence.reports.trend_report import TrendReporter
+    from intelligence.services.trend_analysis import TrendAnalysisService
 
     with session_factory() as session:
         svc     = TrendAnalysisService()
@@ -127,8 +126,8 @@ def cmd_trends(args: argparse.Namespace, session_factory) -> int:
 
 
 def cmd_correlate(args: argparse.Namespace, session_factory) -> int:
-    from intelligence.services.correlation import CorrelationEngine
     from intelligence.reports.correlation_report import CorrelationReporter
+    from intelligence.services.correlation import CorrelationEngine
 
     with session_factory() as session:
         engine = CorrelationEngine()
@@ -147,8 +146,8 @@ def cmd_correlate(args: argparse.Namespace, session_factory) -> int:
 
 
 def cmd_risk(args: argparse.Namespace, session_factory) -> int:
-    from intelligence.services.predictive_risk import PredictiveRiskService
     from intelligence.reports.risk_forecast import RiskForecastReporter
+    from intelligence.services.predictive_risk import PredictiveRiskService
 
     with session_factory() as session:
         svc     = PredictiveRiskService()
@@ -289,7 +288,6 @@ def main() -> int:
     parser = build_parser()
     args   = parser.parse_args()
 
-    from app.database import get_session_factory
     session_factory = get_session_factory()
 
     dispatch = {

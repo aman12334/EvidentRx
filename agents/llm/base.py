@@ -8,8 +8,7 @@ are handled here, not in agent business logic.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Message:
 @dataclass
 class LLMResponse:
     content: str                         # raw text response
-    structured: Optional[dict]           # parsed JSON if response_format="json"
+    structured: dict | None           # parsed JSON if response_format="json"
     model_id: str
     input_tokens: int
     output_tokens: int
@@ -42,7 +41,7 @@ class LLMConfig:
     timeout_seconds: int = 60
     max_retries: int = 3
     response_format: str = "json"       # "json" | "text"
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
 
 
 class LLMProvider(ABC):

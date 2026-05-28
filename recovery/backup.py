@@ -22,11 +22,9 @@ Recovery point objective (RPO): < 1 hour (incremental WAL archiving)
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
-from datetime import datetime, timezone
-from pathlib  import Path
-from typing   import Optional
+from datetime import UTC, datetime
+from pathlib import Path
 
 log = logging.getLogger("evidentrx.recovery.backup")
 
@@ -47,14 +45,13 @@ class BackupService:
         self,
         database_url: str,
         label:        str = "manual",
-    ) -> Optional[Path]:
+    ) -> Path | None:
         """
         Execute pg_dump and write compressed output.
         Returns the backup file path or None on failure.
         """
-        from config.settings import settings
 
-        ts        = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+        ts        = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
         filename  = f"evidentrx_{label}_{ts}.sql.gz"
         dest      = self.backup_dir / filename
 
@@ -136,7 +133,7 @@ class BackupService:
             backups.append({
                 "filename": path.name,
                 "size_mb":  round(stat.st_size / (1024 * 1024), 1),
-                "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                "modified": datetime.fromtimestamp(stat.st_mtime, tz=UTC).isoformat(),
             })
         return backups
 

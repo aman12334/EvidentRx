@@ -12,9 +12,8 @@ rules, or agent outputs directly.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -75,7 +74,7 @@ class EvaluationMemory:
         self,
         session: Session,
         lookback_days: int = 90,
-        agent_type: Optional[str] = None,
+        agent_type: str | None = None,
     ) -> OverrideSummary:
         """
         Returns aggregate override statistics for the given lookback window.
@@ -193,7 +192,7 @@ class EvaluationMemory:
     def recent_overrides(
         self,
         session: Session,
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
         limit: int = 20,
     ) -> list[OverrideRecord]:
         """Returns recent override records, optionally filtered by case."""

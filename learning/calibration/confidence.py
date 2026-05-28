@@ -22,12 +22,11 @@ Components
 
 from __future__ import annotations
 
-import math
 import logging
+import math
 import statistics
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
 
 log = logging.getLogger("evidentrx.learning.calibration.confidence")
 
@@ -50,7 +49,7 @@ class CalibrationSample:
     predicted_score:  float        # system-assigned confidence 0.0–1.0
     actual_outcome:   int          # 1 = confirmed violation, 0 = cleared
     source:           str          # "outcome_label" | "analyst_override"
-    recorded_at:      datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    recorded_at:      datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
@@ -61,7 +60,7 @@ class CalibrationMetrics:
     overconfidence:    float        # avg predicted - avg actual (positive = overconfident)
     underconfidence:   float        # negative overconfidence
     sample_count:      int
-    computed_at:       datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    computed_at:       datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def is_well_calibrated(self) -> bool:
@@ -93,7 +92,7 @@ class ConfidenceNormalizer:
         self._breakpoints: list[tuple[float, float]] = []  # (raw, calibrated)
         self._is_fit = False
 
-    def fit(self, samples: list[CalibrationSample]) -> "ConfidenceNormalizer":
+    def fit(self, samples: list[CalibrationSample]) -> ConfidenceNormalizer:
         """
         Fit the normalizer from labelled samples.
 
@@ -214,18 +213,18 @@ class CalibrationDriftDetector:
     def detect_drift(
         self,
         tenant_id: str,
-        rule_code: Optional[str] = None,
-    ) -> Optional["DriftAlert"]:
+        rule_code: str | None = None,
+    ) -> DriftAlert | None:
         """
         Compare recent window ECE against the baseline window.
 
         Returns a DriftAlert if drift is detected, None otherwise.
         """
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         cutoff_recent   = now - timedelta(days=self._window_days)
         cutoff_baseline = now - timedelta(days=self._baseline_days)
 
-        def _filter(samples: list, since: datetime, until: Optional[datetime] = None) -> list:
+        def _filter(samples: list, since: datetime, until: datetime | None = None) -> list:
             result = [s for s in samples
                       if s.tenant_id == tenant_id
                       and (not rule_code or s.rule_code == rule_code)
@@ -261,7 +260,7 @@ class CalibrationDriftDetector:
 class DriftAlert:
     """Calibration drift alert."""
     tenant_id:     str
-    rule_code:     Optional[str]
+    rule_code:     str | None
     baseline_ece:  float
     recent_ece:    float
     ece_delta:     float
@@ -296,7 +295,7 @@ class UncertaintyPropagator:
         return round(math.exp(log_sum / len(step_confidences)), 4)
 
     @staticmethod
-    def aggregate_evidence(evidence_scores: list[float], weights: Optional[list[float]] = None) -> float:
+    def aggregate_evidence(evidence_scores: list[float], weights: list[float] | None = None) -> float:
         """
         Aggregate evidence scores into a single confidence estimate.
 

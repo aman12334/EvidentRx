@@ -21,8 +21,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +58,8 @@ class CheckResult:
 @dataclass
 class HealthReport:
     checks: list[CheckResult] = field(default_factory=list)
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    finished_at: Optional[datetime] = None
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    finished_at: datetime | None = None
 
     def add(self, result: CheckResult) -> None:
         self.checks.append(result)
@@ -136,7 +135,7 @@ class HealthChecker:
         self._check_llm_providers(report)
         self._check_python_deps(report)
 
-        report.finished_at = datetime.now(timezone.utc)
+        report.finished_at = datetime.now(UTC)
         return report
 
     # ------------------------------------------------------------------

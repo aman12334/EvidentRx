@@ -24,16 +24,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.tenancy.isolation")
 
 # Thread/async-local context variable — carries the active tenant_id
 # for the duration of a request or task.
-_active_tenant_id: ContextVar[Optional[str]] = ContextVar(
+_active_tenant_id: ContextVar[str | None] = ContextVar(
     "active_tenant_id", default=None
 )
 
@@ -49,7 +50,7 @@ class TenantContext:
     tenant_id:  str
     user_id:    str
     role:       str
-    session_id: Optional[str]
+    session_id: str | None
     entered_at: datetime
 
     def assert_tenant(self, resource_tenant_id: str) -> None:
@@ -91,7 +92,7 @@ class TenantIsolationGuard:
 
     def __init__(
         self,
-        violation_handler: Optional[Callable] = None,
+        violation_handler: Callable | None = None,
     ) -> None:
         self._violation_handler = violation_handler
         self._violation_count:  dict[str, int] = {}   # tenant_id → count
@@ -103,7 +104,7 @@ class TenantIsolationGuard:
         tenant_id:  str,
         user_id:    str,
         role:       str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> TenantContext:
         """Activate the tenant context for the current async task."""
         if not tenant_id or not tenant_id.strip():
@@ -114,7 +115,7 @@ class TenantIsolationGuard:
             user_id    = user_id,
             role       = role,
             session_id = session_id,
-            entered_at = datetime.now(tz=timezone.utc),
+            entered_at = datetime.now(tz=UTC),
         )
         _active_tenant_id.set(tenant_id)
         log.debug("TenantIsolationGuard: entered context for tenant=%s user=%s",
@@ -126,15 +127,15 @@ class TenantIsolationGuard:
         _active_tenant_id.set(None)
 
     class _ContextManager:
-        def __init__(self, guard: "TenantIsolationGuard",
+        def __init__(self, guard: TenantIsolationGuard,
                      tenant_id: str, user_id: str, role: str,
-                     session_id: Optional[str]) -> None:
+                     session_id: str | None) -> None:
             self._guard      = guard
             self._tenant_id  = tenant_id
             self._user_id    = user_id
             self._role       = role
             self._session_id = session_id
-            self._ctx: Optional[TenantContext] = None
+            self._ctx: TenantContext | None = None
 
         async def __aenter__(self) -> TenantContext:
             self._ctx = self._guard.enter(
@@ -150,8 +151,8 @@ class TenantIsolationGuard:
         tenant_id:  str,
         user_id:    str,
         role:       str,
-        session_id: Optional[str] = None,
-    ) -> "_ContextManager":
+        session_id: str | None = None,
+    ) -> _ContextManager:
         return self._ContextManager(self, tenant_id, user_id, role, session_id)
 
     # ── Validation helpers ─────────────────────────────────────────────────────
@@ -209,7 +210,7 @@ class TenantIsolationGuard:
         return safe
 
     @staticmethod
-    def current_tenant_id() -> Optional[str]:
+    def current_tenant_id() -> str | None:
         """Return the currently active tenant_id, or None if no context set."""
         return _active_tenant_id.get()
 
@@ -242,11 +243,11 @@ class IsolationViolation(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_guard: Optional[TenantIsolationGuard] = None
+_guard: TenantIsolationGuard | None = None
 
 
 def get_isolation_guard(
-    violation_handler: Optional[Callable] = None,
+    violation_handler: Callable | None = None,
 ) -> TenantIsolationGuard:
     global _guard
     if _guard is None:

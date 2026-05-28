@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -31,7 +30,7 @@ class CheckpointManager:
         *,
         case_id: UUID,
         run_id: str,
-        agent_run_id: Optional[UUID],
+        agent_run_id: UUID | None,
         workflow_name: str,
         checkpoint_name: str,
         state: dict,
@@ -87,7 +86,7 @@ class CheckpointManager:
         session: Session,
         case_id: UUID,
         workflow_name: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Returns the most recent resumable checkpoint state for a case,
         or None if no resumable checkpoint exists.
@@ -143,8 +142,8 @@ def _sanitize_state(state: dict) -> dict:
     Recursively serialize a state dict to JSON-safe types.
     Removes None UUIDs and converts date/UUID objects.
     """
-    import uuid
     import datetime
+    import uuid
 
     def _convert(v):
         if isinstance(v, uuid.UUID):

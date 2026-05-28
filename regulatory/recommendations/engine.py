@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing   import Any, Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
 
+from regulatory.diff.drift import DriftReport, DriftSeverity
+from regulatory.impact.analysis import ImpactDimension, ImpactReport
 from regulatory.recommendations.models import (
     PolicyRecommendation,
     RecommendationLineageEntry,
@@ -32,8 +34,6 @@ from regulatory.recommendations.models import (
     _hash_recommendation,
     new_rec_id,
 )
-from regulatory.impact.analysis import ImpactReport, AffectedElement, ImpactDimension
-from regulatory.diff.drift import DriftReport, DriftSeverity
 
 log = logging.getLogger("evidentrx.regulatory.recommendations.engine")
 
@@ -48,7 +48,7 @@ class PolicyRecommendationService:
     generated twice for the same source.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._recs:        dict[str, PolicyRecommendation]    = {}
         self._db_writer    = db_writer
         # source_id → [rec_id, ...]  (dedup by source)
@@ -200,7 +200,7 @@ class PolicyRecommendationService:
         if rec.status != RecommendationStatus.DRAFT:
             raise RecommendationError(f"Recommendation {rec_id[:8]} is not in DRAFT status")
         rec.status       = RecommendationStatus.SUBMITTED
-        rec.submitted_at = datetime.now(tz=timezone.utc)
+        rec.submitted_at = datetime.now(tz=UTC)
         rec.lineage.append(self._lineage_entry(rec_id, "submitted", submitted_by))
         return rec
 
@@ -217,7 +217,7 @@ class PolicyRecommendationService:
         if approved_by == rec.created_by:
             raise RecommendationError("Approver must be different from the recommendation creator")
         rec.status       = RecommendationStatus.APPROVED
-        rec.decided_at   = datetime.now(tz=timezone.utc)
+        rec.decided_at   = datetime.now(tz=UTC)
         rec.decided_by   = approved_by
         rec.decision_notes = notes
         rec.lineage.append(self._lineage_entry(rec_id, "approved", approved_by, notes))
@@ -238,7 +238,7 @@ class PolicyRecommendationService:
         if rec.status != RecommendationStatus.SUBMITTED:
             raise RecommendationError(f"Recommendation {rec_id[:8]} is not pending review")
         rec.status       = RecommendationStatus.REJECTED
-        rec.decided_at   = datetime.now(tz=timezone.utc)
+        rec.decided_at   = datetime.now(tz=UTC)
         rec.decided_by   = rejected_by
         rec.decision_notes = notes
         rec.lineage.append(self._lineage_entry(rec_id, "rejected", rejected_by, notes))
@@ -256,7 +256,7 @@ class PolicyRecommendationService:
                 f"Recommendation {rec_id[:8]} must be APPROVED before implementation"
             )
         rec.status         = RecommendationStatus.IMPLEMENTED
-        rec.implemented_at = datetime.now(tz=timezone.utc)
+        rec.implemented_at = datetime.now(tz=UTC)
         rec.lineage.append(self._lineage_entry(rec_id, "implemented", implemented_by))
         return rec
 
@@ -322,8 +322,8 @@ class PolicyRecommendationService:
     def list_recommendations(
         self,
         tenant_id: str,
-        status:    Optional[RecommendationStatus] = None,
-        priority:  Optional[RecommendationPriority] = None,
+        status:    RecommendationStatus | None = None,
+        priority:  RecommendationPriority | None = None,
         limit:     int = 50,
     ) -> list[PolicyRecommendation]:
         recs = [
@@ -338,7 +338,7 @@ class PolicyRecommendationService:
     def pending_review(self, tenant_id: str) -> list[PolicyRecommendation]:
         return self.list_recommendations(tenant_id, status=RecommendationStatus.SUBMITTED)
 
-    def get(self, rec_id: str) -> Optional[PolicyRecommendation]:
+    def get(self, rec_id: str) -> PolicyRecommendation | None:
         return self._recs.get(rec_id)
 
     # ── Private ────────────────────────────────────────────────────────────────
@@ -355,8 +355,8 @@ class PolicyRecommendationService:
         source_id:        str,
         priority:         RecommendationPriority,
         created_by:       str,
-        action_by_date:   Optional[str] = None,
-    ) -> Optional[PolicyRecommendation]:
+        action_by_date:   str | None = None,
+    ) -> PolicyRecommendation | None:
         content_hash = _hash_recommendation(
             rec_type.value, title, proposed_change, source_id
         )
@@ -384,8 +384,8 @@ class PolicyRecommendationService:
         source_id:         str,
         priority:          RecommendationPriority,
         created_by:        str,
-        action_by_date:    Optional[str] = None,
-        prior_rec_id:      Optional[str] = None,
+        action_by_date:    str | None = None,
+        prior_rec_id:      str | None = None,
     ) -> PolicyRecommendation:
         content_hash = _hash_recommendation(
             rec_type.value, title, proposed_change, source_id
@@ -451,11 +451,11 @@ class RecommendationError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[PolicyRecommendationService] = None
+_service: PolicyRecommendationService | None = None
 
 
 def get_recommendation_service(
-    db_writer: Optional[Callable] = None,
+    db_writer: Callable | None = None,
 ) -> PolicyRecommendationService:
     global _service
     if _service is None:

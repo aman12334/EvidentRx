@@ -21,17 +21,18 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
+from saas.marketplace.registry import MarketplaceRegistry, get_marketplace_registry
 from saas.marketplace.templates import (
-    WorkflowTemplate,
+    MarketplaceStatus,
     TemplateType,
     TemplateVisibility,
-    MarketplaceStatus,
+    WorkflowTemplate,
 )
-from saas.marketplace.registry import MarketplaceRegistry, get_marketplace_registry
 
 log = logging.getLogger("evidentrx.saas.marketplace.publishing")
 
@@ -50,8 +51,8 @@ class PublishingRequest:
     tenant_id:     str
     submitted_at:  datetime
     status:        str                    # "pending" | "approved" | "rejected"
-    reviewer_id:   Optional[str]          = None
-    reviewed_at:   Optional[datetime]     = None
+    reviewer_id:   str | None          = None
+    reviewed_at:   datetime | None     = None
     review_notes:  str                    = ""
     content_hash:  str                    = ""    # snapshot of template at submission
 
@@ -84,8 +85,8 @@ class TemplatePublisher:
 
     def __init__(
         self,
-        registry:  Optional[MarketplaceRegistry] = None,
-        db_writer: Optional[Callable]            = None,
+        registry:  MarketplaceRegistry | None = None,
+        db_writer: Callable | None            = None,
     ) -> None:
         self._registry  = registry or get_marketplace_registry()
         self._db_writer = db_writer
@@ -109,11 +110,11 @@ class TemplatePublisher:
         description:         str,
         workflow_definition: dict[str, Any],
         visibility:          TemplateVisibility      = TemplateVisibility.PUBLIC,
-        tags:                Optional[list[str]]     = None,
-        compatible_tiers:    Optional[list[str]]     = None,
-        allowed_tenant_ids:  Optional[list[str]]     = None,
-        parent_template_id:  Optional[str]           = None,
-        metadata:            Optional[dict[str, Any]] = None,
+        tags:                list[str] | None     = None,
+        compatible_tiers:    list[str] | None     = None,
+        allowed_tenant_ids:  list[str] | None     = None,
+        parent_template_id:  str | None           = None,
+        metadata:            dict[str, Any] | None = None,
     ) -> WorkflowTemplate:
         """Create a new DRAFT template in the publisher's workspace."""
         template_id   = str(uuid.uuid4())
@@ -131,7 +132,7 @@ class TemplatePublisher:
             visibility           = visibility,
             content_hash         = content_hash,
             publisher_tenant_id  = tenant_id,
-            created_at           = datetime.now(tz=timezone.utc),
+            created_at           = datetime.now(tz=UTC),
             created_by           = created_by,
             tags                 = tags or [],
             compatible_tiers     = compatible_tiers or [],
@@ -151,10 +152,10 @@ class TemplatePublisher:
         self,
         template_id:         str,
         tenant_id:           str,
-        workflow_definition: Optional[dict[str, Any]] = None,
-        title:               Optional[str]            = None,
-        description:         Optional[str]            = None,
-        tags:                Optional[list[str]]      = None,
+        workflow_definition: dict[str, Any] | None = None,
+        title:               str | None            = None,
+        description:         str | None            = None,
+        tags:                list[str] | None      = None,
     ) -> WorkflowTemplate:
         tmpl = self._get_owned_template(template_id, tenant_id)
         if tmpl.status != MarketplaceStatus.DRAFT:
@@ -192,7 +193,7 @@ class TemplatePublisher:
             template_id  = template_id,
             submitted_by = submitted_by,
             tenant_id    = tenant_id,
-            submitted_at = datetime.now(tz=timezone.utc),
+            submitted_at = datetime.now(tz=UTC),
             status       = "pending",
             content_hash = tmpl.content_hash,
         )
@@ -229,7 +230,7 @@ class TemplatePublisher:
 
         req.status      = "approved"
         req.reviewer_id = reviewer_id
-        req.reviewed_at = datetime.now(tz=timezone.utc)
+        req.reviewed_at = datetime.now(tz=UTC)
         req.review_notes = review_notes
 
         tmpl.status       = MarketplaceStatus.PUBLISHED
@@ -257,7 +258,7 @@ class TemplatePublisher:
 
         req.status       = "rejected"
         req.reviewer_id  = reviewer_id
-        req.reviewed_at  = datetime.now(tz=timezone.utc)
+        req.reviewed_at  = datetime.now(tz=UTC)
         req.review_notes = review_notes
 
         tmpl.status = MarketplaceStatus.DRAFT   # back to DRAFT for edits
@@ -304,7 +305,7 @@ class TemplatePublisher:
     def list_tenant_templates(
         self,
         tenant_id: str,
-        status:    Optional[MarketplaceStatus] = None,
+        status:    MarketplaceStatus | None = None,
     ) -> list[WorkflowTemplate]:
         return [
             t for t in self._templates.values()
@@ -312,7 +313,7 @@ class TemplatePublisher:
             and (status is None or t.status == status)
         ]
 
-    def get_request(self, request_id: str) -> Optional[PublishingRequest]:
+    def get_request(self, request_id: str) -> PublishingRequest | None:
         return self._requests.get(request_id)
 
     def request_history(self, template_id: str) -> list[PublishingRequest]:
@@ -357,12 +358,12 @@ class TemplateOwnershipError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_publisher: Optional[TemplatePublisher] = None
+_publisher: TemplatePublisher | None = None
 
 
 def get_template_publisher(
-    registry:  Optional[MarketplaceRegistry] = None,
-    db_writer: Optional[Callable]            = None,
+    registry:  MarketplaceRegistry | None = None,
+    db_writer: Callable | None            = None,
 ) -> TemplatePublisher:
     global _publisher
     if _publisher is None:

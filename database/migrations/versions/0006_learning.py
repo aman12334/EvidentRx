@@ -29,8 +29,8 @@ Functions
   learning.purge_expired_memory(text)
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # ── Revision identifiers ───────────────────────────────────────────────────────

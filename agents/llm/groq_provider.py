@@ -14,20 +14,19 @@ Models routed through this provider (hackathon free tier):
 """
 from __future__ import annotations
 
-import json
 import logging
 import time
 
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
 )
 
-from agents.llm.base import LLMConfig, LLMProvider, LLMResponse, Message
 from agents.llm.anthropic_provider import _extract_json
+from agents.llm.base import LLMConfig, LLMProvider, LLMResponse, Message
 
 logger = logging.getLogger(__name__)
 

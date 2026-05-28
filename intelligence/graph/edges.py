@@ -7,8 +7,6 @@ relationship (e.g. number of shared findings, frequency of co-occurrence).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
-
 
 # Relationship types between node types
 RELATIONSHIP_TYPES = frozenset([
@@ -54,7 +52,7 @@ class GraphEdge:
         pharmacy_id: str,
         severity: str = "medium",
         **props,
-    ) -> "GraphEdge":
+    ) -> GraphEdge:
         return cls(
             source_type="finding", source_id=finding_id,
             target_type="pharmacy", target_id=pharmacy_id,
@@ -70,7 +68,7 @@ class GraphEdge:
         ndc_11: str,
         severity: str = "medium",
         **props,
-    ) -> "GraphEdge":
+    ) -> GraphEdge:
         return cls(
             source_type="finding", source_id=finding_id,
             target_type="ndc", target_id=ndc_11,
@@ -85,7 +83,7 @@ class GraphEdge:
         finding_id: str,
         entity_id: str,
         severity: str = "medium",
-    ) -> "GraphEdge":
+    ) -> GraphEdge:
         return cls(
             source_type="finding", source_id=finding_id,
             target_type="covered_entity", target_id=entity_id,
@@ -94,7 +92,7 @@ class GraphEdge:
         )
 
     @classmethod
-    def finding_to_case(cls, finding_id: str, case_id: str) -> "GraphEdge":
+    def finding_to_case(cls, finding_id: str, case_id: str) -> GraphEdge:
         return cls(
             source_type="finding", source_id=finding_id,
             target_type="case", target_id=case_id,
@@ -110,7 +108,7 @@ class GraphEdge:
         relationship: str,
         strength: float,
         **props,
-    ) -> "GraphEdge":
+    ) -> GraphEdge:
         return cls(
             source_type="case", source_id=case_id_a,
             target_type="case", target_id=case_id_b,

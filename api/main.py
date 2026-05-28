@@ -20,19 +20,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from config.settings import settings
-
-from api.middleware.cors       import add_cors_middleware
-from api.middleware.logging    import RequestLoggingMiddleware
+from api.middleware.cors import add_cors_middleware
+from api.middleware.logging import RequestLoggingMiddleware
 from api.middleware.rate_limit import RateLimitMiddleware
-from api.middleware.tenant     import TenantMiddleware
-
-from auth.middleware           import AuthMiddleware
-from security.headers          import SecurityHeadersMiddleware
-from observability.middleware  import ObservabilityMiddleware
-from observability.logging     import configure_logging
-from observability.tracing     import setup_tracing
-
+from api.middleware.tenant import TenantMiddleware
 from api.routers import (
     auth,
     dashboard,
@@ -45,6 +36,12 @@ from api.routers import (
     traces,
     upload,
 )
+from auth.middleware import AuthMiddleware
+from config.settings import settings
+from observability.logging import configure_logging
+from observability.middleware import ObservabilityMiddleware
+from observability.tracing import setup_tracing
+from security.headers import SecurityHeadersMiddleware
 
 # ── Bootstrap ────────────────────────────────────────────────────────────────
 

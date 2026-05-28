@@ -8,7 +8,6 @@ This is NOT conversational memory — it is structured evidence context.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -24,7 +23,7 @@ class WorkflowMemory:
     findings_count: int = 0
     critical_count: int = 0
     high_count: int = 0
-    total_exposure: Optional[float] = None
+    total_exposure: float | None = None
     ndc_list: list[str] = field(default_factory=list)
     temporal_window: dict = field(default_factory=dict)
 
@@ -34,7 +33,7 @@ class WorkflowMemory:
     def cache_output(self, agent_name: str, output: dict) -> None:
         self._cache[agent_name] = output
 
-    def get_cached(self, agent_name: str) -> Optional[dict]:
+    def get_cached(self, agent_name: str) -> dict | None:
         return self._cache.get(agent_name)
 
     def is_high_risk(self) -> bool:
@@ -51,7 +50,7 @@ class WorkflowMemory:
             "temporal_window_days": self._window_days(),
         }
 
-    def _window_days(self) -> Optional[int]:
+    def _window_days(self) -> int | None:
         from datetime import date
         start = self.temporal_window.get("start")
         end = self.temporal_window.get("end")

@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 import statistics
-from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.analytics.reports")
 
@@ -35,8 +35,8 @@ class FalsePositiveTrendReport:
     total_cases:        int
     fp_count:           int
     fp_rate:            float
-    fp_rate_prior:      Optional[float]     # same window, prior period
-    delta_vs_prior:     Optional[float]     # fp_rate – fp_rate_prior
+    fp_rate_prior:      float | None     # same window, prior period
+    delta_vs_prior:     float | None     # fp_rate – fp_rate_prior
     by_rule_code:       dict[str, float]   # rule_code → fp_rate
     trend:              str                 # "improving" | "stable" | "degrading"
 
@@ -61,10 +61,10 @@ class InvestigationQualityReport:
     computed_at:              datetime
     period_days:              int
     total_rated:              int
-    avg_reasoning_quality:    Optional[float]
-    avg_evidence_completeness: Optional[float]
-    avg_recommendation_quality: Optional[float]
-    avg_overall_score:        Optional[float]
+    avg_reasoning_quality:    float | None
+    avg_evidence_completeness: float | None
+    avg_recommendation_quality: float | None
+    avg_overall_score:        float | None
     hallucination_rate:       float
     quality_distribution:     dict[str, int]   # "1"–"5" → count
     low_quality_rate:         float             # fraction scoring ≤ 2
@@ -88,12 +88,12 @@ class CalibrationEffectivenessReport:
     tenant_id:              str
     computed_at:            datetime
     period_days:            int
-    calibration_version:    Optional[str]
-    avg_confidence_error:   Optional[float]
-    median_confidence_error: Optional[float]
+    calibration_version:    str | None
+    avg_confidence_error:   float | None
+    median_confidence_error: float | None
     overconfident_rate:     float    # fraction where confidence > actual outcome
     underconfident_rate:    float
-    ece:                    Optional[float]   # Expected Calibration Error
+    ece:                    float | None   # Expected Calibration Error
     sample_count:           int
     is_reliable:            bool             # sample_count ≥ 20
 
@@ -125,7 +125,7 @@ class RecommendationImpactReport:
     total_ineffective:      int
     follow_rate:            float
     effectiveness_rate:     float
-    avg_time_to_decision_hours: Optional[float]
+    avg_time_to_decision_hours: float | None
     by_type:                dict[str, dict[str, float]]  # rec_type → {follow_rate, eff_rate}
 
     def to_dict(self) -> dict[str, Any]:
@@ -147,13 +147,13 @@ class LearningSystemHealthReport:
     computed_at:            datetime
     feedback_count_7d:      int
     feedback_count_30d:     int
-    active_calibration:     Optional[str]   # snapshot version
+    active_calibration:     str | None   # snapshot version
     prompt_versions_active: int
     pending_approvals:      int
     running_experiments:    int
-    calibration_ece:        Optional[float]
-    fp_rate_30d:            Optional[float]
-    investigation_quality_avg: Optional[float]
+    calibration_ece:        float | None
+    fp_rate_30d:            float | None
+    investigation_quality_avg: float | None
     alerts:                 list[str]       # health warnings
 
     @property
@@ -194,7 +194,7 @@ class LearningAnalyticsEngine:
         tenant_id:      str,
         window_days:    int = 30,
     ) -> FalsePositiveTrendReport:
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         cutoff = now - timedelta(days=window_days)
         prior_cutoff = cutoff - timedelta(days=window_days)
 
@@ -259,14 +259,14 @@ class LearningAnalyticsEngine:
         tenant_id:      str,
         period_days:    int = 30,
     ) -> InvestigationQualityReport:
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         cutoff = now - timedelta(days=period_days)
         scores = [
             s for s in quality_scores
             if s.get("recorded_at", now) >= cutoff
         ]
 
-        def _avg(field: str) -> Optional[float]:
+        def _avg(field: str) -> float | None:
             vals = [s[field] for s in scores if s.get(field) is not None]
             return round(statistics.mean(vals), 4) if vals else None
 
@@ -301,9 +301,9 @@ class LearningAnalyticsEngine:
         calibration_samples: list[dict[str, Any]],  # {predicted_confidence, actual_outcome}
         tenant_id:           str,
         period_days:         int         = 30,
-        calibration_version: Optional[str] = None,
+        calibration_version: str | None = None,
     ) -> CalibrationEffectivenessReport:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         cutoff = now - timedelta(days=period_days)
         samples = [
             s for s in calibration_samples
@@ -360,7 +360,7 @@ class LearningAnalyticsEngine:
         tenant_id:  str,
         period_days: int = 30,
     ) -> RecommendationImpactReport:
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         cutoff = now - timedelta(days=period_days)
         events = [
             e for e in rec_events
@@ -425,13 +425,13 @@ class LearningAnalyticsEngine:
         tenant_id:            str,
         feedback_count_7d:    int,
         feedback_count_30d:   int,
-        active_calibration:   Optional[str],
+        active_calibration:   str | None,
         prompt_versions_active: int,
         pending_approvals:    int,
         running_experiments:  int,
-        calibration_ece:      Optional[float],
-        fp_rate_30d:          Optional[float],
-        investigation_quality_avg: Optional[float],
+        calibration_ece:      float | None,
+        fp_rate_30d:          float | None,
+        investigation_quality_avg: float | None,
     ) -> LearningSystemHealthReport:
         alerts: list[str] = []
 
@@ -450,7 +450,7 @@ class LearningAnalyticsEngine:
 
         return LearningSystemHealthReport(
             tenant_id               = tenant_id,
-            computed_at             = datetime.now(tz=timezone.utc),
+            computed_at             = datetime.now(tz=UTC),
             feedback_count_7d       = feedback_count_7d,
             feedback_count_30d      = feedback_count_30d,
             active_calibration      = active_calibration,

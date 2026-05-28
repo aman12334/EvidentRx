@@ -12,11 +12,10 @@ Adds:
   audit.workflow_checkpoints         — LangGraph pause/resume state
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision: str = "0002"
 down_revision: Union[str, None] = "0001"

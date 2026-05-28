@@ -18,7 +18,7 @@ This prevents runtime manipulation of governance controls.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict
 
 from config.workflow_policy import WorkflowPolicy, workflow_policy
 
@@ -44,8 +44,8 @@ class PolicyEnforcer:
     def check_action(
         self,
         action:     str,
-        severity:   Optional[str] = None,
-        confidence: Optional[float] = None,
+        severity:   str | None = None,
+        confidence: float | None = None,
     ) -> None:
         """
         Validate an AI-proposed action.
@@ -90,7 +90,7 @@ class PolicyEnforcer:
     def check_confidence_for_transition(
         self,
         target_status: str,
-        confidence:    Optional[float],
+        confidence:    float | None,
     ) -> None:
         """
         Validate that confidence is sufficient for an automatic status transition.
@@ -117,8 +117,8 @@ class PolicyEnforcer:
     def requires_human_checkpoint(
         self,
         trigger:    str,
-        confidence: Optional[float] = None,
-        severity:   Optional[str] = None,
+        confidence: float | None = None,
+        severity:   str | None = None,
     ) -> bool:
         """
         Determine whether a human checkpoint is required before proceeding.

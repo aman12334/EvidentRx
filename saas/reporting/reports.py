@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.reporting.reports")
 
@@ -53,13 +53,13 @@ class ReportMetadata:
     title:        str
     period_from:  str           # ISO-8601 date
     period_to:    str           # ISO-8601 date
-    org_id:       Optional[str]
+    org_id:       str | None
     generated_by: str
     generated_at: datetime
     status:       ReportStatus  = ReportStatus.QUEUED
     row_count:    int           = 0
-    file_size_kb: Optional[int] = None
-    expires_at:   Optional[datetime] = None
+    file_size_kb: int | None = None
+    expires_at:   datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -128,11 +128,11 @@ class ExecutiveDashboard:
     """
     metadata:                   ReportMetadata
     investigations_this_period: int
-    investigations_trend_pct:   Optional[float]
+    investigations_trend_pct:   float | None
     fp_rate_this_period:        float
-    fp_rate_trend_pct:          Optional[float]
+    fp_rate_trend_pct:          float | None
     avg_resolution_hours:       float
-    resolution_trend_pct:       Optional[float]
+    resolution_trend_pct:       float | None
     open_cases_age_p90_hours:   float
     active_rule_packs:          int
     compliance_score:           float    # 0.0–1.0 composite
@@ -166,7 +166,7 @@ class ReportEngine:
     def build_compliance_report(
         self,
         tenant_id:      str,
-        org_id:         Optional[str],
+        org_id:         str | None,
         period_from:    str,
         period_to:      str,
         generated_by:   str,
@@ -199,7 +199,7 @@ class ReportEngine:
             period_to    = period_to,
             org_id       = org_id,
             generated_by = generated_by,
-            generated_at = datetime.now(tz=timezone.utc),
+            generated_at = datetime.now(tz=UTC),
             status       = ReportStatus.READY,
             row_count    = total,
         )
@@ -222,12 +222,12 @@ class ReportEngine:
     def build_executive_dashboard(
         self,
         tenant_id:    str,
-        org_id:       Optional[str],
+        org_id:       str | None,
         period_from:  str,
         period_to:    str,
         generated_by: str,
         current:      dict[str, Any],
-        prior:        Optional[dict[str, Any]] = None,
+        prior:        dict[str, Any] | None = None,
     ) -> ExecutiveDashboard:
         """
         Build an ExecutiveDashboard from current + optional prior period metrics.
@@ -236,7 +236,7 @@ class ReportEngine:
           investigations, fp_rate, avg_resolution_hours,
           open_cases_age_p90_hours, active_rule_packs, compliance_score
         """
-        def trend(curr_val: float, prior_val: Optional[float]) -> Optional[float]:
+        def trend(curr_val: float, prior_val: float | None) -> float | None:
             if prior_val is None or prior_val == 0.0:
                 return None
             return round((curr_val - prior_val) / prior_val * 100, 2)
@@ -265,7 +265,7 @@ class ReportEngine:
             period_to    = period_to,
             org_id       = org_id,
             generated_by = generated_by,
-            generated_at = datetime.now(tz=timezone.utc),
+            generated_at = datetime.now(tz=UTC),
             status       = ReportStatus.READY,
         )
         return ExecutiveDashboard(
@@ -292,7 +292,7 @@ class ReportEngine:
         period_from:  str,
         period_to:    str,
         generated_by: str,
-        org_id:       Optional[str] = None,
+        org_id:       str | None = None,
     ) -> ReportMetadata:
         return ReportMetadata(
             report_id    = str(uuid.uuid4()),
@@ -303,6 +303,6 @@ class ReportEngine:
             period_to    = period_to,
             org_id       = org_id,
             generated_by = generated_by,
-            generated_at = datetime.now(tz=timezone.utc),
+            generated_at = datetime.now(tz=UTC),
             status       = ReportStatus.QUEUED,
         )

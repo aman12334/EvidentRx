@@ -7,7 +7,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 
@@ -18,21 +17,21 @@ class RuleContext:
     covered_entity_id: UUID
     ndc_11: str
     service_date: date
-    patient_id_hash: Optional[str]
+    patient_id_hash: str | None
 
     # Logical chain IDs
-    purchase_id: Optional[UUID]
-    purchase_date: Optional[date]
-    dispense_id: Optional[UUID]
-    dispense_date: Optional[date]
-    claim_id: Optional[UUID]
-    claim_service_date: Optional[date]
+    purchase_id: UUID | None
+    purchase_date: date | None
+    dispense_id: UUID | None
+    dispense_date: date | None
+    claim_id: UUID | None
+    claim_service_date: date | None
 
     # Split billing attributes
     is_340b_purchase: bool
     is_medicaid_billed: bool
-    carve_in_flag: Optional[bool]
-    accumulator_balance: Optional[Decimal]
+    carve_in_flag: bool | None
+    accumulator_balance: Decimal | None
 
     # Pre-computed risk signals (from simulation/ingestion)
     duplicate_discount_risk: bool
@@ -41,11 +40,11 @@ class RuleContext:
     ineligible_patient_risk: bool
 
     # Reference data joined at query time
-    ce_program_start: Optional[date] = None
-    ce_program_end: Optional[date] = None
-    cp_registered: Optional[bool] = None         # True if CP was active at service_date
-    cp_termination_date: Optional[date] = None
-    has_carve_out_election: Optional[bool] = None
+    ce_program_start: date | None = None
+    ce_program_end: date | None = None
+    cp_registered: bool | None = None         # True if CP was active at service_date
+    cp_termination_date: date | None = None
+    has_carve_out_election: bool | None = None
 
     # Extra context fields for evidence payloads
     extra: dict = field(default_factory=dict)

@@ -32,11 +32,9 @@ _engine_patch = patch("sqlalchemy.create_engine", return_value=_mock_engine)
 _engine_patch.start()
 
 # ── Imports ───────────────────────────────────────────────────────────────────
-from typing import Generator
 from unittest.mock import MagicMock
 
 import pytest
-
 
 # ── DB mock fixture ───────────────────────────────────────────────────────────
 

@@ -38,10 +38,11 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from dataclasses  import dataclass, field
-from datetime     import datetime, timezone
-from enum         import Enum
-from typing       import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.observability")
 
@@ -60,7 +61,7 @@ class HealthCheckResult:
     status:   HealthStatus
     message:  str               = ""
     latency_ms: float           = 0.0
-    checked_at: datetime        = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    checked_at: datetime        = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,7 +78,7 @@ class ServiceHealth:
     """Aggregated health report across all regulatory intelligence services."""
     overall:   HealthStatus
     checks:    list[HealthCheckResult]
-    assessed_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def healthy_count(self) -> int:
@@ -255,7 +256,7 @@ class RegulatoryMetricsRegistry:
         self._tenant_doc_counts:   dict[str, int]   = defaultdict(int)
         self._tenant_pending_recs: dict[str, int]   = defaultdict(int)
 
-        self._registered_at = datetime.now(tz=timezone.utc)
+        self._registered_at = datetime.now(tz=UTC)
 
     # ── Tenant-scoped recording ───────────────────────────────────────────────
 
@@ -323,9 +324,9 @@ class RegulatoryMetricsRegistry:
             self.citations_human.to_dict(),
         ]
         return {
-            "snapshot_at":      datetime.now(tz=timezone.utc).isoformat(),
+            "snapshot_at":      datetime.now(tz=UTC).isoformat(),
             "registry_age_s":   round(
-                (datetime.now(tz=timezone.utc) - self._registered_at).total_seconds(), 1
+                (datetime.now(tz=UTC) - self._registered_at).total_seconds(), 1
             ),
             "metrics":          metrics,
             "tenant_doc_counts":dict(self._tenant_doc_counts),
@@ -357,7 +358,7 @@ class RegulatoryHealthMonitor:
 
     def __init__(self, cache_ttl_s: float = 10.0) -> None:
         self._checks: dict[str, HealthCheckFn] = {}
-        self._cache:  Optional[ServiceHealth]  = None
+        self._cache:  ServiceHealth | None  = None
         self._cache_at: float                  = 0.0
         self._cache_ttl = cache_ttl_s
 
@@ -509,7 +510,7 @@ class _Timer:
         self._h  = histogram
         self._t0 = 0.0
 
-    def __enter__(self) -> "_Timer":
+    def __enter__(self) -> _Timer:
         self._t0 = time.monotonic()
         return self
 
@@ -539,8 +540,8 @@ def time_graph_query(metrics: RegulatoryMetricsRegistry) -> _Timer:
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
-_metrics: Optional[RegulatoryMetricsRegistry] = None
-_monitor: Optional[RegulatoryHealthMonitor]   = None
+_metrics: RegulatoryMetricsRegistry | None = None
+_monitor: RegulatoryHealthMonitor | None   = None
 
 
 def get_metrics() -> RegulatoryMetricsRegistry:
@@ -560,10 +561,10 @@ def get_health_monitor(cache_ttl_s: float = 10.0) -> RegulatoryHealthMonitor:
 
 def _register_default_checks(monitor: RegulatoryHealthMonitor) -> None:
     """Wire up all built-in health checks using lazy service getters."""
-    from regulatory.ingestion.pipeline     import get_ingestion_pipeline
+    from regulatory.graph.service import get_graph_service
+    from regulatory.ingestion.pipeline import get_ingestion_pipeline
     from regulatory.recommendations.engine import get_recommendation_service
-    from regulatory.graph.service          import get_graph_service
-    from regulatory.timeline.service       import get_timeline_service
+    from regulatory.timeline.service import get_timeline_service
 
     metrics = get_metrics()
     monitor.register("ingestion_pipeline",    RegulatoryHealthMonitor.make_ingestion_check(get_ingestion_pipeline))

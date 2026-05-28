@@ -19,12 +19,11 @@ Document lifecycle
 from __future__ import annotations
 
 import hashlib
-import json
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class DocumentSource(str, Enum):
@@ -73,13 +72,13 @@ class PolicySourceAttribution:
     """Traceable attribution for a regulatory document."""
     source:          DocumentSource
     issuing_agency:  str                  # e.g. "HRSA Office of Pharmacy Affairs"
-    document_number: Optional[str]        # docket, notice, or guidance number
-    publication_url: Optional[str]
-    publication_date: Optional[str]       # ISO-8601 date
-    effective_date:  Optional[str]        # ISO-8601 date
-    expiry_date:     Optional[str]        # ISO-8601 date (None = indefinite)
+    document_number: str | None        # docket, notice, or guidance number
+    publication_url: str | None
+    publication_date: str | None       # ISO-8601 date
+    effective_date:  str | None        # ISO-8601 date
+    expiry_date:     str | None        # ISO-8601 date (None = indefinite)
     jurisdiction:    str                  = "federal"   # state code or "federal"
-    payer_id:        Optional[str]        = None        # for payer bulletins
+    payer_id:        str | None        = None        # for payer bulletins
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -116,10 +115,10 @@ class RegulatoryDocument:
     raw_text:            str          = ""    # extracted plain-text content
     summary:             str          = ""    # human-readable summary (extracted or generated)
     key_changes:         list[str]    = field(default_factory=list)   # bullet-point change list
-    prior_version_id:    Optional[str] = None
-    ingested_at:         datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    indexed_at:          Optional[datetime] = None
-    error:               Optional[str] = None
+    prior_version_id:    str | None = None
+    ingested_at:         datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
+    indexed_at:          datetime | None = None
+    error:               str | None = None
     tags:                list[str]    = field(default_factory=list)
     metadata:            dict[str, Any] = field(default_factory=dict)
 
@@ -128,7 +127,7 @@ class RegulatoryDocument:
         return self.status == DocumentStatus.INDEXED
 
     @property
-    def effective_date(self) -> Optional[str]:
+    def effective_date(self) -> str | None:
         return self.attribution.effective_date
 
     def to_dict(self) -> dict[str, Any]:
@@ -161,10 +160,10 @@ class IngestionRecord:
     record_id:     str
     doc_id:        str
     source:        DocumentSource
-    source_url:    Optional[str]
+    source_url:    str | None
     triggered_by:  str          # "scheduled_sync" | "manual" | "webhook"
     started_at:    datetime
-    completed_at:  Optional[datetime] = None
+    completed_at:  datetime | None = None
     success:       bool               = False
     bytes_fetched: int                = 0
     parse_errors:  list[str]          = field(default_factory=list)

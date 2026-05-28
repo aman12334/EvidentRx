@@ -12,9 +12,9 @@ All mutations go through the registry so that downstream components
 from __future__ import annotations
 
 import logging
-import uuid
-from datetime import datetime, timezone
-from typing   import Any, Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 from saas.tenancy.models import (
     Organization,
@@ -42,7 +42,7 @@ class TenantRegistry:
     - Slug → tenant_id resolution (used by API routing)
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._tenants:    dict[str, Tenant] = {}
         self._by_slug:    dict[str, str]    = {}   # slug → tenant_id
         self._flags:      dict[str, TenantFeatureFlags] = {}
@@ -57,13 +57,13 @@ class TenantRegistry:
         tier:             TenantTier,
         primary_contact:  TenantContact,
         region:           str           = "us-east-1",
-        parent_tenant_id: Optional[str] = None,
+        parent_tenant_id: str | None = None,
         trial_days:       int           = 0,
     ) -> Tenant:
         if slug in self._by_slug:
             raise TenantConflictError(f"Slug '{slug}' is already taken")
 
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         tid = new_tenant_id()
 
         tenant = Tenant(
@@ -77,7 +77,7 @@ class TenantRegistry:
             created_at      = now,
             parent_tenant_id= parent_tenant_id,
             trial_ends_at   = (
-                datetime(now.year, now.month, now.day + trial_days, tzinfo=timezone.utc)
+                datetime(now.year, now.month, now.day + trial_days, tzinfo=UTC)
                 if trial_days > 0 else None
             ),
         )
@@ -100,7 +100,7 @@ class TenantRegistry:
     async def suspend(self, tenant_id: str, reason: str) -> Tenant:
         t = self._get(tenant_id)
         t.status       = TenantStatus.SUSPENDED
-        t.suspended_at = datetime.now(tz=timezone.utc)
+        t.suspended_at = datetime.now(tz=UTC)
         t.metadata["suspension_reason"] = reason
         await self._persist("update_tenant", t)
         log.warning("TenantRegistry: suspended tenant %s — %s", tenant_id[:8], reason)
@@ -109,7 +109,7 @@ class TenantRegistry:
     async def archive(self, tenant_id: str) -> Tenant:
         t = self._get(tenant_id)
         t.status      = TenantStatus.ARCHIVED
-        t.archived_at = datetime.now(tz=timezone.utc)
+        t.archived_at = datetime.now(tz=UTC)
         await self._persist("update_tenant", t)
         log.info("TenantRegistry: archived tenant %s", tenant_id[:8])
         return t
@@ -129,14 +129,14 @@ class TenantRegistry:
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get(self, tenant_id: str) -> Optional[Tenant]:
+    def get(self, tenant_id: str) -> Tenant | None:
         return self._tenants.get(tenant_id)
 
-    def get_by_slug(self, slug: str) -> Optional[Tenant]:
+    def get_by_slug(self, slug: str) -> Tenant | None:
         tid = self._by_slug.get(slug)
         return self._tenants.get(tid) if tid else None
 
-    def list_active(self, region: Optional[str] = None) -> list[Tenant]:
+    def list_active(self, region: str | None = None) -> list[Tenant]:
         return [
             t for t in self._tenants.values()
             if t.status == TenantStatus.ACTIVE
@@ -177,7 +177,7 @@ class OrganizationRegistry:
     covered entities. All orgs are strictly tenant-scoped.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._orgs:       dict[str, Organization] = {}
         self._by_tenant:  dict[str, list[str]] = {}   # tenant_id → [org_id]
         self._db_writer   = db_writer
@@ -188,8 +188,8 @@ class OrganizationRegistry:
         name:          str,
         org_type:      OrgType,
         region:        str           = "us",
-        parent_org_id: Optional[str] = None,
-        metadata:      Optional[dict]= None,
+        parent_org_id: str | None = None,
+        metadata:      dict | None= None,
     ) -> Organization:
         org = Organization(
             org_id        = new_org_id(),
@@ -212,13 +212,13 @@ class OrganizationRegistry:
         await self._persist("update_org", org)
         return org
 
-    def get(self, org_id: str) -> Optional[Organization]:
+    def get(self, org_id: str) -> Organization | None:
         return self._orgs.get(org_id)
 
     def list_for_tenant(
         self,
         tenant_id: str,
-        org_type:  Optional[OrgType] = None,
+        org_type:  OrgType | None = None,
     ) -> list[Organization]:
         ids  = self._by_tenant.get(tenant_id, [])
         orgs = [self._orgs[i] for i in ids if i in self._orgs and self._orgs[i].active]
@@ -301,18 +301,18 @@ class OrgNotFoundError(Exception):
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
 
-_tenant_registry: Optional[TenantRegistry] = None
-_org_registry:    Optional[OrganizationRegistry] = None
+_tenant_registry: TenantRegistry | None = None
+_org_registry:    OrganizationRegistry | None = None
 
 
-def get_tenant_registry(db_writer: Optional[Callable] = None) -> TenantRegistry:
+def get_tenant_registry(db_writer: Callable | None = None) -> TenantRegistry:
     global _tenant_registry
     if _tenant_registry is None:
         _tenant_registry = TenantRegistry(db_writer=db_writer)
     return _tenant_registry
 
 
-def get_org_registry(db_writer: Optional[Callable] = None) -> OrganizationRegistry:
+def get_org_registry(db_writer: Callable | None = None) -> OrganizationRegistry:
     global _org_registry
     if _org_registry is None:
         _org_registry = OrganizationRegistry(db_writer=db_writer)

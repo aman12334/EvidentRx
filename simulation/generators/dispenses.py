@@ -4,7 +4,6 @@ import random
 from datetime import date, timedelta
 from decimal import Decimal
 from uuid import uuid4
-from typing import Optional
 
 from simulation.config import SimConfig
 from simulation.registry import CERecord, CPRecord
@@ -25,8 +24,8 @@ def generate_dispenses(
     cfg: SimConfig,
     rng: random.Random,
     batch_id: str,
-    force_pharmacy_id: Optional[str] = None,   # for violation injection
-    force_payer: Optional[str] = None,         # for violation injection
+    force_pharmacy_id: str | None = None,   # for violation injection
+    force_payer: str | None = None,         # for violation injection
     force_340b: bool = True,
 ) -> list[dict]:
     """
@@ -51,7 +50,7 @@ def generate_dispenses(
         payer = force_payer or patient["payer_type"]
 
         # Route to contract pharmacy or CE directly
-        cp_id: Optional[str] = None
+        cp_id: str | None = None
         if force_pharmacy_id:
             cp_id = force_pharmacy_id
         elif active_cps and rng.random() < cfg.cp_dispense_rate:

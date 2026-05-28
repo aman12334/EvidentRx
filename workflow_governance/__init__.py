@@ -11,9 +11,9 @@ Enforces governance rules at workflow execution time:
 All governance decisions are audited and contribute to compliance reporting.
 """
 
-from workflow_governance.approval    import ApprovalGate, ApprovalStatus
-from workflow_governance.policy      import PolicyEnforcer, policy_enforcer
-from workflow_governance.checkpoints import HumanCheckpoint, CheckpointStatus
+from workflow_governance.approval import ApprovalGate, ApprovalStatus
+from workflow_governance.checkpoints import CheckpointStatus, HumanCheckpoint
+from workflow_governance.policy import PolicyEnforcer, policy_enforcer
 
 __all__ = [
     "ApprovalGate",

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 import os
+import sys
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(__file__))

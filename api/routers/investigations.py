@@ -6,7 +6,6 @@ dashboard metrics, and severity distribution views.
 """
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -101,8 +100,8 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
 
 @router.get("/queue", response_model=InvestigationQueueResponse)
 def get_investigation_queue(
-    status: Optional[str] = Query(None, description="Filter by status"),
-    priority: Optional[str] = Query(None),
+    status: str | None = Query(None, description="Filter by status"),
+    priority: str | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),

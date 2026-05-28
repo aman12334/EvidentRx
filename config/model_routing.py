@@ -14,7 +14,7 @@ No direct model calls are permitted from workflow nodes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing      import Dict, List, Optional
+from typing import Dict, List
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ class ModelRoutingConfig:
     def resolve(
         self,
         task_type:  str,
-        tenant_id:  Optional[str] = None,
+        tenant_id:  str | None = None,
         index:      int = 0,        # 0=primary, 1=first fallback, etc.
     ) -> ModelSpec:
         """

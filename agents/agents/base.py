@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import ClassVar, Optional, Type
+from typing import ClassVar, Type
 from uuid import UUID
 
 from pydantic import BaseModel, ValidationError
@@ -43,8 +43,8 @@ _trace_writer = TraceWriter()
 class BaseAgent(ABC):
     agent_type: str = "base"
     task_type: str = "default"              # maps to ModelRouter routing table
-    role: ClassVar[Optional[AgentRole]] = None
-    input_schema: ClassVar[Optional[Type[BaseModel]]] = None
+    role: ClassVar[AgentRole | None] = None
+    input_schema: ClassVar[Type[BaseModel] | None] = None
 
     def __init__(self, router: ModelRouter) -> None:
         self._router = router
@@ -56,7 +56,7 @@ class BaseAgent(ABC):
         workflow_memory: WorkflowMemory,
         case_memory: CaseMemory,
         workflow_step: int = 0,
-        parent_trace_id: Optional[UUID] = None,
+        parent_trace_id: UUID | None = None,
     ) -> dict:
         """
         Execute the agent and return a partial state update dict.
@@ -163,7 +163,7 @@ class BaseAgent(ABC):
         ...
 
     @abstractmethod
-    def _parse_response(self, response: LLMResponse) -> tuple[dict, Optional[float]]:
+    def _parse_response(self, response: LLMResponse) -> tuple[dict, float | None]:
         """Returns (output_dict, confidence_score)."""
         ...
 
@@ -180,7 +180,7 @@ class BaseAgent(ABC):
         """
         return {}
 
-    def _validate_input(self, state: InvestigationState) -> Optional[str]:
+    def _validate_input(self, state: InvestigationState) -> str | None:
         """
         Validates extracted state fields against input_schema.
         Returns an error message string on failure, None on success.

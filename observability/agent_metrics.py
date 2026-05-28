@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing      import Generator, Optional
 
+from config.model_routing import MODELS
 from observability.metrics import metrics_registry
-from config.model_routing  import MODELS
 
 log = logging.getLogger("evidentrx.agent_metrics")
 
@@ -35,7 +35,7 @@ class AgentRunMetrics:
     input_tokens:      int = 0
     output_tokens:     int = 0
     cache_read_tokens: int = 0
-    latency_ms:        Optional[float] = None
+    latency_ms:        float | None = None
     status:            str = "running"
     tenant_id:         str = "unknown"
 

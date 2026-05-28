@@ -5,7 +5,6 @@ and are the canonical type definitions for the frontend.
 """
 from __future__ import annotations
 
-from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -18,8 +17,8 @@ class DashboardSummary(BaseModel):
     total_findings:      int   = Field(..., ge=0, description="All open audit findings")
     critical_findings:   int   = Field(..., ge=0, description="Open findings with severity='critical'")
     high_findings:       int   = Field(..., ge=0, description="Open findings with severity='high'")
-    total_exposure:      Optional[float] = Field(None, description="Sum of financial_exposure for open findings (USD)")
-    avg_risk_score:      Optional[float] = Field(None, ge=0, le=1, description="Average composite_risk_score 0-1")
+    total_exposure:      float | None = Field(None, description="Sum of financial_exposure for open findings (USD)")
+    avg_risk_score:      float | None = Field(None, ge=0, le=1, description="Average composite_risk_score 0-1")
     covered_entities:    int   = Field(..., ge=0, description="Active covered entities in ref.covered_entities")
     uploads_this_week:   int   = Field(..., ge=0, description="Upload batches in the last 7 days")
     findings_this_week:  int   = Field(..., ge=0, description="New findings created in the last 7 days")
@@ -31,7 +30,7 @@ class RuleBreakdownItem(BaseModel):
     rule_name: str           = Field(..., description="Human-readable rule name")
     severity:  str           = Field(..., description="critical | high | medium | low")
     count:     int           = Field(..., ge=0)
-    exposure:  Optional[float] = Field(None, description="Total financial exposure for this rule (USD)")
+    exposure:  float | None = Field(None, description="Total financial exposure for this rule (USD)")
 
 
 class RiskMatrixCell(BaseModel):
@@ -56,8 +55,8 @@ class CoveredEntitySummary(BaseModel):
     state_code:      str
     open_cases:      int
     total_findings:  int
-    exposure:        Optional[float]
-    risk_score:      Optional[float]
+    exposure:        float | None
+    risk_score:      float | None
 
 
 class WeeklyActivitySummary(BaseModel):

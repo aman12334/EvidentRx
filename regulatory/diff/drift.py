@@ -22,17 +22,16 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
+from regulatory.diff.engine import ChangeSeverity, PolicyDiff
 from regulatory.ingestion.models import (
-    DocumentSource,
     DocumentStatus,
     PolicyDomain,
     RegulatoryDocument,
 )
-from regulatory.diff.engine import ChangeSeverity, PolicyDiff
 
 log = logging.getLogger("evidentrx.regulatory.diff.drift")
 
@@ -66,10 +65,10 @@ class DriftFinding:
     affected_docs: list[str]          = field(default_factory=list)   # doc_ids
     affected_rules: list[str]         = field(default_factory=list)   # rule_codes
     affected_workflows: list[str]     = field(default_factory=list)   # workflow_ids
-    diff_id:       Optional[str]      = None   # linked PolicyDiff if applicable
+    diff_id:       str | None      = None   # linked PolicyDiff if applicable
     evidence:      list[str]          = field(default_factory=list)
     recommendation: str               = ""
-    detected_at:   datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    detected_at:   datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -168,12 +167,12 @@ class DriftDetectionService:
         self,
         tenant_id:    str,
         documents:    list[RegulatoryDocument],
-        diffs:        Optional[list[PolicyDiff]] = None,
-        rule_codes:   Optional[list[str]]        = None,
-        workflow_ids: Optional[list[str]]        = None,
-        as_of:        Optional[datetime]         = None,
+        diffs:        list[PolicyDiff] | None = None,
+        rule_codes:   list[str] | None        = None,
+        workflow_ids: list[str] | None        = None,
+        as_of:        datetime | None         = None,
     ) -> DriftReport:
-        now     = as_of or datetime.now(tz=timezone.utc)
+        now     = as_of or datetime.now(tz=UTC)
         findings: list[DriftFinding] = []
 
         # 1. Document-update drift (from PolicyDiff results)
@@ -213,8 +212,7 @@ class DriftDetectionService:
             exp = doc.attribution.expiry_date
             if exp:
                 try:
-                    from datetime import date as _date
-                    exp_dt = datetime.fromisoformat(exp).replace(tzinfo=timezone.utc)
+                    exp_dt = datetime.fromisoformat(exp).replace(tzinfo=UTC)
                     if now >= exp_dt:
                         findings.append(DriftFinding(
                             finding_id   = str(uuid.uuid4()),
@@ -289,7 +287,7 @@ class DriftDetectionService:
         reports.sort(key=lambda r: r.detected_at, reverse=True)
         return reports[:limit]
 
-    def get_report(self, report_id: str) -> Optional[DriftReport]:
+    def get_report(self, report_id: str) -> DriftReport | None:
         return self._reports.get(report_id)
 
     @staticmethod
@@ -305,7 +303,7 @@ class DriftDetectionService:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[DriftDetectionService] = None
+_service: DriftDetectionService | None = None
 
 
 def get_drift_service() -> DriftDetectionService:

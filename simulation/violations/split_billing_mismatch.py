@@ -11,7 +11,6 @@ Injection strategy:
 """
 from __future__ import annotations
 
-import random
 from decimal import Decimal
 
 from simulation.state import InventoryPool

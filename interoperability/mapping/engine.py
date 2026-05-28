@@ -30,14 +30,12 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from interoperability.mapping.schemas import (
-    CanonicalType,
     SourceSystem,
     validate_canonical,
-    scrub_phi,
 )
 
 log = logging.getLogger("evidentrx.interop.mapping.engine")
@@ -48,15 +46,15 @@ log = logging.getLogger("evidentrx.interop.mapping.engine")
 @dataclass
 class MappingResult:
     success:          bool
-    canonical:        Optional[dict[str, Any]]
+    canonical:        dict[str, Any] | None
     source_system:    str
     resource_type:    str
     tenant_id:        str
     errors:           list[str]        = field(default_factory=list)
     warnings:         list[str]        = field(default_factory=list)
-    mapped_at:        datetime         = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    canonical_type:   Optional[str]    = None
-    checksum:         Optional[str]    = None
+    mapped_at:        datetime         = field(default_factory=lambda: datetime.now(tz=UTC))
+    canonical_type:   str | None    = None
+    checksum:         str | None    = None
 
     def __post_init__(self) -> None:
         if self.canonical:
@@ -95,7 +93,7 @@ class MappingEngine:
         raw_record:    dict[str, Any],
         source:        str,
         tenant_id:     str,
-        resource_type: Optional[str] = None,
+        resource_type: str | None = None,
     ) -> MappingResult:
         """
         Map a raw record to canonical form.
@@ -165,7 +163,7 @@ class MappingEngine:
         records:       list[dict[str, Any]],
         source:        str,
         tenant_id:     str,
-        resource_type: Optional[str] = None,
+        resource_type: str | None = None,
     ) -> list[MappingResult]:
         """Map a batch of raw records. Errors are captured per-record."""
         return [self.map(r, source, tenant_id, resource_type) for r in records]
@@ -177,7 +175,7 @@ class MappingEngine:
         raw:      dict[str, Any],
         source:   str,
         tenant:   str,
-        rtype:    Optional[str],
+        rtype:    str | None,
     ) -> dict[str, Any]:
         """Route raw record to the correct normaliser."""
 
@@ -218,21 +216,21 @@ class MappingEngine:
     def _attach_lineage(
         canonical:    dict[str, Any],
         source:       str,
-        resource_type: Optional[str],
+        resource_type: str | None,
         tenant_id:    str,
     ) -> dict[str, Any]:
         """Overlay mapping lineage metadata onto the canonical record."""
         canonical = dict(canonical)
         canonical.setdefault("source_system", source)
         canonical.setdefault("tenant_id", tenant_id)
-        canonical["_mapped_at"] = datetime.now(tz=timezone.utc).isoformat()
+        canonical["_mapped_at"] = datetime.now(tz=UTC).isoformat()
         canonical["_mapping_resource_type"] = resource_type
         return canonical
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _detect_resource_type(record: dict[str, Any], source: str) -> Optional[str]:
+def _detect_resource_type(record: dict[str, Any], source: str) -> str | None:
     """Auto-detect resource type from the raw record."""
     if source == SourceSystem.FHIR:
         return record.get("resourceType")
@@ -255,7 +253,7 @@ class MappingError(Exception):
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_engine: Optional[MappingEngine] = None
+_engine: MappingEngine | None = None
 
 
 def get_mapping_engine(strict: bool = False) -> MappingEngine:

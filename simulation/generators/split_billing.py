@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 from uuid import uuid4
-from typing import Optional
 
 
 def build_split_billing(
     dispense: dict,
-    claim: Optional[dict],
+    claim: dict | None,
     inventory_balance: Decimal,
     cfg_source_tag: str,
     batch_id: str,

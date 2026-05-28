@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from reporting.base import ReportData
 
@@ -65,7 +64,7 @@ class MarkdownReporter:
         if not summary_text:
             # Fallback when agents haven't run
             snap = data.risk_snapshot or {}
-            by_sev = snap.get("by_severity", {})
+            snap.get("by_severity", {})
             summary_text = (
                 f"This investigation case covers {data.total_findings} confirmed 340B compliance "
                 f"findings for {data.ce_name} in the {data.case.get('violation_category', 'unknown')} "
@@ -108,7 +107,7 @@ class MarkdownReporter:
 
         lines = [
             "## Risk Snapshot\n",
-            f"| Metric | Value |",
+            "| Metric | Value |",
             "|---|---|",
             f"| Composite Risk Score | `{snap.get('composite_risk_score', '—')}` |",
             f"| Total Findings | {snap.get('total_findings', 0)} |",

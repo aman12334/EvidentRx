@@ -27,14 +27,12 @@ Lineage record structure
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.mapping.lineage")
 
@@ -67,7 +65,7 @@ class TransformationStep:
     step:      LineageStep
     status:    StepStatus
     detail:    str                         = ""
-    timestamp: datetime                    = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp: datetime                    = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,14 +82,14 @@ class LineageRecord:
     tenant_id:            str
     source_system:        str
     resource_type:        str
-    canonical_type:       Optional[str]
-    checksum:             Optional[str]
+    canonical_type:       str | None
+    checksum:             str | None
     transformation_steps: list[TransformationStep]   = field(default_factory=list)
-    raw_ref:              Optional[str]               = None    # S3 key or DB ref
-    canonical_ref:        Optional[str]               = None    # DB row ID
-    created_at:           datetime                    = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    raw_ref:              str | None               = None    # S3 key or DB ref
+    canonical_ref:        str | None               = None    # DB row ID
+    created_at:           datetime                    = field(default_factory=lambda: datetime.now(tz=UTC))
     is_valid:             bool                        = True
-    error_summary:        Optional[str]               = None
+    error_summary:        str | None               = None
 
     def add_step(
         self,
@@ -149,8 +147,8 @@ class LineageBuilder:
         self._resource     = resource_type
         self._tenant       = tenant_id
         self._steps:       list[TransformationStep] = []
-        self._raw_ref:     Optional[str] = None
-        self._canonical_ref: Optional[str] = None
+        self._raw_ref:     str | None = None
+        self._canonical_ref: str | None = None
 
     @classmethod
     def start(
@@ -158,7 +156,7 @@ class LineageBuilder:
         source_system: str,
         resource_type: str,
         tenant_id:     str,
-    ) -> "LineageBuilder":
+    ) -> LineageBuilder:
         return cls(source_system, resource_type, tenant_id)
 
     def step(
@@ -166,24 +164,24 @@ class LineageBuilder:
         step:   LineageStep,
         status: StepStatus,
         detail: str = "",
-    ) -> "LineageBuilder":
+    ) -> LineageBuilder:
         self._steps.append(
             TransformationStep(step=step, status=status, detail=detail)
         )
         return self
 
-    def with_raw_ref(self, ref: str) -> "LineageBuilder":
+    def with_raw_ref(self, ref: str) -> LineageBuilder:
         self._raw_ref = ref
         return self
 
-    def with_canonical_ref(self, ref: str) -> "LineageBuilder":
+    def with_canonical_ref(self, ref: str) -> LineageBuilder:
         self._canonical_ref = ref
         return self
 
     def build(
         self,
-        canonical_type: Optional[str] = None,
-        checksum:       Optional[str] = None,
+        canonical_type: str | None = None,
+        checksum:       str | None = None,
     ) -> LineageRecord:
         failed = [s for s in self._steps if s.status == StepStatus.FAILED]
         return LineageRecord(
@@ -210,7 +208,7 @@ class LineageStore:
     Production implementation flushes to interop.source_lineage table.
     """
 
-    def __init__(self, db_writer: Optional[Any] = None) -> None:
+    def __init__(self, db_writer: Any | None = None) -> None:
         self._buffer: list[LineageRecord] = []
         self._db_writer = db_writer
 
@@ -253,10 +251,10 @@ class LineageStore:
 
 # ── Module-level store singleton ──────────────────────────────────────────────
 
-_store: Optional[LineageStore] = None
+_store: LineageStore | None = None
 
 
-def get_lineage_store(db_writer: Optional[Any] = None) -> LineageStore:
+def get_lineage_store(db_writer: Any | None = None) -> LineageStore:
     """Return the module-level LineageStore singleton."""
     global _store
     if _store is None:

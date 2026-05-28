@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Dict, Optional
+from datetime import UTC, datetime
+from typing import Dict
 
-from config.model_routing  import ModelSpec, model_router
+from config.model_routing import ModelSpec, model_router
 
 log = logging.getLogger("evidentrx.model_governance")
 
@@ -29,8 +29,8 @@ class ModelCallRequest:
     """Parameters for a proposed LLM API call."""
     task_type:   str
     tenant_id:   str
-    case_id:     Optional[str] = None
-    actor_id:    Optional[str] = None
+    case_id:     str | None = None
+    actor_id:    str | None = None
     max_tokens:  int = 4096
     estimated_input_tokens: int = 0
 
@@ -43,7 +43,7 @@ class TokenUsageRecord:
     output_tokens:     int = 0
     cache_read_tokens: int = 0
     call_count:        int = 0
-    period_start:      datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    period_start:      datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 class ModelGovernor:

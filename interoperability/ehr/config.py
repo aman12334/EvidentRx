@@ -15,10 +15,9 @@ cache and DB read layer; the DB write layer is in governance/policy.py.
 from __future__ import annotations
 
 import logging
-from copy       import deepcopy
-from dataclasses import dataclass, field, asdict
-from datetime   import datetime, timedelta, timezone
-from typing     import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from interoperability.ehr.connector import EHRConnectorConfig, EHRVendor
 
@@ -35,7 +34,7 @@ class ConfigCacheEntry:
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(tz=timezone.utc) > self.loaded_at + timedelta(seconds=self.ttl_seconds)
+        return datetime.now(tz=UTC) > self.loaded_at + timedelta(seconds=self.ttl_seconds)
 
 
 class EHRConfigRegistry:
@@ -47,7 +46,7 @@ class EHRConfigRegistry:
     secrets manager before being stored here.
     """
 
-    def __init__(self, db_loader: Optional[Any] = None) -> None:
+    def __init__(self, db_loader: Any | None = None) -> None:
         """
         Parameters
         ----------
@@ -72,7 +71,7 @@ class EHRConfigRegistry:
             self._cache[tenant] = {}
         self._cache[tenant][config.connector_id] = ConfigCacheEntry(
             config    = config,
-            loaded_at = datetime.now(tz=timezone.utc),
+            loaded_at = datetime.now(tz=UTC),
         )
         log.info(
             "EHRConfigRegistry: registered %s/%s (%s)",
@@ -89,7 +88,7 @@ class EHRConfigRegistry:
         self,
         tenant_id:    str,
         connector_id: str,
-    ) -> Optional[EHRConnectorConfig]:
+    ) -> EHRConnectorConfig | None:
         """
         Return config for a specific connector, refreshing from DB if expired.
         """
@@ -131,7 +130,7 @@ class EHRConfigRegistry:
 
         try:
             rows = await self._db_loader(tenant_id)
-            loaded_at = datetime.now(tz=timezone.utc)
+            loaded_at = datetime.now(tz=UTC)
             tenant_cache: dict[str, ConfigCacheEntry] = {}
 
             for row in rows:
@@ -208,10 +207,10 @@ def _row_to_config(row: dict[str, Any]) -> EHRConnectorConfig:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_registry: Optional[EHRConfigRegistry] = None
+_registry: EHRConfigRegistry | None = None
 
 
-def get_ehr_config_registry(db_loader: Optional[Any] = None) -> EHRConfigRegistry:
+def get_ehr_config_registry(db_loader: Any | None = None) -> EHRConfigRegistry:
     """Return the module-level EHRConfigRegistry singleton."""
     global _registry
     if _registry is None:

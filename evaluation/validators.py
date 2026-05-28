@@ -17,9 +17,8 @@ standalone in CI to validate individual agent responses.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
+from dataclasses import dataclass
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # OutputValidator
@@ -29,11 +28,11 @@ from typing import Any, Optional
 class FieldSpec:
     name:          str
     required:      bool          = True
-    field_type:    Optional[type] = None
-    allowed_values: Optional[list] = None
-    min_val:       Optional[float] = None
-    max_val:       Optional[float] = None
-    min_length:    Optional[int]   = None
+    field_type:    type | None = None
+    allowed_values: list | None = None
+    min_val:       float | None = None
+    max_val:       float | None = None
+    min_length:    int | None   = None
 
 
 @dataclass

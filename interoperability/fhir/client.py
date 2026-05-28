@@ -14,9 +14,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime  import datetime, timezone
-from typing    import Any, AsyncIterator, Optional
-from urllib    import parse as urlparse
+from collections.abc import AsyncIterator
+from datetime import datetime
+from typing import Any
 
 import httpx
 
@@ -41,7 +41,7 @@ class FHIRClient:
     def __init__(
         self,
         base_url:    str,
-        auth_token:  Optional[str] = None,
+        auth_token:  str | None = None,
         timeout_sec: int           = 30,
         page_size:   int           = 200,
         max_retries: int           = 3,
@@ -76,7 +76,7 @@ class FHIRClient:
     async def search(
         self,
         resource_type: str,
-        params:        Optional[dict[str, str]] = None,
+        params:        dict[str, str] | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         """
         Execute a paginated FHIR search.
@@ -91,7 +91,7 @@ class FHIRClient:
         query = dict(params or {})
         query.setdefault("_count", str(self._page_size))
 
-        url: Optional[str] = f"{self._base_url}/{resource_type}"
+        url: str | None = f"{self._base_url}/{resource_type}"
 
         while url:
             bundle = await self._get(url, params=query if "?" not in url else None)
@@ -107,7 +107,7 @@ class FHIRClient:
         self,
         resource_type: str,
         since:         datetime,
-        extra_params:  Optional[dict[str, str]] = None,
+        extra_params:  dict[str, str] | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         """
         Incremental search — return only resources modified after `since`.
@@ -132,10 +132,10 @@ class FHIRClient:
     async def _get(
         self,
         url:    str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
     ) -> dict[str, Any]:
         backoff = 1.0
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
 
         for attempt in range(1, self._max_retries + 1):
             try:
@@ -174,7 +174,7 @@ class FHIRClient:
     async def close(self) -> None:
         await self._client.aclose()
 
-    async def __aenter__(self) -> "FHIRClient":
+    async def __aenter__(self) -> FHIRClient:
         return self
 
     async def __aexit__(self, *_: object) -> None:
@@ -195,7 +195,7 @@ def _extract_resources(bundle: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _extract_next_link(bundle: dict[str, Any]) -> Optional[str]:
+def _extract_next_link(bundle: dict[str, Any]) -> str | None:
     """Return the 'next' page URL from a Bundle, or None if this is the last page."""
     for link in bundle.get("link", []):
         if link.get("relation") == "next":

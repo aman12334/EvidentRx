@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
-from typing import Any
-from uuid import UUID, uuid4
+from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -12,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.meta.ingestion_batch import IngestionBatch
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class BaseLoader:

@@ -25,12 +25,12 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
-from regulatory.diff.engine import ChangeSeverity, PolicyDiff, PolicyChange
-from regulatory.diff.drift  import DriftFinding, DriftReport, DriftSeverity
+from regulatory.diff.drift import DriftReport, DriftSeverity
+from regulatory.diff.engine import ChangeSeverity, PolicyChange, PolicyDiff
 
 log = logging.getLogger("evidentrx.regulatory.impact.analysis")
 
@@ -107,11 +107,11 @@ class ImpactReport:
     source_id:        str        # diff_id or drift report_id
     analyzed_at:      datetime
     affected_elements: list[AffectedElement]
-    financial_risk:   Optional[FinancialRiskEstimate]
+    financial_risk:   FinancialRiskEstimate | None
     summary:          str
     severity:         str
     temporal_window:  str        # e.g. "effective 2026-07-01" or "immediate"
-    action_required_by: Optional[str]  # ISO date if deadline known
+    action_required_by: str | None  # ISO date if deadline known
     metadata:         dict[str, Any]   = field(default_factory=dict)
 
     @property
@@ -244,7 +244,7 @@ class ImpactAnalysisService:
             tenant_id         = tenant_id,
             source_type       = "diff",
             source_id         = diff.diff_id,
-            analyzed_at       = datetime.now(tz=timezone.utc),
+            analyzed_at       = datetime.now(tz=UTC),
             affected_elements = affected,
             financial_risk    = risk,
             summary           = summary,
@@ -298,7 +298,7 @@ class ImpactAnalysisService:
             tenant_id         = tenant_id,
             source_type       = "drift",
             source_id         = drift.report_id,
-            analyzed_at       = datetime.now(tz=timezone.utc),
+            analyzed_at       = datetime.now(tz=UTC),
             affected_elements = affected,
             financial_risk    = risk,
             summary           = drift.summary,
@@ -309,7 +309,7 @@ class ImpactAnalysisService:
         self._reports[report.report_id] = report
         return report
 
-    def get_report(self, report_id: str) -> Optional[ImpactReport]:
+    def get_report(self, report_id: str) -> ImpactReport | None:
         return self._reports.get(report_id)
 
     def list_reports(
@@ -394,7 +394,7 @@ class ImpactAnalysisService:
     def _estimate_financial_risk(
         severity:       str,
         element_count:  int,
-    ) -> Optional[FinancialRiskEstimate]:
+    ) -> FinancialRiskEstimate | None:
         bounds = _SEVERITY_EXPOSURE.get(severity)
         if not bounds or bounds[1] == 0:
             return None
@@ -420,7 +420,7 @@ class ImpactAnalysisService:
         return "subject to effective date in guidance"
 
     @staticmethod
-    def _effective_date_from_diff(diff: PolicyDiff) -> Optional[str]:
+    def _effective_date_from_diff(diff: PolicyDiff) -> str | None:
         for change in diff.changes:
             for kw in change.keywords:
                 if "effective date" in kw:
@@ -432,7 +432,7 @@ class ImpactAnalysisService:
         prior_version: str,
         new_version:   str,
         affected:      list[AffectedElement],
-        risk:          Optional[FinancialRiskEstimate],
+        risk:          FinancialRiskEstimate | None,
         window:        str,
     ) -> str:
         wf_count = sum(1 for e in affected if e.element_type == ImpactDimension.WORKFLOW)

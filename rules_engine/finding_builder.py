@@ -5,13 +5,11 @@ All fields except investigation_case_id and financial_exposure are set here.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID, uuid4
 
 from rules_engine.context import RuleContext
-
 
 _SEVERITY_CONFIDENCE = {
     "critical": Decimal("1.0"),
@@ -41,11 +39,11 @@ def build_finding(
     rule_version: str,
     rule_category: str,
     severity: str,
-    evidence_extra: Optional[dict] = None,
+    evidence_extra: dict | None = None,
 ) -> dict:
     year = ctx.service_date.year
     finding_code = next_finding_code(rule_code, year)
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     evidence: dict = {
         "split_billing_id": str(ctx.split_billing_id),

@@ -22,15 +22,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Coroutine, Optional, Union
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Union
 
 from interoperability.streaming.event_bus import (
     BusMessage,
     EventBus,
-    KafkaEventBus,
     InMemoryEventBus,
+    KafkaEventBus,
     get_event_bus,
 )
 
@@ -46,7 +47,7 @@ class ConsumerStats:
     received:     int = 0
     processed:    int = 0
     failed:       int = 0
-    last_recv_at: Optional[datetime] = None
+    last_recv_at: datetime | None = None
 
 
 class InteropConsumer:
@@ -61,7 +62,7 @@ class InteropConsumer:
     def __init__(
         self,
         group:     str         = "default",
-        event_bus: Optional[EventBus] = None,
+        event_bus: EventBus | None = None,
     ) -> None:
         self._group       = group
         self._bus         = event_bus or get_event_bus()
@@ -139,7 +140,7 @@ class InteropConsumer:
     async def _start_kafka(self) -> None:
         """Start aiokafka consumers for each registered topic."""
         try:
-            from aiokafka import AIOKafkaConsumer   # type: ignore[import]
+            from aiokafka import AIOKafkaConsumer  # type: ignore[import]
         except ImportError:
             raise RuntimeError("aiokafka is required for Kafka consumption. pip install aiokafka")
 
@@ -182,7 +183,7 @@ class InteropConsumer:
 
     async def _dispatch(self, msg: BusMessage) -> None:
         self._stats.received += 1
-        self._stats.last_recv_at = datetime.now(tz=timezone.utc)
+        self._stats.last_recv_at = datetime.now(tz=UTC)
 
         handlers = self._handlers.get(msg.topic, [])
         for handler in handlers:

@@ -15,7 +15,6 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -49,7 +48,7 @@ class CorrelationRecord:
     strength:         float          # 0.0 – 1.0
     shared_entities:  dict           # what's shared and counts
     explanation:      str
-    monitoring_run_id: Optional[str] = None
+    monitoring_run_id: str | None = None
 
 
 @dataclass
@@ -94,9 +93,9 @@ class CorrelationEngine:
     def run(
         self,
         session: Session,
-        graph: Optional[ComplianceGraph] = None,
+        graph: ComplianceGraph | None = None,
         min_strength: float = 0.15,
-        monitoring_run_id: Optional[str] = None,
+        monitoring_run_id: str | None = None,
     ) -> CorrelationReport:
         """
         Runs full correlation analysis.  If graph is not provided, builds
@@ -149,7 +148,7 @@ class CorrelationEngine:
         self,
         session: Session,
         case_id: str,
-        graph: Optional[ComplianceGraph] = None,
+        graph: ComplianceGraph | None = None,
         min_strength: float = 0.15,
     ) -> list[CorrelationRecord]:
         """Returns correlations involving a specific case, ordered by strength."""
@@ -177,7 +176,7 @@ class CorrelationEngine:
         self,
         session: Session,
         report: CorrelationReport,
-        monitoring_run_id: Optional[str] = None,
+        monitoring_run_id: str | None = None,
     ) -> int:
         """
         Upserts CorrelationRecord rows into audit.cross_case_correlations.
@@ -217,7 +216,7 @@ class CorrelationEngine:
     def load_persisted(
         self,
         session: Session,
-        case_id: Optional[str] = None,
+        case_id: str | None = None,
         min_strength: float = 0.0,
         limit: int = 100,
     ) -> list[dict]:
@@ -247,7 +246,7 @@ class CorrelationEngine:
         self,
         graph: ComplianceGraph,
         min_strength: float,
-        monitoring_run_id: Optional[str],
+        monitoring_run_id: str | None,
     ) -> list[CorrelationRecord]:
         records = []
         seen_keys: set[str] = set()
@@ -280,7 +279,7 @@ class CorrelationEngine:
     def _merge_multifactor(
         raw: list[CorrelationRecord],
         pair_types: dict[tuple, list[str]],
-        monitoring_run_id: Optional[str],
+        monitoring_run_id: str | None,
     ) -> list[CorrelationRecord]:
         """
         For pairs with 2+ correlation types, keep all individual records

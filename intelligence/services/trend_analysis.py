@@ -13,8 +13,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Optional
-from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -71,7 +69,7 @@ class TrendRecord:
     velocity:           float         # Δ count per day vs prior window
     acceleration:       float         # Δ velocity vs prior period
     prior_period_count: int
-    monitoring_run_id:  Optional[str] = None
+    monitoring_run_id:  str | None = None
 
 
 @dataclass
@@ -109,9 +107,9 @@ class TrendAnalysisService:
         self,
         session: Session,
         window_type: str = "30d",
-        as_of: Optional[date] = None,
-        entity_type_filter: Optional[str] = None,
-        monitoring_run_id: Optional[str] = None,
+        as_of: date | None = None,
+        entity_type_filter: str | None = None,
+        monitoring_run_id: str | None = None,
     ) -> TrendSummary:
         """
         Compute trends for all entity+rule_code combinations over the
@@ -205,8 +203,8 @@ class TrendAnalysisService:
     def analyse_all_windows(
         self,
         session: Session,
-        as_of: Optional[date] = None,
-        monitoring_run_id: Optional[str] = None,
+        as_of: date | None = None,
+        monitoring_run_id: str | None = None,
     ) -> dict[str, TrendSummary]:
         """Run analysis for all three window sizes."""
         return {
@@ -219,7 +217,7 @@ class TrendAnalysisService:
         self,
         session: Session,
         summary: TrendSummary,
-        monitoring_run_id: Optional[str] = None,
+        monitoring_run_id: str | None = None,
     ) -> int:
         """
         Upserts TrendRecord rows to audit.compliance_trends.
@@ -283,7 +281,7 @@ class TrendAnalysisService:
         session: Session,
         entity_id: str,
         entity_type: str,
-        rule_code: Optional[str] = None,
+        rule_code: str | None = None,
         window_type: str = "30d",
         limit: int = 12,
     ) -> list[dict]:
@@ -317,7 +315,7 @@ class TrendAnalysisService:
         session: Session,
         window_start: date,
         window_end: date,
-        entity_type_filter: Optional[str],
+        entity_type_filter: str | None,
     ) -> list[WindowStats]:
         """
         Aggregates findings by covered_entity + rule_code within a date window.

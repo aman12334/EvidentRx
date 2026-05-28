@@ -22,12 +22,12 @@ from __future__ import annotations
 
 import logging
 from collections import deque
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
-from regulatory.graph.nodes import GraphNode, NodeType
 from regulatory.graph.edges import EdgeRelationship, PolicyEdge, make_edge
+from regulatory.graph.nodes import GraphNode, NodeType
 
 log = logging.getLogger("evidentrx.regulatory.graph.service")
 
@@ -96,26 +96,26 @@ class RegulatoryGraphService:
         relationship: EdgeRelationship,
         confidence:   float  = 1.0,
         provenance:   str    = "system",
-        properties:   Optional[dict[str, Any]] = None,
+        properties:   dict[str, Any] | None = None,
     ) -> PolicyEdge:
         edge = make_edge(source_id, target_id, relationship, confidence, provenance, properties)
         return self.add_edge(edge)
 
     # ── Node retrieval ─────────────────────────────────────────────────────────
 
-    def get_node(self, node_id: str) -> Optional[GraphNode]:
+    def get_node(self, node_id: str) -> GraphNode | None:
         return self._nodes.get(node_id)
 
-    def get_by_external(self, external_id: str) -> Optional[GraphNode]:
+    def get_by_external(self, external_id: str) -> GraphNode | None:
         nid = self._by_external.get(external_id)
         return self._nodes.get(nid) if nid else None
 
     def nodes_of_type(
         self,
         node_type: NodeType,
-        as_of:     Optional[datetime] = None,
+        as_of:     datetime | None = None,
     ) -> list[GraphNode]:
-        t = as_of or datetime.now(tz=timezone.utc)
+        t = as_of or datetime.now(tz=UTC)
         return [
             n for n in self._nodes.values()
             if n.node_type == node_type and n.is_active_at(t)
@@ -126,12 +126,12 @@ class RegulatoryGraphService:
     def neighbours(
         self,
         node_id:      str,
-        relationship: Optional[EdgeRelationship] = None,
+        relationship: EdgeRelationship | None = None,
         direction:    str                        = "out",   # "out" | "in" | "both"
-        as_of:        Optional[datetime]         = None,
+        as_of:        datetime | None         = None,
     ) -> list[tuple[GraphNode, PolicyEdge]]:
         """Return (node, edge) pairs for direct neighbours."""
-        t = as_of or datetime.now(tz=timezone.utc)
+        t = as_of or datetime.now(tz=UTC)
         edges: list[PolicyEdge] = []
         if direction in ("out", "both"):
             edges += self._out.get(node_id, [])
@@ -153,12 +153,12 @@ class RegulatoryGraphService:
     def reachable(
         self,
         start_id:     str,
-        relationship: Optional[EdgeRelationship] = None,
+        relationship: EdgeRelationship | None = None,
         max_depth:    int                        = 5,
-        as_of:        Optional[datetime]         = None,
+        as_of:        datetime | None         = None,
     ) -> list[GraphNode]:
         """BFS forward reachability from start_id within max_depth hops."""
-        t       = as_of or datetime.now(tz=timezone.utc)
+        t       = as_of or datetime.now(tz=UTC)
         visited = {start_id}
         queue:  deque[tuple[str, int]] = deque([(start_id, 0)])
         result: list[GraphNode] = []
@@ -185,13 +185,13 @@ class RegulatoryGraphService:
     def lineage(
         self,
         node_id: str,
-        as_of:   Optional[datetime] = None,
+        as_of:   datetime | None = None,
     ) -> list[GraphNode]:
         """
         Walk the SUPERSEDES / DERIVED_FROM chain backwards to find ancestry.
         Returns ordered list: [immediate predecessor, …, oldest ancestor].
         """
-        t       = as_of or datetime.now(tz=timezone.utc)
+        t       = as_of or datetime.now(tz=UTC)
         chain:  list[GraphNode] = []
         visited = {node_id}
         current = node_id
@@ -224,14 +224,14 @@ class RegulatoryGraphService:
         self,
         changed_node_id: str,
         max_depth:       int              = 4,
-        as_of:           Optional[datetime] = None,
+        as_of:           datetime | None = None,
     ) -> list[tuple[GraphNode, float]]:
         """
         Forward BFS following IMPACTS / AFFECTS / REQUIRES edges.
 
         Returns (node, cumulative_confidence) pairs sorted by confidence desc.
         """
-        t       = as_of or datetime.now(tz=timezone.utc)
+        t       = as_of or datetime.now(tz=UTC)
         impact_rels = {
             EdgeRelationship.IMPACTS,
             EdgeRelationship.AFFECTED_BY,
@@ -267,10 +267,10 @@ class RegulatoryGraphService:
     def dependency_chain(
         self,
         node_id: str,
-        as_of:   Optional[datetime] = None,
+        as_of:   datetime | None = None,
     ) -> list[GraphNode]:
         """Reverse BFS: find all nodes that this node REQUIRES or DERIVES from."""
-        t = as_of or datetime.now(tz=timezone.utc)
+        t = as_of or datetime.now(tz=UTC)
         return self.reachable(
             node_id,
             relationship = None,   # follow any backward dep edge
@@ -281,10 +281,10 @@ class RegulatoryGraphService:
     def find_conflicts(
         self,
         node_id: str,
-        as_of:   Optional[datetime] = None,
+        as_of:   datetime | None = None,
     ) -> list[GraphNode]:
         """Return nodes in conflict with the given node."""
-        t = as_of or datetime.now(tz=timezone.utc)
+        t = as_of or datetime.now(tz=UTC)
         return [
             n for n, _ in self.neighbours(
                 node_id,
@@ -319,7 +319,7 @@ class GraphError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_graph: Optional[RegulatoryGraphService] = None
+_graph: RegulatoryGraphService | None = None
 
 
 def get_graph_service() -> RegulatoryGraphService:

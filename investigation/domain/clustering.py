@@ -20,9 +20,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
-
 
 # Rule categories where findings for different NDCs should be separated
 # (violation is per-drug, not per-entity)
@@ -50,16 +48,16 @@ class FindingRow:
     severity: str
     rule_code: str
     service_date: date
-    ndc_11: Optional[str]
-    financial_exposure: Optional[Decimal]
-    patient_id_hash: Optional[str]
-    split_billing_id: Optional[UUID]
-    purchase_id: Optional[UUID]
-    purchase_date: Optional[date]
-    dispense_id: Optional[UUID]
-    dispense_date: Optional[date]
-    claim_id: Optional[UUID]
-    claim_service_date: Optional[date]
+    ndc_11: str | None
+    financial_exposure: Decimal | None
+    patient_id_hash: str | None
+    split_billing_id: UUID | None
+    purchase_id: UUID | None
+    purchase_date: date | None
+    dispense_id: UUID | None
+    dispense_date: date | None
+    claim_id: UUID | None
+    claim_service_date: date | None
 
 
 @dataclass
@@ -67,7 +65,7 @@ class Cluster:
     """A set of related findings that should become one investigation case."""
     covered_entity_id: UUID
     finding_type: str
-    ndc_11: Optional[str]              # None for CE-level violation types
+    ndc_11: str | None              # None for CE-level violation types
     findings: list[FindingRow] = field(default_factory=list)
 
     @property
@@ -96,7 +94,7 @@ class Cluster:
         return f"{label}: {n} finding{'s' if n != 1 else ''}{ndc_suffix} — {start} to {end}"
 
     @property
-    def total_financial_exposure(self) -> Optional[Decimal]:
+    def total_financial_exposure(self) -> Decimal | None:
         amounts = [f.financial_exposure for f in self.findings if f.financial_exposure]
         return sum(amounts, Decimal("0")) if amounts else None
 
@@ -109,7 +107,7 @@ class ClusterConfig:
 
 def build_clusters(
     findings: list[FindingRow],
-    config: Optional[ClusterConfig] = None,
+    config: ClusterConfig | None = None,
 ) -> list[Cluster]:
     """
     Groups findings into Cluster objects. Pure function — no side effects.
@@ -129,7 +127,7 @@ def build_clusters(
 
         if finding_type in NDC_GROUPED_CATEGORIES:
             # Step 2: sub-group by ndc_11
-            ndc_groups: dict[Optional[str], list[FindingRow]] = defaultdict(list)
+            ndc_groups: dict[str | None, list[FindingRow]] = defaultdict(list)
             for f in group:
                 ndc_groups[f.ndc_11].append(f)
             for ndc_11, ndc_group in ndc_groups.items():

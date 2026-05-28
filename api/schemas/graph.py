@@ -1,8 +1,7 @@
 """Typed API contracts for graph traversal and visualization endpoints."""
 from __future__ import annotations
 
-from typing import Any, Optional
-from uuid import UUID
+from typing import Any
 
 from pydantic import BaseModel, Field
 

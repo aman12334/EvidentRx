@@ -68,9 +68,8 @@ def cmd_bootstrap(args) -> int:
 
 
 def cmd_pipeline(args) -> int:
-    from runtime.executor import PipelineExecutor, PipelineConfig
-    from runtime.observability import RuntimeMetrics
-    from uuid import uuid4
+
+    from runtime.executor import PipelineConfig, PipelineExecutor
 
     executor = PipelineExecutor()
 
@@ -135,11 +134,12 @@ def cmd_pipeline(args) -> int:
 
 def cmd_export(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
     from reporting.base import ReportDataLoader
-    from reporting.markdown_report import MarkdownReporter
-    from reporting.json_export import JSONExporter
     from reporting.html_report import HTMLReporter
+    from reporting.json_export import JSONExporter
+    from reporting.markdown_report import MarkdownReporter
 
     try:
         case_id = UUID(args.case_id)
@@ -181,7 +181,9 @@ def cmd_export(args) -> int:
 
 def cmd_traces(args) -> int:
     from uuid import UUID
+
     from sqlalchemy import text
+
     from app.database import SessionLocal
 
     try:
@@ -234,7 +236,9 @@ def cmd_traces(args) -> int:
 
 def cmd_checkpoints(args) -> int:
     from uuid import UUID
+
     from sqlalchemy import text
+
     from app.database import SessionLocal
 
     try:
@@ -277,6 +281,7 @@ def cmd_checkpoints(args) -> int:
 
 def cmd_inspect(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
     from reporting.base import ReportDataLoader
 
@@ -296,7 +301,7 @@ def cmd_inspect(args) -> int:
 
     c    = data.case
     snap = data.risk_snapshot or {}
-    by_sev = snap.get("by_severity", {})
+    snap.get("by_severity", {})
     window = snap.get("temporal_window", {})
 
     print(f"\n{'='*62}")
@@ -336,7 +341,7 @@ def cmd_inspect(args) -> int:
         print(f"  Total tokens     : {total_tokens:,}")
 
     if data.narrative.get("executive_summary"):
-        print(f"\n  Executive Summary (first 400 chars):")
+        print("\n  Executive Summary (first 400 chars):")
         print(f"  {data.narrative['executive_summary'][:400]}...")
 
     print()
@@ -345,6 +350,7 @@ def cmd_inspect(args) -> int:
 
 def cmd_trace_viz(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
     from runtime.trace_viz import TraceVisualizer
 
@@ -368,6 +374,7 @@ def cmd_trace_viz(args) -> int:
 
 def cmd_replay(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
     from runtime.replay import InvestigationReplayer
 
@@ -395,6 +402,7 @@ def cmd_replay(args) -> int:
 
 def cmd_live_validate(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
     from runtime.live_validator import LiveExecutionValidator
 
@@ -474,8 +482,8 @@ def cmd_monitor(args) -> int:
 
 def cmd_trends(args) -> int:
     from app.database import SessionLocal
-    from intelligence.services.trend_analysis import TrendAnalysisService
     from intelligence.reports.trend_report import TrendReporter
+    from intelligence.services.trend_analysis import TrendAnalysisService
 
     with SessionLocal() as session:
         svc      = TrendAnalysisService()
@@ -494,8 +502,8 @@ def cmd_trends(args) -> int:
 
 def cmd_correlate(args) -> int:
     from app.database import SessionLocal
-    from intelligence.services.correlation import CorrelationEngine
     from intelligence.reports.correlation_report import CorrelationReporter
+    from intelligence.services.correlation import CorrelationEngine
 
     with SessionLocal() as session:
         engine   = CorrelationEngine()
@@ -514,8 +522,8 @@ def cmd_correlate(args) -> int:
 
 def cmd_risk_forecast(args) -> int:
     from app.database import SessionLocal
-    from intelligence.services.predictive_risk import PredictiveRiskService
     from intelligence.reports.risk_forecast import RiskForecastReporter
+    from intelligence.services.predictive_risk import PredictiveRiskService
 
     with SessionLocal() as session:
         svc      = PredictiveRiskService()
@@ -548,8 +556,9 @@ def cmd_risk_forecast(args) -> int:
 
 def cmd_copilot(args) -> int:
     from uuid import UUID
+
     from app.database import SessionLocal
-    from intelligence.services.copilot import InvestigatorCopilotService, CopilotOperation
+    from intelligence.services.copilot import InvestigatorCopilotService
 
     try:
         case_id = str(UUID(args.case_id))
@@ -588,9 +597,10 @@ def cmd_copilot(args) -> int:
 
 
 def cmd_eval(args) -> int:
+    from datetime import date
+
     from app.database import SessionLocal
     from evaluation.harness import EvaluationHarness, GoldenCase
-    from datetime import date
 
     gc = GoldenCase(
         name=f"golden_seed_{args.seed}",

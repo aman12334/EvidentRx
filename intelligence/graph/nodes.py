@@ -8,8 +8,6 @@ and held in memory during analysis. No external graph database required.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
-
 
 # All valid node types in the compliance knowledge graph
 NODE_TYPES = frozenset([
@@ -46,7 +44,7 @@ class CoveredEntityNode(GraphNode):
     type: str = "covered_entity"
 
     @classmethod
-    def from_row(cls, row: dict) -> "CoveredEntityNode":
+    def from_row(cls, row: dict) -> CoveredEntityNode:
         return cls(
             id=str(row["ce_id"]),
             type="covered_entity",
@@ -64,7 +62,7 @@ class PharmacyNode(GraphNode):
     type: str = "pharmacy"
 
     @classmethod
-    def from_row(cls, row: dict) -> "PharmacyNode":
+    def from_row(cls, row: dict) -> PharmacyNode:
         return cls(
             id=str(row["pharmacy_id"]),
             type="pharmacy",
@@ -83,7 +81,7 @@ class ProviderNode(GraphNode):
     type: str = "provider"
 
     @classmethod
-    def from_row(cls, row: dict) -> "ProviderNode":
+    def from_row(cls, row: dict) -> ProviderNode:
         return cls(
             id=str(row["provider_id"]),
             type="provider",
@@ -100,7 +98,7 @@ class NdcNode(GraphNode):
     type: str = "ndc"
 
     @classmethod
-    def from_ndc_11(cls, ndc_11: str, drug_name: str = "") -> "NdcNode":
+    def from_ndc_11(cls, ndc_11: str, drug_name: str = "") -> NdcNode:
         return cls(
             id=ndc_11,
             type="ndc",
@@ -114,7 +112,7 @@ class FindingNode(GraphNode):
     type: str = "finding"
 
     @classmethod
-    def from_row(cls, row: dict) -> "FindingNode":
+    def from_row(cls, row: dict) -> FindingNode:
         return cls(
             id=str(row["finding_id"]),
             type="finding",
@@ -133,7 +131,7 @@ class CaseNode(GraphNode):
     type: str = "case"
 
     @classmethod
-    def from_row(cls, row: dict) -> "CaseNode":
+    def from_row(cls, row: dict) -> CaseNode:
         return cls(
             id=str(row["case_id"]),
             type="case",

@@ -21,7 +21,6 @@ All tasks:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 log = logging.getLogger("evidentrx.tasks.investigation")
 
@@ -56,8 +55,8 @@ def run_investigation_workflow(
     Execute the full LangGraph investigation workflow for a case.
     Dispatched by the API when an analyst triggers agent analysis.
     """
-    from tenant.context import TenantContext
     from observability.tracing import start_span
+    from tenant.context import TenantContext
 
     log.info("Investigation workflow started: case=%s tenant=%s", case_id, tenant_id)
 
@@ -84,8 +83,8 @@ def run_monitoring_pipeline(self) -> dict:
     """
     log.info("Monitoring pipeline started")
     try:
-        from monitoring.engine import MonitoringEngine
         from app.database import get_db_session
+        from monitoring.engine import MonitoringEngine
 
         with get_db_session() as session:
             engine = MonitoringEngine(session)
@@ -122,8 +121,8 @@ def run_archive_sweep(self) -> dict:
 @_celery_task
 def run_risk_scoring(
     self,
-    tenant_id:  Optional[str] = None,
-    entity_ids: Optional[list] = None,
+    tenant_id:  str | None = None,
+    entity_ids: list | None = None,
 ) -> dict:
     """
     Update predictive risk scores for all entities (or specified subset).
@@ -133,8 +132,8 @@ def run_risk_scoring(
         tenant_id, len(entity_ids) if entity_ids else "all",
     )
     try:
-        from intelligence.services.predictive_risk import PredictiveRiskService
         from app.database import get_db_session
+        from intelligence.services.predictive_risk import PredictiveRiskService
 
         with get_db_session() as session:
             svc = PredictiveRiskService(session)

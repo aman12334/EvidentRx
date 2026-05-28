@@ -25,9 +25,10 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.admin.configuration")
 
@@ -82,7 +83,7 @@ class TenantConfigManager:
     Rollback re-activates a specific version by superseding the current one.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         # (tenant_id, namespace, key) → list of ConfigEntry (sorted by version)
         self._entries: dict[tuple[str, str, str], list[ConfigEntry]] = {}
         self._db_writer = db_writer
@@ -117,7 +118,7 @@ class TenantConfigManager:
             value        = value,
             version      = version,
             changed_by   = changed_by,
-            changed_at   = datetime.now(tz=timezone.utc),
+            changed_at   = datetime.now(tz=UTC),
             change_reason= change_reason,
             content_hash = content_hash,
         )
@@ -243,7 +244,7 @@ class TenantConfigManager:
         tenant_id: str,
         namespace: str,
         key:       str,
-    ) -> Optional[ConfigEntry]:
+    ) -> ConfigEntry | None:
         ck = (tenant_id, namespace, key)
         entries = self._entries.get(ck, [])
         return next((e for e in reversed(entries) if not e.superseded), None)
@@ -271,10 +272,10 @@ class ConfigNotFoundError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_manager: Optional[TenantConfigManager] = None
+_manager: TenantConfigManager | None = None
 
 
-def get_config_manager(db_writer: Optional[Callable] = None) -> TenantConfigManager:
+def get_config_manager(db_writer: Callable | None = None) -> TenantConfigManager:
     global _manager
     if _manager is None:
         _manager = TenantConfigManager(db_writer=db_writer)

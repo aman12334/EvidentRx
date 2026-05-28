@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class NodeType(str, Enum):
@@ -58,11 +58,11 @@ class GraphNode:
     node_id:     str
     node_type:   NodeType
     label:       str           # human-readable name
-    external_id: Optional[str] = None    # e.g. doc_id, rule_code, investigation_id
-    valid_from:  datetime      = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    valid_until: Optional[datetime] = None
+    external_id: str | None = None    # e.g. doc_id, rule_code, investigation_id
+    valid_from:  datetime      = field(default_factory=lambda: datetime.now(tz=UTC))
+    valid_until: datetime | None = None
     properties:  dict[str, Any] = field(default_factory=dict)
-    created_at:  datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:  datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
     tags:        list[str]      = field(default_factory=list)
 
     def is_active_at(self, t: datetime) -> bool:
@@ -93,8 +93,8 @@ def regulation_node(
     version: str,
     source:  str,
     domains: list[str],
-    effective_date: Optional[str] = None,
-    expiry_date:    Optional[str] = None,
+    effective_date: str | None = None,
+    expiry_date:    str | None = None,
 ) -> GraphNode:
     return GraphNode(
         node_id     = f"gn_{uuid.uuid4().hex[:12]}",
@@ -117,7 +117,7 @@ def rule_node(
     rule_name:   str,
     pack_id:     str,
     domain:      str,
-    threshold:   Optional[float] = None,
+    threshold:   float | None = None,
 ) -> GraphNode:
     return GraphNode(
         node_id     = f"gn_{uuid.uuid4().hex[:12]}",
@@ -158,7 +158,7 @@ def covered_entity_node(
     name:      str,
     entity_type: str,
     state:     str,
-    npi:       Optional[str] = None,
+    npi:       str | None = None,
 ) -> GraphNode:
     return GraphNode(
         node_id     = f"gn_{uuid.uuid4().hex[:12]}",

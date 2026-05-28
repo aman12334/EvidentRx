@@ -11,11 +11,9 @@ consistent with the TenantRepository pattern established in Phase 9.
 from __future__ import annotations
 
 import logging
-from datetime   import datetime, timezone
-from typing     import Optional
-from uuid       import UUID
+from datetime import UTC, datetime
 
-from sqlalchemy             import text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 log = logging.getLogger("evidentrx.auth.user_repository")
@@ -52,7 +50,7 @@ class UserRecord:
     def is_locked(self) -> bool:
         if self.locked_until is None:
             return False
-        return datetime.now(tz=timezone.utc) < self.locked_until
+        return datetime.now(tz=UTC) < self.locked_until
 
 
 class UserRepository:
@@ -71,7 +69,7 @@ class UserRepository:
         self,
         email:     str,
         tenant_id: str,
-    ) -> Optional[UserRecord]:
+    ) -> UserRecord | None:
         """
         Fetch a user by email within a specific tenant.
         Returns None if the user does not exist or belongs to a different tenant.
@@ -98,7 +96,7 @@ class UserRepository:
         self,
         user_id:   str,
         tenant_id: str,
-    ) -> Optional[UserRecord]:
+    ) -> UserRecord | None:
         """Fetch a user by UUID, scoped to the tenant."""
         result = await self._session.execute(
             text("""
@@ -171,7 +169,7 @@ class UserRepository:
         hashed_password: str,
         role:            str,
         tenant_id:       str,
-        created_by:      Optional[str] = None,
+        created_by:      str | None = None,
     ) -> str:
         """
         Insert a new user. Returns the generated user_id (UUID string).

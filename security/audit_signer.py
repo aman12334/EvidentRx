@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
-from typing   import Any, Dict
+from datetime import UTC, datetime
+from typing import Any, Dict
 
 from security.crypto import sign_payload, verify_signature
 
@@ -57,7 +57,7 @@ def sign_audit_event(
     Sign an audit event and return the HMAC-SHA256 hex signature.
     The signature should be stored alongside the event record.
     """
-    ts_str = timestamp.astimezone(timezone.utc).isoformat()
+    ts_str = timestamp.astimezone(UTC).isoformat()
     canonical = _canonical_event_string(
         event_id, ts_str, actor_id, tenant_id, event_type, payload
     )
@@ -77,7 +77,7 @@ def verify_audit_event(
     Verify the signature of a stored audit event.
     Returns True if the event is intact, False if tampered.
     """
-    ts_str = timestamp.astimezone(timezone.utc).isoformat()
+    ts_str = timestamp.astimezone(UTC).isoformat()
     canonical = _canonical_event_string(
         event_id, ts_str, actor_id, tenant_id, event_type, payload
     )

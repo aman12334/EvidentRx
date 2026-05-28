@@ -15,10 +15,10 @@ from __future__ import annotations
 import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests        import Request
+from starlette.requests import Request
 
-from tenant.context  import set_tenant_id, set_actor
-from auth.models     import AuthUser
+from auth.models import AuthUser
+from tenant.context import set_actor, set_tenant_id
 
 log = logging.getLogger("evidentrx.tenant")
 

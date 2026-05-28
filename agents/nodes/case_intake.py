@@ -5,10 +5,8 @@ No LLM call. Pure DB read.
 """
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import UTC, datetime
 
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy import text
@@ -20,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def case_intake(state: InvestigationState, config: RunnableConfig) -> dict:
     session = config["configurable"]["session"]
-    orchestrator = config["configurable"]["orchestrator"]
+    _orchestrator = config["configurable"].get("orchestrator")  # available for future use
     case_id = state["case_id"]
 
     try:
@@ -37,7 +35,7 @@ def case_intake(state: InvestigationState, config: RunnableConfig) -> dict:
             return {
                 "errors": [{"node": "case_intake", "error": f"Case {case_id} not found"}],
                 "current_node": "case_intake",
-                "started_at": datetime.now(timezone.utc).isoformat(),
+                "started_at": datetime.now(UTC).isoformat(),
                 "total_input_tokens": 0,
                 "total_output_tokens": 0,
                 "total_cache_read_tokens": 0,
@@ -128,7 +126,7 @@ def case_intake(state: InvestigationState, config: RunnableConfig) -> dict:
             "risk_snapshot": risk_snapshot,
             "evidence_summary": {},
             "current_node":  "case_intake",
-            "started_at":    datetime.now(timezone.utc).isoformat(),
+            "started_at":    datetime.now(UTC).isoformat(),
             "total_input_tokens":      0,
             "total_output_tokens":     0,
             "total_cache_read_tokens": 0,
@@ -139,7 +137,7 @@ def case_intake(state: InvestigationState, config: RunnableConfig) -> dict:
         return {
             "errors": [{"node": "case_intake", "error": str(e), "error_type": type(e).__name__}],
             "current_node": "case_intake",
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
             "total_input_tokens":      0,
             "total_output_tokens":     0,
             "total_cache_read_tokens": 0,

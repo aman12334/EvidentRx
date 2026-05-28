@@ -11,9 +11,8 @@ confirmed audit findings and persisted intelligence tables.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -34,9 +33,9 @@ class EntityHistory:
     recurring_pharmacies: list[str]          # pharmacy_ids seen 2+ times
     recurring_ndcs:       list[str]          # NDC-11s seen 2+ times
     risk_trend:           str                # improving / stable / worsening / critical
-    latest_score:         Optional[float]    # most recent composite score
-    first_finding_date:   Optional[date]
-    latest_finding_date:  Optional[date]
+    latest_score:         float | None    # most recent composite score
+    first_finding_date:   date | None
+    latest_finding_date:  date | None
     lookback_days:        int = 90
 
 

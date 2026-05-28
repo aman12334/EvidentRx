@@ -15,8 +15,8 @@ import json
 import logging
 import traceback
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any, Optional
+from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import text
@@ -42,9 +42,9 @@ class BenchmarkResult:
     eval_name:        str
     status:           str
     started_at:       datetime
-    completed_at:     Optional[datetime] = None
+    completed_at:     datetime | None = None
     checks:           list[BenchmarkCheck] = field(default_factory=list)
-    error_message:    Optional[str] = None
+    error_message:    str | None = None
 
     @property
     def passed_count(self) -> int:

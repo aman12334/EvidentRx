@@ -25,9 +25,8 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
 
 log = logging.getLogger("evidentrx.interop.hl7.parser")
 
@@ -59,7 +58,7 @@ class HL7Segment:
     fields: list[str]               # raw field strings (index 0 = segment ID)
     raw:    str                     # original pipe-delimited line
 
-    def get(self, index: int, component: int = 0) -> Optional[str]:
+    def get(self, index: int, component: int = 0) -> str | None:
         """
         Return field value at 1-based index, 0-based component.
         Returns None if out of bounds or empty.
@@ -96,14 +95,14 @@ class HL7Message:
     message_id:      str
     sending_facility:str
     receiving_facility: str
-    timestamp:       Optional[datetime]
+    timestamp:       datetime | None
     version:         str
     segments:        list[HL7Segment]           = field(default_factory=list)
     raw:             str                        = ""
     parse_errors:    list[str]                  = field(default_factory=list)
     is_valid:        bool                       = True
 
-    def get_segment(self, name: str) -> Optional[HL7Segment]:
+    def get_segment(self, name: str) -> HL7Segment | None:
         """Return first segment with the given name."""
         for seg in self.segments:
             if seg.name == name:
@@ -205,7 +204,7 @@ class HL7Parser:
 
 # ── Convenience extractors ────────────────────────────────────────────────────
 
-def extract_patient_id(msg: HL7Message) -> Optional[str]:
+def extract_patient_id(msg: HL7Message) -> str | None:
     """Extract the patient MRN from PID-3."""
     pid = msg.get_segment("PID")
     if not pid:
@@ -218,7 +217,7 @@ def extract_patient_id(msg: HL7Message) -> Optional[str]:
     return None
 
 
-def extract_ndc(msg: HL7Message) -> Optional[str]:
+def extract_ndc(msg: HL7Message) -> str | None:
     """Extract NDC from RXE-2 (encoded order) or RXD-2 (dispense)."""
     for seg_name in ("RXE", "RXD", "RXO"):
         seg = msg.get_segment(seg_name)
@@ -231,7 +230,7 @@ def extract_ndc(msg: HL7Message) -> Optional[str]:
     return None
 
 
-def extract_npi(msg: HL7Message) -> Optional[str]:
+def extract_npi(msg: HL7Message) -> str | None:
     """Extract ordering provider NPI from ORC-12."""
     orc = msg.get_segment("ORC")
     if not orc:
@@ -252,13 +251,13 @@ def _comp(field: str, index: int) -> str:
     return parts[index].strip() if index < len(parts) else ""
 
 
-def _parse_hl7_timestamp(ts: str) -> Optional[datetime]:
+def _parse_hl7_timestamp(ts: str) -> datetime | None:
     """Parse HL7 DTM format: YYYYMMDDHHMMSS[.SSSS][+/-ZZZZ]."""
     ts = ts.strip()[:14]  # drop timezone, microseconds for simplicity
     formats = ["%Y%m%d%H%M%S", "%Y%m%d%H%M", "%Y%m%d"]
     for fmt in formats:
         try:
-            return datetime.strptime(ts, fmt).replace(tzinfo=timezone.utc)
+            return datetime.strptime(ts, fmt).replace(tzinfo=UTC)
         except ValueError:
             continue
     return None

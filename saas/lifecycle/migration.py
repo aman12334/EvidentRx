@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.lifecycle.migration")
 
@@ -54,9 +55,9 @@ class MigrationStep:
     idempotency_key: str         # if already applied, skip
     status:       MigrationStepStatus = MigrationStepStatus.PENDING
     rows_affected: int           = 0
-    error:        Optional[str]  = None
-    started_at:   Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    error:        str | None  = None
+    started_at:   datetime | None = None
+    completed_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -86,8 +87,8 @@ class MigrationPlan:
     status:      MigrationStatus
     created_by:  str
     created_at:  datetime
-    started_at:  Optional[datetime]   = None
-    completed_at: Optional[datetime]  = None
+    started_at:  datetime | None   = None
+    completed_at: datetime | None  = None
     dry_run:     bool                 = False
     metadata:    dict[str, Any]       = field(default_factory=dict)
 
@@ -180,7 +181,7 @@ class TenantMigrationService:
             steps        = migration_steps,
             status       = MigrationStatus.PLANNED,
             created_by   = created_by,
-            created_at   = datetime.now(tz=timezone.utc),
+            created_at   = datetime.now(tz=UTC),
             dry_run      = dry_run,
         )
         self._plans[plan.plan_id] = plan
@@ -198,7 +199,7 @@ class TenantMigrationService:
             )
 
         plan.status     = MigrationStatus.RUNNING
-        plan.started_at = datetime.now(tz=timezone.utc)
+        plan.started_at = datetime.now(tz=UTC)
 
         for step in plan.steps:
             # Idempotency check
@@ -211,7 +212,7 @@ class TenantMigrationService:
                 continue
 
             step.status     = MigrationStepStatus.RUNNING
-            step.started_at = datetime.now(tz=timezone.utc)
+            step.started_at = datetime.now(tz=UTC)
 
             executor = self._executors.get(step.name)
             if executor is None:
@@ -234,7 +235,7 @@ class TenantMigrationService:
                     return plan
                 step.rows_affected = rows_affected or 0
                 step.status        = MigrationStepStatus.COMPLETED
-                step.completed_at  = datetime.now(tz=timezone.utc)
+                step.completed_at  = datetime.now(tz=UTC)
                 if not plan.dry_run:
                     self._applied[f"{plan.tenant_id}:{step.idempotency_key}"] = True
             except Exception as exc:
@@ -247,7 +248,7 @@ class TenantMigrationService:
                 return plan
 
         plan.status       = MigrationStatus.COMPLETED
-        plan.completed_at = datetime.now(tz=timezone.utc)
+        plan.completed_at = datetime.now(tz=UTC)
         log.info(
             "TenantMigrationService: plan '%s' completed (dry_run=%s)",
             plan.name, plan.dry_run,
@@ -257,7 +258,7 @@ class TenantMigrationService:
     def list_plans(
         self,
         tenant_id: str,
-        status:    Optional[MigrationStatus] = None,
+        status:    MigrationStatus | None = None,
     ) -> list[MigrationPlan]:
         return [
             p for p in self._plans.values()
@@ -265,7 +266,7 @@ class TenantMigrationService:
             and (status is None or p.status == status)
         ]
 
-    def get_plan(self, plan_id: str) -> Optional[MigrationPlan]:
+    def get_plan(self, plan_id: str) -> MigrationPlan | None:
         return self._plans.get(plan_id)
 
     def _get_plan(self, plan_id: str) -> MigrationPlan:
@@ -283,7 +284,7 @@ class MigrationError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[TenantMigrationService] = None
+_service: TenantMigrationService | None = None
 
 
 def get_migration_service() -> TenantMigrationService:

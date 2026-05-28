@@ -20,8 +20,8 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
-from uuid import UUID, uuid4
+from typing import Any
+from uuid import uuid4
 
 import anthropic
 from sqlalchemy import text
@@ -163,7 +163,7 @@ class InvestigatorCopilotService:
         session: Session,
         case_id: str,
         investigator_id: str,
-        finding_ids: Optional[list[str]] = None,
+        finding_ids: list[str] | None = None,
     ) -> CopilotResponse:
         """
         Explains what the findings mean in plain English — what rule was

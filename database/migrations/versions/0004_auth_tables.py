@@ -11,7 +11,8 @@ Adds:
   auth.password_history      — last-12-password reuse prevention
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
 from alembic import op

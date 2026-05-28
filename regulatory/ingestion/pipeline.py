@@ -23,9 +23,10 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from regulatory.ingestion.models import (
     DocumentFormat,
@@ -59,9 +60,9 @@ class IngestRequest:
     domains:        list[PolicyDomain]
     attribution:    PolicySourceAttribution
     # Provide one of:
-    raw_bytes:      Optional[bytes]    = None
-    source_url:     Optional[str]      = None
-    document_family_id: Optional[str]  = None   # None = new family
+    raw_bytes:      bytes | None    = None
+    source_url:     str | None      = None
+    document_family_id: str | None  = None   # None = new family
     version:        str                = "1.0"
     tags:           list[str]          = field(default_factory=list)
     triggered_by:   str                = "manual"
@@ -71,10 +72,10 @@ class IngestRequest:
 @dataclass
 class IngestResult:
     success:    bool
-    document:   Optional[RegulatoryDocument]
+    document:   RegulatoryDocument | None
     record:     IngestionRecord
     duplicate:  bool  = False   # True if content hash already exists
-    error:      Optional[str] = None
+    error:      str | None = None
 
 
 class RegulatoryIngestionPipeline:
@@ -88,8 +89,8 @@ class RegulatoryIngestionPipeline:
 
     def __init__(
         self,
-        http_fetcher: Optional[Callable] = None,
-        db_writer:    Optional[Callable] = None,
+        http_fetcher: Callable | None = None,
+        db_writer:    Callable | None = None,
     ) -> None:
         self._fetcher   = http_fetcher
         self._db_writer = db_writer
@@ -106,7 +107,7 @@ class RegulatoryIngestionPipeline:
 
     async def ingest(self, req: IngestRequest) -> IngestResult:
         """Run the full pipeline for one document."""
-        started = datetime.now(tz=timezone.utc)
+        started = datetime.now(tz=UTC)
         doc_id  = new_doc_id()
         record  = IngestionRecord(
             record_id    = str(uuid.uuid4()),
@@ -127,7 +128,7 @@ class RegulatoryIngestionPipeline:
             existing_id  = self._by_hash.get(content_hash)
             if existing_id:
                 record.success      = True
-                record.completed_at = datetime.now(tz=timezone.utc)
+                record.completed_at = datetime.now(tz=UTC)
                 self._records.append(record)
                 log.info(
                     "RegulatoryIngestionPipeline: duplicate content hash — "
@@ -179,7 +180,7 @@ class RegulatoryIngestionPipeline:
             # 6. Index
             if parse_result.success:
                 doc.status     = DocumentStatus.INDEXED
-                doc.indexed_at = datetime.now(tz=timezone.utc)
+                doc.indexed_at = datetime.now(tz=UTC)
 
             # 7. Store
             self._docs[doc_id]      = doc
@@ -190,7 +191,7 @@ class RegulatoryIngestionPipeline:
             await self._persist("ingest_document", doc)
 
             record.success      = parse_result.success
-            record.completed_at = datetime.now(tz=timezone.utc)
+            record.completed_at = datetime.now(tz=UTC)
             self._records.append(record)
 
             log.info(
@@ -201,7 +202,7 @@ class RegulatoryIngestionPipeline:
             return IngestResult(success=True, document=doc, record=record)
 
         except Exception as exc:
-            record.completed_at = datetime.now(tz=timezone.utc)
+            record.completed_at = datetime.now(tz=UTC)
             record.parse_errors.append(str(exc))
             self._records.append(record)
             log.exception("RegulatoryIngestionPipeline: ingest failed for %s", req.title)
@@ -212,7 +213,7 @@ class RegulatoryIngestionPipeline:
                 error    = str(exc),
             )
 
-    def get_document(self, doc_id: str) -> Optional[RegulatoryDocument]:
+    def get_document(self, doc_id: str) -> RegulatoryDocument | None:
         return self._docs.get(doc_id)
 
     def get_family(self, family_id: str) -> list[RegulatoryDocument]:
@@ -221,8 +222,8 @@ class RegulatoryIngestionPipeline:
 
     def list_current(
         self,
-        source:  Optional[DocumentSource] = None,
-        domain:  Optional[PolicyDomain]   = None,
+        source:  DocumentSource | None = None,
+        domain:  PolicyDomain | None   = None,
         limit:   int                      = 100,
     ) -> list[RegulatoryDocument]:
         results = [
@@ -257,7 +258,7 @@ class RegulatoryIngestionPipeline:
             return StructuredFeedParser().parse_xml(raw)
         return PlainTextParser().parse(raw)
 
-    def _latest_in_family(self, family_id: str) -> Optional[str]:
+    def _latest_in_family(self, family_id: str) -> str | None:
         ids = self._families.get(family_id, [])
         if not ids:
             return None
@@ -280,12 +281,12 @@ class RegulatoryIngestionPipeline:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_pipeline: Optional[RegulatoryIngestionPipeline] = None
+_pipeline: RegulatoryIngestionPipeline | None = None
 
 
 def get_ingestion_pipeline(
-    http_fetcher: Optional[Callable] = None,
-    db_writer:    Optional[Callable] = None,
+    http_fetcher: Callable | None = None,
+    db_writer:    Callable | None = None,
 ) -> RegulatoryIngestionPipeline:
     global _pipeline
     if _pipeline is None:

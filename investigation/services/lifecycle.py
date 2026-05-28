@@ -7,20 +7,18 @@ InvestigationCase.status are prohibited in the application layer.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.models.audit.investigation_case import InvestigationCase
 from investigation.domain.states import (
-    CaseStatus,
     CLOSED_STATES,
     ESCALATED_STATES,
-    InvalidTransitionError,
-    validate_transition,
+    CaseStatus,
     get_valid_transitions,
+    validate_transition,
 )
 from investigation.services.evidence import EvidenceAggregationService
 from investigation.services.timeline import TimelineService
@@ -39,8 +37,8 @@ class InvestigationLifecycleService:
         new_status: str,
         actor_id: str,
         actor_type: str = "human",
-        notes: Optional[str] = None,
-        escalated_to: Optional[str] = None,
+        notes: str | None = None,
+        escalated_to: str | None = None,
     ) -> InvestigationCase:
         """
         Validate and execute a lifecycle transition.
@@ -58,7 +56,7 @@ class InvestigationLifecycleService:
 
         old_status = case.status
         case.status = requested.value
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Side-effects of specific transitions
         if requested in CLOSED_STATES:
@@ -106,7 +104,7 @@ class InvestigationLifecycleService:
 
         old_assignee = case.assigned_to
         case.assigned_to = assigned_to
-        case.assigned_at = datetime.now(timezone.utc)
+        case.assigned_at = datetime.now(UTC)
         session.flush()
 
         _timeline.record(

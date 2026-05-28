@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 import os
+import sys
 
 # Make sure project root is on path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -49,8 +49,8 @@ def run(only: str | None = None) -> None:
     from app.database import SessionLocal
     from ingestion.loaders.covered_entity import CoveredEntityLoader
     from ingestion.loaders.medicaid_exclusion import MedicaidExclusionLoader
-    from ingestion.loaders.provider import ProviderLoader
     from ingestion.loaders.ndc_drug import NdcDrugLoader
+    from ingestion.loaders.provider import ProviderLoader
 
     with SessionLocal() as session:
 

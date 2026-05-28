@@ -37,7 +37,7 @@ class EvidenceAnalysisInput(BaseModel):
     )
 
     @model_validator(mode="after")
-    def findings_have_required_fields(self) -> "EvidenceAnalysisInput":
+    def findings_have_required_fields(self) -> EvidenceAnalysisInput:
         required = {"rule_code", "severity"}
         for i, f in enumerate(self.findings[:5]):  # spot-check first 5
             missing = required - f.keys()
@@ -62,7 +62,7 @@ class RiskPrioritizationInput(BaseModel):
     )
 
     @model_validator(mode="after")
-    def evidence_analysis_is_complete(self) -> "RiskPrioritizationInput":
+    def evidence_analysis_is_complete(self) -> RiskPrioritizationInput:
         if not self.evidence_analysis:
             raise ValueError(
                 "evidence_analysis is empty. EvidenceAnalysisAgent must run "
@@ -98,7 +98,7 @@ class NarrativeGenerationInput(BaseModel):
     )
 
     @model_validator(mode="after")
-    def prior_agents_completed(self) -> "NarrativeGenerationInput":
+    def prior_agents_completed(self) -> NarrativeGenerationInput:
         if not self.risk_assessment:
             raise ValueError(
                 "risk_assessment is empty. RiskPrioritizationAgent must run "

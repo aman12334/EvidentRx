@@ -20,13 +20,13 @@ HIPAA / HRSA relevance
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.governance.audit")
 
@@ -70,13 +70,13 @@ class AuditEntry:
     event_id:       str
     event_type:     AuditEventType
     tenant_id:      str
-    connector_id:   Optional[str]
-    actor_id:       Optional[str]       # user ID or service account
-    resource_type:  Optional[str]
-    source_system:  Optional[str]
+    connector_id:   str | None
+    actor_id:       str | None       # user ID or service account
+    resource_type:  str | None
+    source_system:  str | None
     detail:         dict[str, Any]      # structured event detail (no PHI)
     occurred_at:    datetime
-    correlation_id: Optional[str]       = None  # links related events
+    correlation_id: str | None       = None  # links related events
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -95,9 +95,9 @@ class InteropAuditLog:
 
     def __init__(
         self,
-        db_writer:      Optional[Callable] = None,   # async (list[AuditEntry]) → None
+        db_writer:      Callable | None = None,   # async (list[AuditEntry]) → None
         buffer_size:    int                = 200,
-        correlation_id: Optional[str]      = None,
+        correlation_id: str | None      = None,
     ) -> None:
         self._db_writer     = db_writer
         self._buffer:       list[AuditEntry] = []
@@ -111,11 +111,11 @@ class InteropAuditLog:
         self,
         event_type:    AuditEventType,
         tenant_id:     str,
-        connector_id:  Optional[str]       = None,
-        actor_id:      Optional[str]       = None,
-        resource_type: Optional[str]       = None,
-        source_system: Optional[str]       = None,
-        detail:        Optional[dict]      = None,
+        connector_id:  str | None       = None,
+        actor_id:      str | None       = None,
+        resource_type: str | None       = None,
+        source_system: str | None       = None,
+        detail:        dict | None      = None,
     ) -> AuditEntry:
         """Write a single audit entry to the buffer."""
         entry = AuditEntry(
@@ -127,7 +127,7 @@ class InteropAuditLog:
             resource_type  = resource_type,
             source_system  = source_system,
             detail         = detail or {},
-            occurred_at    = datetime.now(tz=timezone.utc),
+            occurred_at    = datetime.now(tz=UTC),
             correlation_id = self._correlation,
         )
 
@@ -247,10 +247,10 @@ class InteropAuditLog:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_audit_log: Optional[InteropAuditLog] = None
+_audit_log: InteropAuditLog | None = None
 
 
-def get_interop_audit_log(db_writer: Optional[Callable] = None) -> InteropAuditLog:
+def get_interop_audit_log(db_writer: Callable | None = None) -> InteropAuditLog:
     """Return the module-level InteropAuditLog singleton."""
     global _audit_log
     if _audit_log is None:

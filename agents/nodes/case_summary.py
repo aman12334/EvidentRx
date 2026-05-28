@@ -4,15 +4,12 @@ to the investigation_case record, and marks the workflow complete.
 """
 from __future__ import annotations
 
-import json
 import logging
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import UTC, datetime
 
 from langchain_core.runnables import RunnableConfig
 from sqlalchemy import text
 
-from agents.agents.orchestrator import InvestigationOrchestratorAgent
 from agents.persistence.checkpoints import CheckpointManager
 from agents.state import InvestigationState
 from investigation.services.timeline import TimelineService
@@ -28,7 +25,7 @@ def case_summary(state: InvestigationState, config: RunnableConfig) -> dict:
     orchestrator = config["configurable"]["orchestrator"]
     run_id      = config["configurable"]["run_id"]
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     workflow_summary = orchestrator.get_workflow_summary(state)
 
     # Compile final case summary

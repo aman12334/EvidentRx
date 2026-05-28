@@ -27,10 +27,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from datetime import date, datetime
-from typing   import Any, Optional
+from typing import Any
 
-from interoperability.fhir.resources import FHIRResourceType, get_meta
+from interoperability.fhir.resources import FHIRResourceType
 
 log = logging.getLogger("evidentrx.interop.fhir.normalizer")
 
@@ -249,7 +248,7 @@ def _hash_patient_id(r: dict, tenant_id: str) -> str:
     return _hash_ref(f"Patient/{r.get('id', '')}", tenant_id)
 
 
-def _birth_year(birth_date: Optional[str]) -> Optional[int]:
+def _birth_year(birth_date: str | None) -> int | None:
     """Extract year only from FHIR birthDate (never store full DOB)."""
     if not birth_date:
         return None
@@ -261,24 +260,24 @@ def _birth_year(birth_date: Optional[str]) -> Optional[int]:
 
 # ── FHIR field extractors ─────────────────────────────────────────────────────
 
-def _version(r: dict) -> Optional[str]:
+def _version(r: dict) -> str | None:
     return r.get("meta", {}).get("versionId")
 
 
-def _ref(obj: Optional[dict]) -> Optional[str]:
+def _ref(obj: dict | None) -> str | None:
     if not obj:
         return None
     return obj.get("reference") or obj.get("display")
 
 
-def _date(val: Optional[str]) -> Optional[str]:
+def _date(val: str | None) -> str | None:
     if not val:
         return None
     # Truncate to date portion regardless of format
     return val[:10] if len(val) >= 10 else val
 
 
-def _quantity(q: Optional[dict]) -> Optional[float]:
+def _quantity(q: dict | None) -> float | None:
     if not q:
         return None
     try:
@@ -287,7 +286,7 @@ def _quantity(q: Optional[dict]) -> Optional[float]:
         return None
 
 
-def _money(m: Optional[dict]) -> Optional[float]:
+def _money(m: dict | None) -> float | None:
     if not m:
         return None
     try:
@@ -296,14 +295,14 @@ def _money(m: Optional[dict]) -> Optional[float]:
         return None
 
 
-def _int(val: Any) -> Optional[int]:
+def _int(val: Any) -> int | None:
     try:
         return int(val)
     except (TypeError, ValueError):
         return None
 
 
-def _coding_display(cc: Optional[dict]) -> Optional[str]:
+def _coding_display(cc: dict | None) -> str | None:
     if not cc:
         return None
     for coding in cc.get("coding", []):
@@ -312,14 +311,14 @@ def _coding_display(cc: Optional[dict]) -> Optional[str]:
     return cc.get("text")
 
 
-def _coding_code(cc: dict) -> Optional[str]:
+def _coding_code(cc: dict) -> str | None:
     for coding in cc.get("coding", []):
         if coding.get("code"):
             return coding["code"]
     return None
 
 
-def _extract_ndc(cc: dict) -> Optional[str]:
+def _extract_ndc(cc: dict) -> str | None:
     """Extract NDC-11 from a CodeableConcept."""
     for coding in cc.get("coding", []):
         system = coding.get("system", "")
@@ -330,7 +329,7 @@ def _extract_ndc(cc: dict) -> Optional[str]:
     return None
 
 
-def _extract_npi(ref: dict) -> Optional[str]:
+def _extract_npi(ref: dict) -> str | None:
     """Extract NPI from an identifier list on an embedded resource or reference."""
     for identifier in ref.get("identifier", []):
         if "npi" in identifier.get("system", "").lower():
@@ -338,7 +337,7 @@ def _extract_npi(ref: dict) -> Optional[str]:
     return None
 
 
-def _extract_identifier(r: dict, system: str) -> Optional[str]:
+def _extract_identifier(r: dict, system: str) -> str | None:
     for identifier in r.get("identifier", []):
         if identifier.get("system") == system:
             return identifier.get("value")

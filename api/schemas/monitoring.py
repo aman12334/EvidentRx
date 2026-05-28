@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -61,8 +60,8 @@ class MonitoringRunSchema(BaseModel):
     new_findings:         int = 0
     drifts_detected:      int = 0
     correlations_found:   int = 0
-    started_at:           Optional[datetime] = None
-    completed_at:         Optional[datetime] = None
+    started_at:           datetime | None = None
+    completed_at:         datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -73,4 +72,4 @@ class IntelligenceSummaryResponse(BaseModel):
     worsening_trends:       list[TrendRecordSchema] = Field(default_factory=list)
     high_correlations:      list[CorrelationSchema] = Field(default_factory=list)
     critical_drift_signals: list[DriftSignalSchema] = Field(default_factory=list)
-    last_monitoring_run:    Optional[MonitoringRunSchema] = None
+    last_monitoring_run:    MonitoringRunSchema | None = None

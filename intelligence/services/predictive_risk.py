@@ -15,15 +15,13 @@ No LLMs involved — all arithmetic is deterministic.
 from __future__ import annotations
 
 import logging
-import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from intelligence.services.trend_analysis import TrendAnalysisService, TrendRecord, TrendSummary
+from intelligence.services.trend_analysis import TrendAnalysisService, TrendRecord
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +59,7 @@ class EntityRiskScore:
     escalation_probability: float          # 0.0 – 1.0
     trend_direction:        str
     score_components:       dict           # {"velocity": .., "exposure": .., ...}
-    monitoring_run_id:      Optional[str] = None
+    monitoring_run_id:      str | None = None
 
 
 @dataclass
@@ -116,9 +114,9 @@ class PredictiveRiskService:
     def score(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
-        monitoring_run_id: Optional[str] = None,
+        monitoring_run_id: str | None = None,
     ) -> RiskScoringReport:
         """
         Computes composite risk scores for all active covered entities.
@@ -194,9 +192,9 @@ class PredictiveRiskService:
         session: Session,
         entity_id: str,
         entity_type: str = "covered_entity",
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
-    ) -> Optional[EntityRiskScore]:
+    ) -> EntityRiskScore | None:
         """Score a single entity.  Returns None if no findings found."""
         report = self.score(session, as_of=as_of, window_type=window_type)
         for s in report.scores:
@@ -208,7 +206,7 @@ class PredictiveRiskService:
         self,
         session: Session,
         report: RiskScoringReport,
-        monitoring_run_id: Optional[str] = None,
+        monitoring_run_id: str | None = None,
     ) -> int:
         """
         Upserts entity risk scores to audit.entity_risk_scores.
@@ -216,7 +214,6 @@ class PredictiveRiskService:
         """
         import json
         count = 0
-        run_id = monitoring_run_id
         for s in report.scores:
             session.execute(text("""
                 INSERT INTO audit.entity_risk_scores
@@ -286,7 +283,7 @@ class PredictiveRiskService:
         velocity_max: float,
         exposure_max: float,
         as_of: date,
-        monitoring_run_id: Optional[str],
+        monitoring_run_id: str | None,
     ) -> EntityRiskScore:
         # Velocity: take worst (highest) rule velocity
         max_velocity = max((r.velocity for r in records), default=0.0)

@@ -21,8 +21,8 @@ One row per unique (hrsa_id, state_code) per filing period is stored.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pandas as pd
@@ -32,7 +32,7 @@ from ingestion.base import BaseLoader, bulk_insert
 from ingestion.normalizers import clean_str, filing_period_from_filename, parse_date
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class MedicaidExclusionLoader(BaseLoader):
@@ -93,7 +93,7 @@ class MedicaidExclusionLoader(BaseLoader):
                     continue
 
                 term_raw = row.get("Termination Date")
-                term_date = parse_date(term_raw)
+                parse_date(term_raw)
 
                 rows.append({
                     "exclusion_id": str(uuid4()),

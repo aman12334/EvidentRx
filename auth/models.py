@@ -6,12 +6,10 @@ These are API-layer models; DB models live in app/models/.
 from __future__ import annotations
 
 from datetime import datetime
-from typing   import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from auth.rbac import Role
-
 
 # ─── User Models ──────────────────────────────────────────────────────────────
 
@@ -19,7 +17,7 @@ class AuthUser(BaseModel):
     """Authenticated principal derived from JWT payload."""
     user_id:   str
     tenant_id: str
-    email:     Optional[str] = None
+    email:     str | None = None
     role:      Role
     jti:       str           # token ID, used for revocation checks
 
@@ -92,6 +90,6 @@ class RefreshTokenRecord(BaseModel):
     issued_at:  datetime
     expires_at: datetime
     revoked:    bool = False
-    revoked_at: Optional[datetime] = None
-    user_agent: Optional[str] = None
-    ip_address: Optional[str] = None
+    revoked_at: datetime | None = None
+    user_agent: str | None = None
+    ip_address: str | None = None

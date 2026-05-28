@@ -19,16 +19,17 @@ Run:
 from __future__ import annotations
 
 import hashlib
-import json
+import os
 import random
 import sys
-import os
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from datetime import date, timedelta
 from uuid import uuid4
 
 from sqlalchemy import text
+
 from app.database import SessionLocal
 
 random.seed(99)
@@ -340,15 +341,15 @@ for _ in range(200):
 
 
 # ── Summary ───────────────────────────────────────────────────────────────────
-print(f"\nGenerated:")
+print("\nGenerated:")
 print(f"  Dispenses: {len(dispenses)}")
 print(f"  Claims:    {len(claims)}")
 print(f"  Purchases: {len(purchases)}")
-print(f"\n  Violation breakdown:")
-print(f"    DD-001 (duplicate dispensing): 120 records (60 pairs)")
-print(f"    MEO-001 (medicaid overlap):     80 records")
-print(f"    SB-001 (split billing):         40 records")
-print(f"    DQ-001 (NDC mismatch):          50 records")
+print("\n  Violation breakdown:")
+print("    DD-001 (duplicate dispensing): 120 records (60 pairs)")
+print("    MEO-001 (medicaid overlap):     80 records")
+print("    SB-001 (split billing):         40 records")
+print("    DQ-001 (NDC mismatch):          50 records")
 print(f"    Clean records:                 {400*2} records")
 
 
@@ -436,7 +437,7 @@ def run():
         c_count = db.execute(text("SELECT COUNT(*) FROM ops.claims")).scalar()
         p_count = db.execute(text("SELECT COUNT(*) FROM ops.purchases")).scalar()
 
-        print(f"Total in DB:")
+        print("Total in DB:")
         print(f"  ops.dispenses:  {d_count:>6}")
         print(f"  ops.claims:     {c_count:>6}")
         print(f"  ops.purchases:  {p_count:>6}")

@@ -18,17 +18,14 @@ Usage:
 """
 from __future__ import annotations
 
-import json
 import logging
 import time
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
-from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from evaluation.validators import OutputValidator, HallucinationDetector
+from evaluation.validators import HallucinationDetector, OutputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +96,7 @@ class EvaluationResult:
     golden_name:  str
     run_id:       str
     started_at:   float = field(default_factory=time.monotonic)
-    finished_at:  Optional[float] = None
+    finished_at:  float | None = None
     validations:  list[ValidationResult] = field(default_factory=list)
     stats:        dict = field(default_factory=dict)
 
@@ -127,7 +124,7 @@ class EvaluationResult:
         print(f"{'='*62}")
         print(f"  {'PASS' if self.passed else 'FAIL'}  ({elapsed:.1f}s)")
         if self.stats:
-            print(f"\n  Stats:")
+            print("\n  Stats:")
             for k, v in self.stats.items():
                 print(f"    {k}: {v}")
         print()
@@ -154,7 +151,7 @@ class EvaluationHarness:
     def run_golden(
         self,
         session: Session,
-        golden: Optional[GoldenCase] = None,
+        golden: GoldenCase | None = None,
     ) -> EvaluationResult:
         from uuid import uuid4
         gc = golden or DEFAULT_GOLDEN
@@ -278,7 +275,6 @@ class EvaluationHarness:
         gc: GoldenCase,
         result: EvaluationResult,
     ) -> None:
-        from sqlalchemy import text
         from investigation.domain.clustering import ClusterConfig
         from investigation.services.case_builder import CaseBuilderService
 
@@ -306,6 +302,7 @@ class EvaluationHarness:
         found_codes: list[str],
     ) -> None:
         from sqlalchemy import text
+
         from agents.runner import InvestigationRunner
 
         # Get first open case
@@ -323,7 +320,7 @@ class EvaluationHarness:
             run_result = runner.run(session, row[0])
             session.commit()
 
-            validator = OutputValidator()
+            OutputValidator()  # instantiated for side-effects; full validation in v2
             hallucination_checker = HallucinationDetector()
 
             narrative = run_result.get("executive_summary", "")

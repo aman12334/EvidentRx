@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
-from typing import Optional
+from datetime import datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -27,9 +26,9 @@ DEFAULT_CADENCE_HOURS = 24
 
 @dataclass
 class ScheduleState:
-    last_run_id:         Optional[str]
-    last_run_at:         Optional[datetime]
-    last_run_status:     Optional[str]
+    last_run_id:         str | None
+    last_run_at:         datetime | None
+    last_run_status:     str | None
     next_run_due:        datetime
     is_due:              bool
     cadence_hours:       int

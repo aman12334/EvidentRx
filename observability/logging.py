@@ -26,8 +26,8 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime  import datetime, timezone
-from typing    import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 
 class JSONFormatter(logging.Formatter):
@@ -45,7 +45,7 @@ class JSONFormatter(logging.Formatter):
         trace_id = self._get_trace_id()
 
         log_record: dict[str, Any] = {
-            "@timestamp":       datetime.now(tz=timezone.utc).isoformat(),
+            "@timestamp":       datetime.now(tz=UTC).isoformat(),
             "log.level":        record.levelname.lower(),
             "message":          record.getMessage(),
             "service.name":     self.service_name,
@@ -72,7 +72,7 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_record, default=str)
 
     @staticmethod
-    def _get_trace_id() -> Optional[str]:
+    def _get_trace_id() -> str | None:
         try:
             from opentelemetry import trace
             span = trace.get_current_span()

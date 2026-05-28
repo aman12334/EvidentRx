@@ -34,11 +34,12 @@ import asyncio
 import json
 import logging
 import uuid
-from abc         import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, AsyncIterator, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.streaming.event_bus")
 
@@ -53,7 +54,7 @@ class BusMessage:
     payload:       dict[str, Any]
     partition_key: str             = ""
     event_id:      str             = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp:     datetime        = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    timestamp:     datetime        = field(default_factory=lambda: datetime.now(tz=UTC))
     schema_ver:    str             = _SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,14 +71,14 @@ class BusMessage:
         return json.dumps(self.to_dict(), default=str).encode("utf-8")
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> "BusMessage":
+    def from_bytes(cls, data: bytes) -> BusMessage:
         d = json.loads(data.decode("utf-8"))
         return cls(
             topic         = d.get("_topic", ""),
             payload       = d.get("payload", {}),
             partition_key = d.get("_partition_key", ""),
             event_id      = d.get("_event_id", str(uuid.uuid4())),
-            timestamp     = datetime.fromisoformat(d["_timestamp"]) if "_timestamp" in d else datetime.now(tz=timezone.utc),
+            timestamp     = datetime.fromisoformat(d["_timestamp"]) if "_timestamp" in d else datetime.now(tz=UTC),
             schema_ver    = d.get("_schema_ver", _SCHEMA_VERSION),
         )
 
@@ -137,7 +138,7 @@ class InMemoryEventBus(EventBus):
         self._handlers: dict[str, list[Handler]] = defaultdict(list)
         self._history:  dict[str, list[BusMessage]] = defaultdict(list)
         self._running   = False
-        self._dispatch_task: Optional[asyncio.Task] = None
+        self._dispatch_task: asyncio.Task | None = None
 
     async def publish(self, message: BusMessage) -> None:
         queue = self._queues[message.topic]
@@ -222,9 +223,9 @@ class KafkaEventBus(EventBus):
         self,
         bootstrap_servers: str,
         security_protocol: str         = "PLAINTEXT",
-        sasl_mechanism:    Optional[str] = None,
-        sasl_username:     Optional[str] = None,
-        sasl_password:     Optional[str] = None,
+        sasl_mechanism:    str | None = None,
+        sasl_username:     str | None = None,
+        sasl_password:     str | None = None,
         compression_type:  str         = "gzip",
         batch_size_bytes:  int         = 65536,
         linger_ms:         int         = 10,
@@ -237,7 +238,7 @@ class KafkaEventBus(EventBus):
         self._compression  = compression_type
         self._batch_bytes  = batch_size_bytes
         self._linger_ms    = linger_ms
-        self._producer: Optional[Any] = None
+        self._producer: Any | None = None
 
     async def _ensure_producer(self) -> Any:
         """Lazily initialise the aiokafka producer."""
@@ -327,7 +328,7 @@ def lineage_topic(tenant_id: str) -> str:
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
-_bus: Optional[EventBus] = None
+_bus: EventBus | None = None
 
 
 def get_event_bus() -> EventBus:

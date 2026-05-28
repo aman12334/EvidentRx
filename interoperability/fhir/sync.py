@@ -12,20 +12,24 @@ Sync modes
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from datetime import datetime, timezone
-from typing   import Any, AsyncIterator, Callable, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 from interoperability.base.connector import (
-    BaseConnector, ConnectorConfig, ConnectorHealth, ConnectorState,
-    IngestRecord, SourceType, SyncCursor,
-    ConnectorAuthError, ConnectorTimeoutError, ConnectorUnavailableError,
+    BaseConnector,
+    ConnectorConfig,
+    ConnectorHealth,
+    ConnectorState,
+    ConnectorUnavailableError,
+    IngestRecord,
+    SourceType,
+    SyncCursor,
 )
-from interoperability.fhir.client      import FHIRClient, FHIRClientError
-from interoperability.fhir.normalizer  import normalise, NormalisationError
-from interoperability.fhir.resources   import RESOURCE_CATALOGUE, FHIRResourceType, supported_types
-from interoperability.fhir.validator   import FHIRValidator
+from interoperability.fhir.client import FHIRClient, FHIRClientError
+from interoperability.fhir.normalizer import NormalisationError, normalise
+from interoperability.fhir.resources import RESOURCE_CATALOGUE, FHIRResourceType, supported_types
+from interoperability.fhir.validator import FHIRValidator
 
 log = logging.getLogger("evidentrx.interop.fhir.sync")
 
@@ -46,7 +50,7 @@ class FHIRConnector(BaseConnector):
 
     def __init__(self, config: ConnectorConfig) -> None:
         super().__init__(config)
-        self._http_client: Optional[FHIRClient] = None
+        self._http_client: FHIRClient | None = None
         self._validator    = FHIRValidator()
         self._cursors:     dict[str, SyncCursor] = {}
 
@@ -86,7 +90,7 @@ class FHIRConnector(BaseConnector):
     async def fetch(
         self,
         resource_type: str,
-        cursor:        Optional[SyncCursor] = None,
+        cursor:        SyncCursor | None = None,
     ) -> AsyncIterator[list[IngestRecord]]:
         if self._http_client is None:
             raise ConnectorUnavailableError(self.connector_id, "Not initialised")
@@ -131,12 +135,12 @@ class FHIRConnector(BaseConnector):
             if batch:
                 yield batch
 
-    async def get_cursor(self, resource_type: str) -> Optional[SyncCursor]:
+    async def get_cursor(self, resource_type: str) -> SyncCursor | None:
         return self._cursors.get(resource_type)
 
     async def save_cursor(self, cursor: SyncCursor) -> None:
         # In-memory; production implementations persist to DB
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         self._cursors[cursor.resource_type] = SyncCursor(
             connector_id  = cursor.connector_id,
             tenant_id     = cursor.tenant_id,

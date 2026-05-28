@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import random
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
 
 from simulation.config import SimConfig
 from simulation.registry import CERecord, NDCRecord
-
 
 WHOLESALERS = [
     "AmerisourceBergen Drug Corp",

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
@@ -91,7 +90,7 @@ def list_monitoring_runs(
 
 @router.get("/risk/entities")
 def get_entity_risk_scores(
-    tier: Optional[str] = Query(None, pattern="^(critical|high|medium|low)$"),
+    tier: str | None = Query(None, pattern="^(critical|high|medium|low)$"),
     limit: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
 ):

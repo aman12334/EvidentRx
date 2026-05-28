@@ -28,10 +28,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.evaluation.harness")
 
@@ -66,19 +67,19 @@ class EvaluationCase:
     input_snapshot:  dict[str, Any]     # frozen case + evidence state
     expected_outputs: dict[str, Any]    # ground-truth labels
     metadata:        dict[str, Any]     = field(default_factory=dict)
-    created_at:      datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:      datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
 
 
 @dataclass
 class EvaluationMetrics:
     """Metrics computed for a single evaluation case."""
     case_id:              str
-    reasoning_score:      Optional[float]    # 0–1: quality of reasoning chain
-    outcome_accuracy:     Optional[float]    # 1 if outcome matches expected, 0 otherwise
-    confidence_calibration: Optional[float]  # |predicted – actual| for this case
-    recommendation_match: Optional[float]    # fraction of expected recs present
+    reasoning_score:      float | None    # 0–1: quality of reasoning chain
+    outcome_accuracy:     float | None    # 1 if outcome matches expected, 0 otherwise
+    confidence_calibration: float | None  # |predicted – actual| for this case
+    recommendation_match: float | None    # fraction of expected recs present
     hallucination_detected: bool             = False
-    latency_seconds:      Optional[float]    = None
+    latency_seconds:      float | None    = None
     extra:                dict[str, Any]     = field(default_factory=dict)
 
 
@@ -93,12 +94,12 @@ class EvaluationRun:
     evaluation_type:   EvaluationType
     tenant_id:         str
     benchmark_id:      str
-    prompt_version:    Optional[str]
-    model_config:      Optional[str]
-    calibration_version: Optional[str]
+    prompt_version:    str | None
+    model_config:      str | None
+    calibration_version: str | None
     status:            EvaluationStatus
     started_at:        datetime
-    finished_at:       Optional[datetime]    = None
+    finished_at:       datetime | None    = None
     case_metrics:      list[EvaluationMetrics] = field(default_factory=list)
     aggregate:         dict[str, Any]          = field(default_factory=dict)
     triggered_by:      str                     = "system"
@@ -106,12 +107,12 @@ class EvaluationRun:
     content_hash:      str                     = ""
 
     @property
-    def avg_reasoning_score(self) -> Optional[float]:
+    def avg_reasoning_score(self) -> float | None:
         scores = [m.reasoning_score for m in self.case_metrics if m.reasoning_score is not None]
         return round(sum(scores) / len(scores), 4) if scores else None
 
     @property
-    def outcome_accuracy(self) -> Optional[float]:
+    def outcome_accuracy(self) -> float | None:
         accs = [m.outcome_accuracy for m in self.case_metrics if m.outcome_accuracy is not None]
         return round(sum(accs) / len(accs), 4) if accs else None
 
@@ -154,8 +155,8 @@ class EvaluationHarness:
 
     def __init__(
         self,
-        db_writer:     Optional[Callable] = None,
-        event_emitter: Optional[Callable] = None,
+        db_writer:     Callable | None = None,
+        event_emitter: Callable | None = None,
     ) -> None:
         self._runs:     dict[str, EvaluationRun] = {}
         self._db_writer = db_writer
@@ -169,10 +170,10 @@ class EvaluationHarness:
         evaluation_type:    EvaluationType,
         tenant_id:          str,
         triggered_by:       str               = "system",
-        prompt_version:     Optional[str]     = None,
-        model_config:       Optional[str]     = None,
-        calibration_version: Optional[str]   = None,
-        run_config:         Optional[dict]    = None,
+        prompt_version:     str | None     = None,
+        model_config:       str | None     = None,
+        calibration_version: str | None   = None,
+        run_config:         dict | None    = None,
     ) -> EvaluationRun:
         """
         Execute an evaluation run.
@@ -193,7 +194,7 @@ class EvaluationHarness:
             model_config         = model_config,
             calibration_version  = calibration_version,
             status               = EvaluationStatus.RUNNING,
-            started_at           = datetime.now(tz=timezone.utc),
+            started_at           = datetime.now(tz=UTC),
             triggered_by         = triggered_by,
             run_config           = run_config or {},
         )
@@ -212,7 +213,7 @@ class EvaluationHarness:
             run.aggregate    = self._compute_aggregate(run)
             run.content_hash = _hash_run(run)
             run.status       = EvaluationStatus.COMPLETED
-            run.finished_at  = datetime.now(tz=timezone.utc)
+            run.finished_at  = datetime.now(tz=UTC)
 
             log.info(
                 "EvaluationHarness: run %s COMPLETED — accuracy=%.3f hallucinations=%.3f",
@@ -222,7 +223,7 @@ class EvaluationHarness:
             )
         except Exception as exc:
             run.status      = EvaluationStatus.FAILED
-            run.finished_at = datetime.now(tz=timezone.utc)
+            run.finished_at = datetime.now(tz=UTC)
             run.aggregate["error"] = str(exc)
             log.error("EvaluationHarness: run %s FAILED: %s", run_id[:8], exc)
 
@@ -276,7 +277,7 @@ class EvaluationHarness:
         if not metrics:
             return {}
 
-        def _avg(vals: list) -> Optional[float]:
+        def _avg(vals: list) -> float | None:
             clean = [v for v in vals if v is not None]
             return round(sum(clean) / len(clean), 4) if clean else None
 
@@ -290,13 +291,13 @@ class EvaluationHarness:
             "avg_latency_seconds":  _avg([m.latency_seconds for m in metrics]),
         }
 
-    def get_run(self, run_id: str) -> Optional[EvaluationRun]:
+    def get_run(self, run_id: str) -> EvaluationRun | None:
         return self._runs.get(run_id)
 
     def list_runs(
         self,
         tenant_id:        str,
-        evaluation_type:  Optional[EvaluationType] = None,
+        evaluation_type:  EvaluationType | None = None,
         limit:            int = 50,
     ) -> list[EvaluationRun]:
         runs = [r for r in self._runs.values() if r.tenant_id == tenant_id]
@@ -307,7 +308,7 @@ class EvaluationHarness:
 
 # ── Scoring helpers ───────────────────────────────────────────────────────────
 
-def _score_reasoning(result: dict, expected: dict) -> Optional[float]:
+def _score_reasoning(result: dict, expected: dict) -> float | None:
     """Compare reasoning steps against expected reasoning patterns."""
     expected_steps = expected.get("reasoning_keywords", [])
     actual_trace   = result.get("reasoning_trace", "")
@@ -317,7 +318,7 @@ def _score_reasoning(result: dict, expected: dict) -> Optional[float]:
     return round(matched / len(expected_steps), 4)
 
 
-def _score_outcome(result: dict, expected: dict) -> Optional[float]:
+def _score_outcome(result: dict, expected: dict) -> float | None:
     """Binary accuracy: did the outcome match?"""
     expected_outcome = expected.get("outcome")
     actual_outcome   = result.get("outcome")
@@ -326,7 +327,7 @@ def _score_outcome(result: dict, expected: dict) -> Optional[float]:
     return 1.0 if expected_outcome == actual_outcome else 0.0
 
 
-def _score_calibration(result: dict, expected: dict) -> Optional[float]:
+def _score_calibration(result: dict, expected: dict) -> float | None:
     """Confidence calibration error: |predicted - actual|."""
     predicted = result.get("confidence")
     actual    = expected.get("actual_probability")
@@ -335,7 +336,7 @@ def _score_calibration(result: dict, expected: dict) -> Optional[float]:
     return round(abs(predicted - actual), 4)
 
 
-def _score_recommendations(result: dict, expected: dict) -> Optional[float]:
+def _score_recommendations(result: dict, expected: dict) -> float | None:
     """Fraction of expected recommendations present in actual output."""
     expected_recs = set(expected.get("expected_recommendations", []))
     actual_recs   = set(result.get("recommendations", []))

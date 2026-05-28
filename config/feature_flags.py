@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing      import Dict, Optional
+from typing import Dict
 
 from config.settings import settings
 
@@ -58,7 +58,7 @@ class FeatureFlags:
         default_factory=dict, init=False, repr=False
     )
 
-    def is_enabled(self, flag: str, tenant_id: Optional[str] = None) -> bool:
+    def is_enabled(self, flag: str, tenant_id: str | None = None) -> bool:
         """
         Return the effective value of a flag, with tenant-level override support.
         Tenant overrides take precedence over global settings.
@@ -70,7 +70,7 @@ class FeatureFlags:
                     return tenant_flags[flag]
             return getattr(self, flag, False)
 
-    def set_flag(self, flag: str, value: bool, tenant_id: Optional[str] = None) -> None:
+    def set_flag(self, flag: str, value: bool, tenant_id: str | None = None) -> None:
         """
         Update a flag value. If tenant_id is provided, sets a tenant-level override.
         Raises AttributeError if the flag does not exist.
@@ -83,7 +83,7 @@ class FeatureFlags:
             else:
                 setattr(self, flag, value)
 
-    def snapshot(self, tenant_id: Optional[str] = None) -> Dict[str, bool]:
+    def snapshot(self, tenant_id: str | None = None) -> Dict[str, bool]:
         """Return all flags as a dict, with tenant overrides applied."""
         with self._lock:
             base = {

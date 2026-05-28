@@ -6,10 +6,8 @@ Returns rows in batches to avoid loading millions of records into memory.
 """
 from __future__ import annotations
 
-from datetime import date
+from collections.abc import Iterator
 from decimal import Decimal
-from typing import Iterator
-from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session

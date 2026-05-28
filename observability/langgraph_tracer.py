@@ -21,10 +21,11 @@ from __future__ import annotations
 import functools
 import logging
 import time
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-from observability.tracing import start_span
 from observability.metrics import metrics_registry
+from observability.tracing import start_span
 
 log     = logging.getLogger("evidentrx.workflow")
 F       = TypeVar("F", bound=Callable[..., Any])

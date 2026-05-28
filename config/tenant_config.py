@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass, field
-from typing      import Dict, List, Optional
+from typing import Dict, List
 
 
 @dataclass
@@ -26,14 +26,14 @@ class TenantConfig:
     tenant_name:        str
     plan_tier:          str = "enterprise"   # free | professional | enterprise
     active_rule_packs:  List[str] = field(default_factory=lambda: ["340b_core"])
-    max_cases:          Optional[int] = None   # None = unlimited
-    max_findings:       Optional[int] = None
+    max_cases:          int | None = None   # None = unlimited
+    max_findings:       int | None = None
     retention_days:     int = 2555             # 7 years default
     phi_region:         str = "us-east-1"      # data residency
     sso_enabled:        bool = False
     mfa_required:       bool = True
     ip_allowlist:       List[str] = field(default_factory=list)
-    contact_email:      Optional[str] = None
+    contact_email:      str | None = None
     is_active:          bool = True
 
 
@@ -52,7 +52,7 @@ class TenantConfigRegistry:
         with self._lock:
             self._configs[config.tenant_id] = config
 
-    def get(self, tenant_id: str) -> Optional[TenantConfig]:
+    def get(self, tenant_id: str) -> TenantConfig | None:
         with self._lock:
             return self._configs.get(tenant_id)
 

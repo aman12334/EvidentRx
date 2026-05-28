@@ -3,14 +3,13 @@ MEO-002: Medicaid Carve-In Inconsistency — Medicaid Billed Without 340B Purcha
 """
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from rules_engine.context import RuleContext
 from rules_engine.finding_builder import build_finding
 
 
-def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> Optional[dict]:
+def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> dict | None:
     # Carve-in: CE participates in Medicaid rebates (no carve-out), but drug
     # was NOT purchased at 340B pricing — creates fraud exposure
     if (

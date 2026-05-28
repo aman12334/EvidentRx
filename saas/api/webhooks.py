@@ -23,10 +23,11 @@ import json
 import logging
 import secrets
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.api.webhooks")
 
@@ -67,9 +68,9 @@ class WebhookEndpoint:
     event_types:  list[WebhookEventType] = field(default_factory=list)  # [] = all events
     active:       bool                  = True
     created_by:   str                   = "system"
-    created_at:   datetime              = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:   datetime              = field(default_factory=lambda: datetime.now(tz=UTC))
     failure_count: int                  = 0
-    last_success_at: Optional[datetime] = None
+    last_success_at: datetime | None = None
     metadata:     dict[str, Any]        = field(default_factory=dict)
 
     def subscribes_to(self, event_type: WebhookEventType) -> bool:
@@ -95,7 +96,7 @@ class WebhookEvent:
     tenant_id:   str
     event_type:  WebhookEventType
     payload:     dict[str, Any]
-    occurred_at: datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    occurred_at: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -117,9 +118,9 @@ class DeliveryAttempt:
     attempt_num:  int
     status:       DeliveryStatus
     attempted_at: datetime
-    response_code: Optional[int]  = None
-    error:         Optional[str]  = None
-    next_retry_at: Optional[datetime] = None
+    response_code: int | None  = None
+    error:         str | None  = None
+    next_retry_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -155,7 +156,7 @@ class WebhookDispatcher:
 
     def __init__(
         self,
-        http_client: Optional[Callable] = None,
+        http_client: Callable | None = None,
     ) -> None:
         # endpoint_id → WebhookEndpoint
         self._endpoints: dict[str, WebhookEndpoint] = {}
@@ -173,8 +174,8 @@ class WebhookDispatcher:
         url:          str,
         name:         str,
         created_by:   str,
-        event_types:  Optional[list[WebhookEventType]] = None,
-        metadata:     Optional[dict[str, Any]]         = None,
+        event_types:  list[WebhookEventType] | None = None,
+        metadata:     dict[str, Any] | None         = None,
     ) -> WebhookEndpoint:
         secret = secrets.token_hex(32)
         ep = WebhookEndpoint(
@@ -241,7 +242,7 @@ class WebhookDispatcher:
 
     async def retry_pending(self) -> list[DeliveryAttempt]:
         """Re-attempt deliveries that are in RETRYING status and due."""
-        now     = datetime.now(tz=timezone.utc)
+        now     = datetime.now(tz=UTC)
         retried: list[DeliveryAttempt] = []
         for attempt in list(self._attempts.values()):
             if attempt.status != DeliveryStatus.RETRYING:
@@ -271,8 +272,8 @@ class WebhookDispatcher:
             "X-EvidentRx-Event-ID":   event.event_id,
         }
 
-        status_code: Optional[int] = None
-        error:       Optional[str] = None
+        status_code: int | None = None
+        error:       str | None = None
 
         if self._http:
             try:
@@ -285,7 +286,7 @@ class WebhookDispatcher:
             error = "no_http_client"
 
         delivered  = status_code is not None and 200 <= status_code < 300
-        now        = datetime.now(tz=timezone.utc)
+        now        = datetime.now(tz=UTC)
 
         if delivered:
             ep.failure_count   = 0
@@ -327,7 +328,7 @@ class WebhookDispatcher:
     def delivery_history(
         self,
         tenant_id:   str,
-        endpoint_id: Optional[str] = None,
+        endpoint_id: str | None = None,
         limit:       int           = 50,
     ) -> list[DeliveryAttempt]:
         attempts = [
@@ -361,11 +362,11 @@ class WebhookError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_dispatcher: Optional[WebhookDispatcher] = None
+_dispatcher: WebhookDispatcher | None = None
 
 
 def get_webhook_dispatcher(
-    http_client: Optional[Callable] = None,
+    http_client: Callable | None = None,
 ) -> WebhookDispatcher:
     global _dispatcher
     if _dispatcher is None:

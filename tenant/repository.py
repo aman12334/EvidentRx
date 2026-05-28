@@ -21,12 +21,12 @@ part of the repository contract rather than an optional add-on.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tenant.context   import require_tenant_id
+from tenant.context import require_tenant_id
 from tenant.isolation import assert_tenant_access
 
 log = logging.getLogger("evidentrx.repository")
@@ -51,8 +51,8 @@ class TenantRepository:
     async def fetch_one(
         self,
         query:  str,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Dict[str, Any]]:
+        params: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any] | None:
         """
         Execute a query with tenant_id injected into params.
         Returns a single row as a dict or None.
@@ -67,7 +67,7 @@ class TenantRepository:
     async def fetch_all(
         self,
         query:  str,
-        params: Optional[Dict[str, Any]] = None,
+        params: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         Execute a query with tenant_id injected.
@@ -81,7 +81,7 @@ class TenantRepository:
     async def execute(
         self,
         query:  str,
-        params: Optional[Dict[str, Any]] = None,
+        params: Dict[str, Any] | None = None,
     ) -> int:
         """
         Execute a write query with tenant_id injected.

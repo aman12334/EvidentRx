@@ -13,16 +13,16 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
 from ingestion.base import BaseLoader, bulk_insert, scd2_upsert
-from ingestion.normalizers import clean_str, parse_date, record_hash
+from ingestion.normalizers import clean_str, parse_date
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 # Fields used for change-detection hash (SCD2)
 _CE_HASH_FIELDS = [

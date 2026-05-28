@@ -19,13 +19,13 @@ Usage:
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing      import Generator, Optional
 
-_tenant_id_var: ContextVar[Optional[str]] = ContextVar("tenant_id", default=None)
-_actor_id_var:  ContextVar[Optional[str]] = ContextVar("actor_id",  default=None)
-_role_var:      ContextVar[Optional[str]] = ContextVar("role",      default=None)
+_tenant_id_var: ContextVar[str | None] = ContextVar("tenant_id", default=None)
+_actor_id_var:  ContextVar[str | None] = ContextVar("actor_id",  default=None)
+_role_var:      ContextVar[str | None] = ContextVar("role",      default=None)
 
 
 def set_tenant_id(tenant_id: str) -> None:
@@ -33,7 +33,7 @@ def set_tenant_id(tenant_id: str) -> None:
     _tenant_id_var.set(tenant_id)
 
 
-def get_tenant_id() -> Optional[str]:
+def get_tenant_id() -> str | None:
     """Return the current tenant ID, or None if not set."""
     return _tenant_id_var.get()
 
@@ -54,19 +54,19 @@ def set_actor(actor_id: str, role: str) -> None:
     _role_var.set(role)
 
 
-def get_actor_id() -> Optional[str]:
+def get_actor_id() -> str | None:
     return _actor_id_var.get()
 
 
-def get_role() -> Optional[str]:
+def get_role() -> str | None:
     return _role_var.get()
 
 
 @contextmanager
 def TenantContext(
     tenant_id: str,
-    actor_id:  Optional[str] = None,
-    role:      Optional[str] = None,
+    actor_id:  str | None = None,
+    role:      str | None = None,
 ) -> Generator[None, None, None]:
     """
     Context manager for setting tenant context.

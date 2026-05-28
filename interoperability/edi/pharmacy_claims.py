@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from interoperability.edi.x12_parser import (
     X12Interchange,
@@ -71,7 +71,7 @@ def _normalise_transaction(
     results:  list[dict[str, Any]] = []
 
     # Walk linearly — build context as we encounter loop-opening segments
-    billing_npi:  Optional[str] = None
+    billing_npi:  str | None = None
     patient_ctx:  dict[str, Any] = {}
     subscriber_ctx: dict[str, Any] = {}
 
@@ -115,7 +115,7 @@ def _normalise_transaction(
 def _extract_claim(
     segments:    list[X12Segment],
     clm_index:   int,
-    billing_npi: Optional[str],
+    billing_npi: str | None,
     patient_ctx: dict[str, Any],
     interchange: X12Interchange,
     tx:          X12Transaction,
@@ -129,12 +129,12 @@ def _extract_claim(
     claim_freq  = clm.get(5, component=1)  # claim frequency code
 
     # Walk forward from CLM to collect DTP, NM1, REF, SV1, LIN, NTE
-    service_date:   Optional[str]  = None
-    rendering_npi:  Optional[str]  = None
+    service_date:   str | None  = None
+    rendering_npi:  str | None  = None
     diagnosis_codes: list[str]     = []
     ndcs:           list[str]      = []
-    payer_id:       Optional[str]  = None
-    member_id:      Optional[str]  = None
+    payer_id:       str | None  = None
+    member_id:      str | None  = None
 
     j = clm_index + 1
     while j < len(segments):
@@ -221,7 +221,7 @@ def _extract_claim(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _normalise_ndc(raw: str) -> Optional[str]:
+def _normalise_ndc(raw: str) -> str | None:
     """Normalise an NDC string to 11-digit zero-padded format."""
     digits = re.sub(r"[^0-9]", "", raw)
     if len(digits) in (10, 11):
@@ -229,14 +229,14 @@ def _normalise_ndc(raw: str) -> Optional[str]:
     return None
 
 
-def _float(val: Optional[str]) -> Optional[float]:
+def _float(val: str | None) -> float | None:
     try:
         return float(val) if val else None
     except (TypeError, ValueError):
         return None
 
 
-def _date(val: Optional[str]) -> Optional[str]:
+def _date(val: str | None) -> str | None:
     """Convert CCYYMMDD or CCYY-MM-DD to YYYY-MM-DD."""
     if not val:
         return None

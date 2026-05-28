@@ -25,12 +25,13 @@ from __future__ import annotations
 
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.insert(0, ".")
 
-from app.database import SessionLocal
 from sqlalchemy import text
+
+from app.database import SessionLocal
 
 COVERED_ENTITY_ID = "f921a958-8613-4a88-a233-e1c9bdd79be4"
 
@@ -42,7 +43,7 @@ def wipe_split_billing(session):
 
 
 def build(session) -> int:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
 
     # ── Step 1: Load purchases indexed by (covered_entity_id, ndc_11) ─────────
     print("  Loading purchases...")

@@ -19,11 +19,11 @@ Replay modes:
 from __future__ import annotations
 
 import logging
-from datetime   import datetime, timezone
-from enum       import Enum
-from typing     import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Dict, List
 
-from governance.audit_log   import audit_log, AuditEventType
+from governance.audit_log import AuditEventType, audit_log
 from governance.event_store import WorkflowEvent
 
 log = logging.getLogger(__name__)
@@ -84,8 +84,8 @@ class GovernanceReplayer:
         tenant_id:     str,
         events:        List[WorkflowEvent],
         mode:          ReplayMode = ReplayMode.FULL,
-        up_to:         Optional[datetime] = None,
-        checkpoint_id: Optional[str] = None,
+        up_to:         datetime | None = None,
+        checkpoint_id: str | None = None,
     ) -> ReplayResult:
         """
         Replay events for a case and reconstruct its state.
@@ -97,7 +97,7 @@ class GovernanceReplayer:
         """
         import uuid
         replay_id  = str(uuid.uuid4())
-        started_at = datetime.now(tz=timezone.utc)
+        started_at = datetime.now(tz=UTC)
 
         log.info(
             "Replay started: case=%s mode=%s actor=%s replay_id=%s",
@@ -123,7 +123,7 @@ class GovernanceReplayer:
         # Reconstruct state by applying events in sequence
         state = self._apply_events(replay_events)
 
-        completed_at = datetime.now(tz=timezone.utc)
+        completed_at = datetime.now(tz=UTC)
 
         result = ReplayResult(
             replay_id=replay_id,

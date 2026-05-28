@@ -38,7 +38,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -67,7 +67,7 @@ def uid() -> str:
 
 
 def now_utc() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def ago(days: float) -> datetime:

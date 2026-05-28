@@ -27,10 +27,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.organizations.rbac")
 
@@ -121,19 +122,19 @@ class RoleAssignment:
     """A user's role assignment within an org scope."""
     assignment_id: str
     tenant_id:     str
-    org_id:        Optional[str]    # None = tenant-wide assignment
+    org_id:        str | None    # None = tenant-wide assignment
     user_id:       str
     role:          OrgRole
     granted_by:    str
     granted_at:    datetime
-    expires_at:    Optional[datetime] = None
+    expires_at:    datetime | None = None
     metadata:      dict[str, Any]     = field(default_factory=dict)
 
     @property
     def is_expired(self) -> bool:
         if self.expires_at is None:
             return False
-        return datetime.now(tz=timezone.utc) > self.expires_at
+        return datetime.now(tz=UTC) > self.expires_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -158,10 +159,10 @@ class OrgRBACEngine:
     3. No assignment → deny
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._assignments: dict[str, RoleAssignment] = {}
         # (tenant_id, user_id, org_id) → assignment_id
-        self._index: dict[tuple[str, str, Optional[str]], str] = {}
+        self._index: dict[tuple[str, str, str | None], str] = {}
         self._db_writer = db_writer
 
     # ── Assign / revoke ────────────────────────────────────────────────────────
@@ -172,8 +173,8 @@ class OrgRBACEngine:
         user_id:    str,
         role:       OrgRole,
         granted_by: str,
-        org_id:     Optional[str]      = None,
-        expires_at: Optional[datetime] = None,
+        org_id:     str | None      = None,
+        expires_at: datetime | None = None,
     ) -> RoleAssignment:
         """
         Grant a role to a user within an org (or tenant-wide if org_id=None).
@@ -204,7 +205,7 @@ class OrgRBACEngine:
             user_id       = user_id,
             role          = role,
             granted_by    = granted_by,
-            granted_at    = datetime.now(tz=timezone.utc),
+            granted_at    = datetime.now(tz=UTC),
             expires_at    = expires_at,
         )
         self._assignments[assignment.assignment_id] = assignment
@@ -221,7 +222,7 @@ class OrgRBACEngine:
         self,
         tenant_id:  str,
         user_id:    str,
-        org_id:     Optional[str],
+        org_id:     str | None,
         revoked_by: str,
     ) -> bool:
         key = (tenant_id, user_id, org_id)
@@ -231,7 +232,7 @@ class OrgRBACEngine:
         assignment = self._assignments.pop(aid, None)
         if assignment:
             assignment.metadata["revoked_by"] = revoked_by
-            assignment.metadata["revoked_at"] = datetime.now(tz=timezone.utc).isoformat()
+            assignment.metadata["revoked_at"] = datetime.now(tz=UTC).isoformat()
             await self._persist("revoke_assignment", assignment)
         return True
 
@@ -241,8 +242,8 @@ class OrgRBACEngine:
         self,
         tenant_id: str,
         user_id:   str,
-        org_id:    Optional[str] = None,
-    ) -> Optional[OrgRole]:
+        org_id:    str | None = None,
+    ) -> OrgRole | None:
         """
         Return the most specific role for a user in a given scope.
 
@@ -271,7 +272,7 @@ class OrgRBACEngine:
         tenant_id:  str,
         user_id:    str,
         permission: OrgPermission,
-        org_id:     Optional[str] = None,
+        org_id:     str | None = None,
     ) -> bool:
         role = self.effective_role(tenant_id, user_id, org_id)
         if role is None:
@@ -283,7 +284,7 @@ class OrgRBACEngine:
         tenant_id:  str,
         user_id:    str,
         permission: OrgPermission,
-        org_id:     Optional[str] = None,
+        org_id:     str | None = None,
     ) -> None:
         if not self.has_permission(tenant_id, user_id, permission, org_id):
             raise PermissionDeniedError(
@@ -321,10 +322,10 @@ class PermissionDeniedError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_engine: Optional[OrgRBACEngine] = None
+_engine: OrgRBACEngine | None = None
 
 
-def get_rbac_engine(db_writer: Optional[Callable] = None) -> OrgRBACEngine:
+def get_rbac_engine(db_writer: Callable | None = None) -> OrgRBACEngine:
     global _engine
     if _engine is None:
         _engine = OrgRBACEngine(db_writer=db_writer)

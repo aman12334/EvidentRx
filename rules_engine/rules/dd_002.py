@@ -3,14 +3,13 @@ DD-002: Duplicate Discount — 340B Purchase + Medicaid Managed Care Without Car
 """
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from rules_engine.context import RuleContext
 from rules_engine.finding_builder import build_finding
 
 
-def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> Optional[dict]:
+def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> dict | None:
     # 340B purchase billed to medicaid without a carve-out election in effect
     if (
         ctx.is_340b_purchase

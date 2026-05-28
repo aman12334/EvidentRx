@@ -5,7 +5,6 @@ All schemas use Pydantic v2 for strict validation and serialization.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,14 +18,14 @@ class InvestigationCaseSummary(BaseModel):
     violation_category: str
     entity_name:        str
     covered_entity_id:  UUID
-    risk_level:         Optional[str] = None
-    composite_score:    Optional[float] = None
+    risk_level:         str | None = None
+    composite_score:    float | None = None
     total_findings:     int = 0
     critical_findings:  int = 0
     high_findings:      int = 0
     financial_exposure: float = 0.0
-    opened_at:          Optional[datetime] = None
-    assigned_to:        Optional[str] = None
+    opened_at:          datetime | None = None
+    assigned_to:        str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -37,8 +36,8 @@ class InvestigationCaseDetail(InvestigationCaseSummary):
     unique_patients:    int = 0
     ndc_list:           list[str] = Field(default_factory=list)
     findings_by_rule:   dict[str, int] = Field(default_factory=dict)
-    closed_at:          Optional[datetime] = None
-    resolution_notes:   Optional[str] = None
+    closed_at:          datetime | None = None
+    resolution_notes:   str | None = None
 
 
 class InvestigationQueueResponse(BaseModel):
@@ -50,7 +49,7 @@ class InvestigationQueueResponse(BaseModel):
 
 class CaseStatusUpdate(BaseModel):
     status:           str = Field(..., pattern="^(open|triaged|investigating|escalated|resolved|closed)$")
-    resolution_notes: Optional[str] = None
+    resolution_notes: str | None = None
 
 
 class SeverityDistribution(BaseModel):

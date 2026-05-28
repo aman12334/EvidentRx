@@ -14,8 +14,9 @@ Falls back to console export in development.
 from __future__ import annotations
 
 import logging
-from contextlib  import contextmanager
-from typing      import Any, Generator, Optional
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -26,10 +27,10 @@ def setup_tracing(service_name: str = "evidentrx-api") -> None:
     Configures OTLP exporter if OTLP_ENDPOINT is set, otherwise no-op.
     """
     try:
-        from opentelemetry                import trace
-        from opentelemetry.sdk.trace      import TracerProvider
+        from opentelemetry import trace
+        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+        from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-        from opentelemetry.sdk.resources  import Resource, SERVICE_NAME
 
         from config.settings import settings
 
@@ -62,7 +63,7 @@ def get_tracer(name: str = "evidentrx"):
 @contextmanager
 def start_span(
     name:       str,
-    attributes: Optional[dict] = None,
+    attributes: dict | None = None,
     tracer_name: str = "evidentrx",
 ) -> Generator[Any, None, None]:
     """

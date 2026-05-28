@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -46,7 +45,7 @@ class WindowBounds:
 
 
 def resolve_windows(
-    as_of: Optional[date] = None,
+    as_of: date | None = None,
     windows: tuple[RollingWindow, ...] = ALL_WINDOWS,
 ) -> list[WindowBounds]:
     """

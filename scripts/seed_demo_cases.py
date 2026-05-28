@@ -4,21 +4,23 @@ Run from the project root:  python scripts/seed_demo_cases.py
 """
 from __future__ import annotations
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import text
+
 from app.database import SessionLocal
 
 CE_ID = "f921a958-8613-4a88-a233-e1c9bdd79be4"  # EvidentRx Dev Hospital
 ANALYST = "admin@evidentrx.dev"
 
 def ts(days_ago: int = 0, hours: int = 0) -> str:
-    t = datetime.now(tz=timezone.utc) - timedelta(days=days_ago, hours=hours)
+    t = datetime.now(tz=UTC) - timedelta(days=days_ago, hours=hours)
     return t.isoformat()
 
 CASES = [

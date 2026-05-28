@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pandas as pd
@@ -23,10 +23,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ingestion.base import BaseLoader, bulk_insert
-from ingestion.normalizers import clean_str, normalize_ndc_11, parse_date
+from ingestion.normalizers import clean_str, normalize_ndc_11
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 
 class NdcDrugLoader(BaseLoader):

@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import logging
 import statistics
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
-from saas.billing.accounting import UsageAccounting, BillingPeriod
-from saas.billing.meter      import UsageEventType
+from saas.billing.accounting import UsageAccounting
+from saas.billing.meter import UsageEventType
 
 log = logging.getLogger("evidentrx.saas.billing.reports")
 
@@ -64,8 +64,8 @@ class UsageTrendReport:
     event_type:  str
     periods:     list[dict[str, Any]]    # [{period, quantity}]
     avg_monthly: float
-    peak_period: Optional[str]
-    trend_pct:   Optional[float]         # % change current vs prior month
+    peak_period: str | None
+    trend_pct:   float | None         # % change current vs prior month
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -81,7 +81,7 @@ class UsageTrendReport:
 class UsageReportEngine:
     """Generates billing and usage reports from the accounting layer."""
 
-    def __init__(self, accounting: Optional[UsageAccounting] = None) -> None:
+    def __init__(self, accounting: UsageAccounting | None = None) -> None:
         self._accounting = accounting or UsageAccounting()
 
     def tenant_usage_summary(
@@ -89,7 +89,7 @@ class UsageReportEngine:
         tenant_id:  str,
         year:       int,
         month:      int,
-        quotas:     Optional[dict[str, float]] = None,  # event_type → quota quantity
+        quotas:     dict[str, float] | None = None,  # event_type → quota quantity
     ) -> TenantUsageSummary:
         period = self._accounting.aggregate_period(tenant_id, year, month)
 
@@ -126,7 +126,7 @@ class UsageReportEngine:
         return TenantUsageSummary(
             tenant_id            = tenant_id,
             period_label         = period.label,
-            computed_at          = datetime.now(tz=timezone.utc),
+            computed_at          = datetime.now(tz=UTC),
             investigations_total = _total(UsageEventType.INVESTIGATION_RUN),
             api_requests_total   = _total(UsageEventType.API_REQUEST),
             tokens_in_total      = _total(UsageEventType.MODEL_TOKENS_IN),
@@ -186,5 +186,5 @@ class UsageReportEngine:
             "period":         f"{year}-{month:02d}",
             "tenant_count":   len(tenant_ids),
             "platform_totals":platform_totals,
-            "computed_at":    datetime.now(tz=timezone.utc).isoformat(),
+            "computed_at":    datetime.now(tz=UTC).isoformat(),
         }

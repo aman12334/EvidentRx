@@ -18,10 +18,9 @@ Design principles
 from __future__ import annotations
 
 import logging
-import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
 
 from saas.notifications.models import (
     Notification,
@@ -50,15 +49,15 @@ class NotificationDispatcher:
 
     def __init__(
         self,
-        email_adapter:   Optional[DeliveryAdapter] = None,
-        webhook_adapter: Optional[DeliveryAdapter] = None,
-        slack_adapter:   Optional[DeliveryAdapter] = None,
+        email_adapter:   DeliveryAdapter | None = None,
+        webhook_adapter: DeliveryAdapter | None = None,
+        slack_adapter:   DeliveryAdapter | None = None,
     ) -> None:
         # notification_id → Notification  (in-app store)
         self._store:       dict[str, Notification] = {}
         # (tenant_id, user_id, notification_type) → NotificationPreference
         self._preferences: dict[tuple[str, str, str], NotificationPreference] = {}
-        self._adapters: dict[NotificationChannel, Optional[DeliveryAdapter]] = {
+        self._adapters: dict[NotificationChannel, DeliveryAdapter | None] = {
             NotificationChannel.EMAIL:   email_adapter,
             NotificationChannel.WEBHOOK: webhook_adapter,
             NotificationChannel.SLACK:   slack_adapter,
@@ -75,7 +74,7 @@ class NotificationDispatcher:
         tenant_id:         str,
         user_id:           str,
         notification_type: NotificationType,
-    ) -> Optional[NotificationPreference]:
+    ) -> NotificationPreference | None:
         return self._preferences.get((tenant_id, user_id, notification_type.value))
 
     def list_preferences(
@@ -98,10 +97,10 @@ class NotificationDispatcher:
         title:             str,
         body:              str,
         priority:          NotificationPriority      = NotificationPriority.NORMAL,
-        reference_id:      Optional[str]             = None,
-        reference_type:    Optional[str]             = None,
-        metadata:          Optional[dict[str, Any]]  = None,
-        expires_at:        Optional[datetime]        = None,
+        reference_id:      str | None             = None,
+        reference_type:    str | None             = None,
+        metadata:          dict[str, Any] | None  = None,
+        expires_at:        datetime | None        = None,
     ) -> list[Notification]:
         """
         Dispatch a notification to a single recipient.
@@ -177,8 +176,8 @@ class NotificationDispatcher:
         title:             str,
         body:              str,
         priority:          NotificationPriority     = NotificationPriority.NORMAL,
-        reference_id:      Optional[str]            = None,
-        reference_type:    Optional[str]            = None,
+        reference_id:      str | None            = None,
+        reference_type:    str | None            = None,
     ) -> dict[str, list[Notification]]:
         """Dispatch to multiple recipients in one call."""
         results: dict[str, list[Notification]] = {}
@@ -288,13 +287,13 @@ class NotificationDispatcher:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_dispatcher: Optional[NotificationDispatcher] = None
+_dispatcher: NotificationDispatcher | None = None
 
 
 def get_notification_dispatcher(
-    email_adapter:   Optional[DeliveryAdapter] = None,
-    webhook_adapter: Optional[DeliveryAdapter] = None,
-    slack_adapter:   Optional[DeliveryAdapter] = None,
+    email_adapter:   DeliveryAdapter | None = None,
+    webhook_adapter: DeliveryAdapter | None = None,
+    slack_adapter:   DeliveryAdapter | None = None,
 ) -> NotificationDispatcher:
     global _dispatcher
     if _dispatcher is None:

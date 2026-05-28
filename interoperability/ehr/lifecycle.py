@@ -16,10 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing   import Any, Optional
+from typing import Any
 
-from interoperability.ehr.config    import EHRConfigRegistry, EHRConnectorConfig
+from interoperability.ehr.config import EHRConfigRegistry, EHRConnectorConfig
 from interoperability.ehr.connector import (
     EHRConnector,
     EHRConnectorState,
@@ -49,12 +48,12 @@ class EHRLifecycleManager:
         self._connectors:     dict[str, dict[str, EHRConnector]] = {}
         # {tenant_id: {connector_id: EHRConnector}}
         self._init_lock        = asyncio.Lock()
-        self._health_task:     Optional[asyncio.Task] = None
+        self._health_task:     asyncio.Task | None = None
         self._started          = False
 
     # ── Startup / shutdown ────────────────────────────────────────────────────
 
-    async def start(self, tenants: Optional[list[str]] = None) -> None:
+    async def start(self, tenants: list[str] | None = None) -> None:
         """
         Initialise EHR connectors for all (or specified) tenants.
 
@@ -119,7 +118,7 @@ class EHRLifecycleManager:
         tenant_id: str,
         config:    EHRConnectorConfig,
         retries:   int = 2,
-    ) -> Optional[EHRConnector]:
+    ) -> EHRConnector | None:
         """
         Build and initialise one EHR connector, with retry on failure.
 
@@ -156,7 +155,7 @@ class EHRLifecycleManager:
         self,
         tenant_id:    str,
         connector_id: str,
-    ) -> Optional[EHRConnector]:
+    ) -> EHRConnector | None:
         return self._connectors.get(tenant_id, {}).get(connector_id)
 
     def get_tenant_connectors(self, tenant_id: str) -> list[EHRConnector]:

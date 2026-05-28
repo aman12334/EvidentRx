@@ -15,11 +15,10 @@ Billing periods
 from __future__ import annotations
 
 import logging
-import statistics
 from dataclasses import dataclass, field
-from datetime    import datetime, date, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, date, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 from saas.billing.meter import UsageEvent, UsageEventType
 
@@ -64,8 +63,8 @@ class BillingPeriod:
     month:       int
     status:      PeriodStatus
     summaries:   list[UsageSummary] = field(default_factory=list)
-    opened_at:   datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    finalised_at: Optional[datetime] = None
+    opened_at:   datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
+    finalised_at: datetime | None = None
 
     @property
     def label(self) -> str:
@@ -185,7 +184,7 @@ class UsageAccounting:
         period = self.aggregate_period(tenant_id, year, month)
         if period.status != PeriodStatus.FINALISED:
             period.status       = PeriodStatus.FINALISED
-            period.finalised_at = datetime.now(tz=timezone.utc)
+            period.finalised_at = datetime.now(tz=UTC)
             log.info(
                 "UsageAccounting: finalised period %s for tenant %s",
                 period.label, tenant_id[:8],
@@ -243,7 +242,7 @@ class UsageAccounting:
         months:      int = 3,
     ) -> list[dict[str, Any]]:
         """Return quantity totals for the last N months."""
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
         result = []
         for i in range(months - 1, -1, -1):
             d = date(now.year, now.month, 1) - timedelta(days=30 * i)
@@ -305,7 +304,7 @@ class UsageAccounting:
         tenant_id: str,
         year:      int,
         month:     int,
-    ) -> Optional[BillingPeriod]:
+    ) -> BillingPeriod | None:
         return self._periods.get((tenant_id, year, month))
 
     def list_periods(self, tenant_id: str) -> list[BillingPeriod]:

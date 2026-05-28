@@ -12,9 +12,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.notifications.collaboration")
 
@@ -50,14 +50,14 @@ class InvestigationAssignment:
     investigation_id: str
     assigned_by:     str          # user_id of assigner
     assignee_id:     str          # user_id of recipient
-    org_id:          Optional[str]
+    org_id:          str | None
     status:          AssignmentStatus = AssignmentStatus.OPEN
     notes:           str              = ""
-    due_at:          Optional[datetime] = None
-    assigned_at:     datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    accepted_at:     Optional[datetime] = None
-    completed_at:    Optional[datetime] = None
-    prior_assignment_id: Optional[str] = None   # chain for reassignments
+    due_at:          datetime | None = None
+    assigned_at:     datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
+    accepted_at:     datetime | None = None
+    completed_at:    datetime | None = None
+    prior_assignment_id: str | None = None   # chain for reassignments
 
     @property
     def is_overdue(self) -> bool:
@@ -66,7 +66,7 @@ class InvestigationAssignment:
             AssignmentStatus.DECLINED,
         ):
             return False
-        return datetime.now(tz=timezone.utc) > self.due_at
+        return datetime.now(tz=UTC) > self.due_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,10 +100,10 @@ class ReviewRequest:
     reviewer_id:      str
     reason:           str
     status:           AssignmentStatus = AssignmentStatus.OPEN
-    outcome:          Optional[ReviewOutcome]  = None
+    outcome:          ReviewOutcome | None  = None
     outcome_notes:    str                      = ""
-    requested_at:     datetime   = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    completed_at:     Optional[datetime]       = None
+    requested_at:     datetime   = field(default_factory=lambda: datetime.now(tz=UTC))
+    completed_at:     datetime | None       = None
     priority:         str        = "normal"    # "normal" | "urgent"
 
     def to_dict(self) -> dict[str, Any]:
@@ -145,9 +145,9 @@ class CollaborationTracker:
         investigation_id: str,
         assigned_by:      str,
         assignee_id:      str,
-        org_id:           Optional[str]  = None,
+        org_id:           str | None  = None,
         notes:            str            = "",
-        due_at:           Optional[datetime] = None,
+        due_at:           datetime | None = None,
     ) -> InvestigationAssignment:
         """Assign an investigation to an analyst."""
         assignment = InvestigationAssignment(
@@ -172,7 +172,7 @@ class CollaborationTracker:
     def accept(self, tenant_id: str, assignment_id: str) -> InvestigationAssignment:
         a = self._get_assignment(tenant_id, assignment_id)
         a.status      = AssignmentStatus.ACCEPTED
-        a.accepted_at = datetime.now(tz=timezone.utc)
+        a.accepted_at = datetime.now(tz=UTC)
         return a
 
     def start_work(self, tenant_id: str, assignment_id: str) -> InvestigationAssignment:
@@ -187,7 +187,7 @@ class CollaborationTracker:
     ) -> InvestigationAssignment:
         a = self._get_assignment(tenant_id, assignment_id)
         a.status       = AssignmentStatus.COMPLETED
-        a.completed_at = datetime.now(tz=timezone.utc)
+        a.completed_at = datetime.now(tz=UTC)
         return a
 
     def decline(
@@ -232,8 +232,8 @@ class CollaborationTracker:
     def list_assignments(
         self,
         tenant_id:   str,
-        assignee_id: Optional[str] = None,
-        status:      Optional[AssignmentStatus] = None,
+        assignee_id: str | None = None,
+        status:      AssignmentStatus | None = None,
     ) -> list[InvestigationAssignment]:
         return [
             a for a in self._assignments.values()
@@ -294,13 +294,13 @@ class CollaborationTracker:
         review.status        = AssignmentStatus.COMPLETED
         review.outcome       = outcome
         review.outcome_notes = outcome_notes
-        review.completed_at  = datetime.now(tz=timezone.utc)
+        review.completed_at  = datetime.now(tz=UTC)
         return review
 
     def pending_reviews(
         self,
         tenant_id:   str,
-        reviewer_id: Optional[str] = None,
+        reviewer_id: str | None = None,
     ) -> list[ReviewRequest]:
         return [
             r for r in self._reviews.values()
@@ -338,7 +338,7 @@ class CollaborationError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_tracker: Optional[CollaborationTracker] = None
+_tracker: CollaborationTracker | None = None
 
 
 def get_collaboration_tracker() -> CollaborationTracker:

@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -23,7 +22,7 @@ logger = logging.getLogger(__name__)
 class DriftCheck:
     check:       str
     passed:      bool
-    signal:      Optional[DriftSignal]
+    signal:      DriftSignal | None
     message:     str
 
 
@@ -47,7 +46,7 @@ class EvaluationDriftDetector:
     def run(
         self,
         session: Session,
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         window_type: str = "30d",
     ) -> list[DriftCheck]:
         """

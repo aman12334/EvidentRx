@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.config.thresholds")
 
@@ -49,9 +50,9 @@ class ThresholdOverride:
     platform_default: float
     tenant_value:     float
     direction:        ThresholdDirection
-    org_id:           Optional[str]     = None
+    org_id:           str | None     = None
     changed_by:       str               = "system"
-    changed_at:       datetime          = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    changed_at:       datetime          = field(default_factory=lambda: datetime.now(tz=UTC))
     change_reason:    str               = ""
     superseded:       bool              = False
     version:          int               = 1
@@ -87,7 +88,7 @@ class TenantThresholdConfig:
     override, falling back to the platform default.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         # (tenant_id, org_id, rule_code, metric) → [ThresholdOverride]
         self._overrides: dict[tuple, list[ThresholdOverride]] = {}
         self._db_writer  = db_writer
@@ -103,7 +104,7 @@ class TenantThresholdConfig:
         platform_default: float,
         changed_by:       str,
         change_reason:    str        = "",
-        org_id:           Optional[str] = None,
+        org_id:           str | None = None,
     ) -> ThresholdOverride:
         direction = (
             ThresholdDirection.TIGHTEN
@@ -146,7 +147,7 @@ class TenantThresholdConfig:
         rule_code:  str,
         metric:     str,
         cleared_by: str,
-        org_id:     Optional[str] = None,
+        org_id:     str | None = None,
     ) -> bool:
         ck = (tenant_id, org_id, rule_code, metric)
         history = self._overrides.get(ck, [])
@@ -168,7 +169,7 @@ class TenantThresholdConfig:
         rule_code:        str,
         metric:           str,
         platform_default: float,
-        org_id:           Optional[str] = None,
+        org_id:           str | None = None,
     ) -> float:
         """
         Return the effective threshold value.
@@ -191,7 +192,7 @@ class TenantThresholdConfig:
     def get_all_overrides(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> list[ThresholdOverride]:
         """Return all active overrides for a tenant scope."""
         result: list[ThresholdOverride] = []
@@ -210,7 +211,7 @@ class TenantThresholdConfig:
         tenant_id: str,
         rule_code: str,
         metric:    str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> list[ThresholdOverride]:
         ck = (tenant_id, org_id, rule_code, metric)
         return list(self._overrides.get(ck, []))
@@ -222,7 +223,7 @@ class TenantThresholdConfig:
         metric:         str,
         target_version: int,
         rolled_by:      str,
-        org_id:         Optional[str] = None,
+        org_id:         str | None = None,
     ) -> ThresholdOverride:
         ck      = (tenant_id, org_id, rule_code, metric)
         history = self._overrides.get(ck, [])
@@ -247,10 +248,10 @@ class TenantThresholdConfig:
     def _active_override(
         self,
         tenant_id: str,
-        org_id:    Optional[str],
+        org_id:    str | None,
         rule_code: str,
         metric:    str,
-    ) -> Optional[ThresholdOverride]:
+    ) -> ThresholdOverride | None:
         ck = (tenant_id, org_id, rule_code, metric)
         history = self._overrides.get(ck, [])
         return next((ov for ov in reversed(history) if not ov.superseded), None)
@@ -271,10 +272,10 @@ class ThresholdNotFoundError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_config: Optional[TenantThresholdConfig] = None
+_config: TenantThresholdConfig | None = None
 
 
-def get_threshold_config(db_writer: Optional[Callable] = None) -> TenantThresholdConfig:
+def get_threshold_config(db_writer: Callable | None = None) -> TenantThresholdConfig:
     global _config
     if _config is None:
         _config = TenantThresholdConfig(db_writer=db_writer)

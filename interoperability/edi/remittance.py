@@ -37,17 +37,16 @@ Key fields extracted
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
+from interoperability.edi.pharmacy_claims import _date, _float, _normalise_ndc
 from interoperability.edi.x12_parser import (
     X12Interchange,
     X12Segment,
     X12Transaction,
     X12TransactionType,
     get_nm1,
-    get_ref,
 )
-from interoperability.edi.pharmacy_claims import _normalise_ndc, _float, _date
 
 log = logging.getLogger("evidentrx.interop.edi.remittance")
 
@@ -102,11 +101,11 @@ def _normalise_remittance_tx(
     results: list[dict[str, Any]] = []
 
     # Header fields
-    payment_amount: Optional[float] = None
-    payment_date:   Optional[str]   = None
-    trace_number:   Optional[str]   = None
-    payer_id:       Optional[str]   = None
-    payee_npi:      Optional[str]   = None
+    payment_amount: float | None = None
+    payment_date:   str | None   = None
+    trace_number:   str | None   = None
+    payer_id:       str | None   = None
+    payee_npi:      str | None   = None
 
     for seg in segments:
         sid = seg.segment_id
@@ -150,11 +149,11 @@ def _extract_clp(
     segments:       list[X12Segment],
     clp_seg:        X12Segment,
     clp_idx:        int,
-    payment_amount: Optional[float],
-    payment_date:   Optional[str],
-    trace_number:   Optional[str],
-    payer_id:       Optional[str],
-    payee_npi:      Optional[str],
+    payment_amount: float | None,
+    payment_date:   str | None,
+    trace_number:   str | None,
+    payer_id:       str | None,
+    payee_npi:      str | None,
     interchange:    X12Interchange,
     tx:             X12Transaction,
     tenant_id:      str,
@@ -169,8 +168,8 @@ def _extract_clp(
     # Collect service lines and adjustments
     service_lines:  list[dict[str, Any]] = []
     adjustments:    list[dict[str, Any]] = []
-    service_date:   Optional[str]        = None
-    member_id:      Optional[str]        = None
+    service_date:   str | None        = None
+    member_id:      str | None        = None
 
     j = clp_idx + 1
     while j < len(segments):
@@ -228,7 +227,7 @@ def _extract_svc(svc_seg: X12Segment, segments: list[X12Segment], idx: int) -> d
     procedure_code  = svc_seg.get(1, component=1)  # e.g. HCPCS/CPT
     submitted       = _float(svc_seg.get(2))
     paid            = _float(svc_seg.get(3))
-    ndc:            Optional[str] = None
+    ndc:            str | None = None
 
     # NDC may appear as SVC-1 qualifier N4
     svc1 = svc_seg.get(1, component=0)

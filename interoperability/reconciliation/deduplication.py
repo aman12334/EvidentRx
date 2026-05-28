@@ -16,10 +16,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.reconciliation.deduplication")
 
@@ -34,8 +34,8 @@ class DuplicateReason(str, Enum):
 @dataclass
 class DuplicateResult:
     is_duplicate:   bool
-    reason:         Optional[DuplicateReason]
-    original_id:    Optional[str]           # checksum or key of the first-seen record
+    reason:         DuplicateReason | None
+    original_id:    str | None           # checksum or key of the first-seen record
     detail:         str                     = ""
 
 
@@ -98,7 +98,7 @@ class DeduplicationEngine:
             )
 
         # Not a duplicate — register
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         self._checksums[checksum] = now
         if bkey:
             self._business_keys[bkey] = now
@@ -147,7 +147,7 @@ class DeduplicationEngine:
     # ── TTL eviction ───────────────────────────────────────────────────────────
 
     def _evict_expired(self) -> None:
-        now     = datetime.now(tz=timezone.utc)
+        now     = datetime.now(tz=UTC)
         expired = [k for k, t in self._checksums.items() if now - t > self._checksum_ttl]
         for k in expired:
             del self._checksums[k]
@@ -183,7 +183,7 @@ def _compute_checksum(record: dict[str, Any]) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _business_key(record: dict[str, Any]) -> Optional[str]:
+def _business_key(record: dict[str, Any]) -> str | None:
     """
     Derive a fuzzy business key for duplicate detection.
 

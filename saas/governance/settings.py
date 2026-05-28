@@ -17,8 +17,8 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.governance.settings")
 
@@ -47,7 +47,7 @@ class OrgGovernanceSettings:
     allow_self_close:       bool           = False  # analyst can close own cases?
     require_evidence_upload: bool          = True
     created_by:             str            = "system"
-    created_at:             datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:             datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
     superseded:             bool           = False
     content_hash:           str            = ""
     notes:                  str            = ""
@@ -118,7 +118,7 @@ class GovernanceSettingsRegistry:
         min_reviewers:          int   = 1,
         auto_escalate_hours:    int   = 72,
         second_review_threshold: float = 0.80,
-        mandatory_fields:       Optional[list[str]] = None,
+        mandatory_fields:       list[str] | None = None,
         reporting_cadence_days: int   = 30,
         allow_self_close:       bool  = False,
         require_evidence_upload: bool = True,
@@ -168,7 +168,7 @@ class GovernanceSettingsRegistry:
         self,
         tenant_id: str,
         org_id:    str,
-    ) -> Optional[OrgGovernanceSettings]:
+    ) -> OrgGovernanceSettings | None:
         return self._current(tenant_id, org_id)
 
     def get_or_default(
@@ -241,7 +241,7 @@ class GovernanceSettingsRegistry:
         self,
         tenant_id: str,
         org_id:    str,
-    ) -> Optional[OrgGovernanceSettings]:
+    ) -> OrgGovernanceSettings | None:
         sid = self._active.get((tenant_id, org_id))
         if sid is None:
             return None
@@ -256,7 +256,7 @@ class GovernanceSettingsError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_registry: Optional[GovernanceSettingsRegistry] = None
+_registry: GovernanceSettingsRegistry | None = None
 
 
 def get_governance_settings_registry() -> GovernanceSettingsRegistry:

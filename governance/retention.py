@@ -16,8 +16,7 @@ scheduled retention job (scripts/purge_expired.py).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing   import Optional
+from datetime import UTC, datetime, timedelta
 
 from config.settings import settings
 
@@ -57,17 +56,17 @@ class RetentionPolicy:
         Return True if a record is past its retention window and may be
         permanently deleted. This is the ONLY gate for hard deletes.
         """
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=self.retention_days)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=self.retention_days)
         return created_at < cutoff
 
-    def is_eligible_for_archive(self, closed_at: Optional[datetime]) -> bool:
+    def is_eligible_for_archive(self, closed_at: datetime | None) -> bool:
         """
         Return True if a closed investigation has been inactive long enough
         to move to cold storage / archive tier.
         """
         if closed_at is None:
             return False
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=self.archive_after)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=self.archive_after)
         return closed_at < cutoff
 
     def deletion_eligible_after(self, created_at: datetime) -> datetime:
@@ -76,7 +75,7 @@ class RetentionPolicy:
 
     def soft_delete(self) -> datetime:
         """Return a soft-delete timestamp (now)."""
-        return datetime.now(tz=timezone.utc)
+        return datetime.now(tz=UTC)
 
 
 # ─── Soft Deletion Helpers ────────────────────────────────────────────────────
@@ -86,7 +85,7 @@ def apply_soft_delete(record: dict, actor_id: str) -> dict:
     Apply soft-delete fields to a record dict.
     Does NOT write to DB — caller is responsible for the update.
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     return {
         **record,
         "deleted_at":  now.isoformat(),

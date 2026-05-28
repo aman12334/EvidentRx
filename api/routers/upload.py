@@ -31,9 +31,8 @@ import hashlib
 import io
 import logging
 import re
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -88,7 +87,7 @@ class UploadResult(BaseModel):
     total_findings:     int
     critical_findings:  int
     high_findings:      int
-    estimated_exposure: Optional[float]
+    estimated_exposure: float | None
     findings_by_rule:   list[FindingSummary]
     case_ids:           list[str]
     processing_ms:      int
@@ -98,7 +97,7 @@ class ColumnMapping(BaseModel):
     source_column: str
     target_field:  str
     mapped:        bool
-    sample_value:  Optional[str] = None
+    sample_value:  str | None = None
 
 
 class UploadPreview(BaseModel):
@@ -115,7 +114,7 @@ class UploadPreview(BaseModel):
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _parse_date(val: str) -> Optional[date]:
+def _parse_date(val: str) -> date | None:
     if not val or not isinstance(val, str):
         return None
     val = val.strip()
@@ -127,7 +126,7 @@ def _parse_date(val: str) -> Optional[date]:
     return None
 
 
-def _parse_decimal(val: str) -> Optional[Decimal]:
+def _parse_decimal(val: str) -> Decimal | None:
     if not val:
         return None
     try:
@@ -172,7 +171,7 @@ def _read_csv_rows(content: bytes) -> tuple[list[str], list[dict]]:
     return headers, rows
 
 
-def _get_or_create_ce(db: Session, ce_id_raw: Optional[str]) -> Optional[str]:
+def _get_or_create_ce(db: Session, ce_id_raw: str | None) -> str | None:
     """Return a valid CE UUID, or pick the first active CE from DB."""
     if ce_id_raw:
         try:
@@ -633,13 +632,13 @@ async def validate_upload_file(
 )
 async def upload_claims_file(
     file: UploadFile = File(..., description="CSV file with dispense or claim records"),
-    covered_entity_id: Optional[str] = Form(
+    covered_entity_id: str | None = Form(
         None,
         description="UUID of the covered entity. Auto-detected from first active CE if omitted.",
     ),
     db: Session = Depends(get_db),
 ) -> UploadResult:
-    t_start = datetime.now(timezone.utc)
+    t_start = datetime.now(UTC)
 
     # --- Validate file --------------------------------------------------------
     if not file.filename:
@@ -729,7 +728,7 @@ async def upload_claims_file(
     split_rows = _build_split_billing_for_batch(db, batch_id)
     db.commit()
 
-    rules_result  = _run_rules_for_batch(db, batch_id)
+    _run_rules_for_batch(db, batch_id)
     cases_result  = _run_case_builder_for_batch(db, batch_id)
     summary       = _get_batch_findings_summary(db, batch_id)
 
@@ -744,7 +743,7 @@ async def upload_claims_file(
     except Exception:
         db.rollback()
 
-    t_ms = int((datetime.now(timezone.utc) - t_start).total_seconds() * 1000)
+    t_ms = int((datetime.now(UTC) - t_start).total_seconds() * 1000)
 
     total_findings = summary["total_findings"]
     if total_findings == 0:
@@ -795,8 +794,8 @@ class BatchHistoryItem(BaseModel):
     status:          str
     record_count:    int
     started_at:      str
-    completed_at:    Optional[str]
-    findings_count:  Optional[int]
+    completed_at:    str | None
+    findings_count:  int | None
 
 
 @router.get(

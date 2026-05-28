@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime    import date, datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, date, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.reconciliation.service")
 
@@ -47,7 +47,7 @@ class ReconciliationMatch:
     recon_type:    ReconciliationType
     status:        MatchStatus
     record_a:      dict[str, Any]       # primary record
-    record_b:      Optional[dict[str, Any]]  # matched record (None if unmatched)
+    record_b:      dict[str, Any] | None  # matched record (None if unmatched)
     discrepancies: list[str]            = field(default_factory=list)
     confidence:    float                = 1.0    # 0.0 – 1.0
     matched_on:    list[str]            = field(default_factory=list)  # keys used for matching
@@ -57,8 +57,8 @@ class ReconciliationMatch:
 class ReconciliationReport:
     tenant_id:       str
     recon_type:      ReconciliationType
-    period_start:    Optional[date]
-    period_end:      Optional[date]
+    period_start:    date | None
+    period_end:      date | None
     total_a:         int                     # records in primary set
     total_b:         int                     # records in secondary set
     matched:         int
@@ -67,7 +67,7 @@ class ReconciliationReport:
     unmatched_b:     int                     # in B, not in A
     duplicates:      int
     matches:         list[ReconciliationMatch] = field(default_factory=list)
-    completed_at:    datetime                  = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    completed_at:    datetime                  = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def match_rate(self) -> float:
@@ -94,8 +94,8 @@ class ReconciliationService:
         dispenses:   list[dict[str, Any]],
         claims:      list[dict[str, Any]],
         tenant_id:   str,
-        period_start: Optional[date] = None,
-        period_end:   Optional[date] = None,
+        period_start: date | None = None,
+        period_end:   date | None = None,
     ) -> ReconciliationReport:
         """
         Match pharmacy dispense records against claims.
@@ -139,8 +139,8 @@ class ReconciliationService:
         claims:      list[dict[str, Any]],
         remittances: list[dict[str, Any]],
         tenant_id:   str,
-        period_start: Optional[date] = None,
-        period_end:   Optional[date] = None,
+        period_start: date | None = None,
+        period_end:   date | None = None,
     ) -> ReconciliationReport:
         """
         Match submitted claims against 835 remittance advice.
@@ -174,8 +174,8 @@ class ReconciliationService:
         encounters:  list[dict[str, Any]],
         dispenses:   list[dict[str, Any]],
         tenant_id:   str,
-        period_start: Optional[date] = None,
-        period_end:   Optional[date] = None,
+        period_start: date | None = None,
+        period_end:   date | None = None,
     ) -> ReconciliationReport:
         """
         Verify each 340B dispense is tied to an eligible patient encounter.
@@ -296,8 +296,8 @@ def _build_report(
     matches:      list[ReconciliationMatch],
     total_a:      int,
     total_b:      int,
-    period_start: Optional[date],
-    period_end:   Optional[date],
+    period_start: date | None,
+    period_end:   date | None,
 ) -> ReconciliationReport:
     return ReconciliationReport(
         tenant_id    = tenant_id,

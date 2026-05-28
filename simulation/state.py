@@ -5,9 +5,8 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
 
 
 @dataclass
@@ -35,7 +34,7 @@ class InventoryPool:
         )
 
     def consume(self, ce_id: str, ndc_11: str,
-                quantity: Decimal) -> Optional[tuple[str, object]]:
+                quantity: Decimal) -> tuple[str, object] | None:
         """
         Consume quantity from FIFO lots.
         Returns (purchase_id, purchase_date) of the lot consumed, or None if no inventory.
@@ -54,7 +53,7 @@ class InventoryPool:
         )
 
     def force_consume(self, ce_id: str, ndc_11: str,
-                      quantity: Decimal) -> tuple[Optional[str], Optional[object]]:
+                      quantity: Decimal) -> tuple[str | None, object | None]:
         """
         Consume even if insufficient inventory (creates negative balance = mismatch violation).
         Returns (purchase_id, purchase_date) of last lot touched, or (None, None).

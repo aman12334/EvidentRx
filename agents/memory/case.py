@@ -11,7 +11,6 @@ audit trail becomes the memory source.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import text
@@ -34,7 +33,7 @@ class CaseMemory:
     def has_prior_analysis(self, agent_type: str) -> bool:
         return agent_type in self._prior_outputs
 
-    def get_prior_output(self, agent_type: str) -> Optional[dict]:
+    def get_prior_output(self, agent_type: str) -> dict | None:
         return self._prior_outputs.get(agent_type)
 
     def prior_run_count(self) -> int:

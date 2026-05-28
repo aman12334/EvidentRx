@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 from agents.llm.base import LLMConfig, LLMProvider, LLMResponse, Message
 
@@ -51,8 +50,8 @@ class ModelRouter:
         self,
         task_type: str,
         messages: list[Message],
-        override_model: Optional[str] = None,
-        override_max_tokens: Optional[int] = None,
+        override_model: str | None = None,
+        override_max_tokens: int | None = None,
     ) -> LLMResponse:
         """
         Route a completion request to the model assigned to this task type.
@@ -82,8 +81,8 @@ def build_router_from_env() -> ModelRouter:
     Constructs a ModelRouter from environment variables.
     Priority: GROQ_API_KEY → ANTHROPIC_API_KEY → OPENAI_API_KEY
     """
-    from agents.llm.groq_provider import GroqProvider
     from agents.llm.anthropic_provider import AnthropicProvider
+    from agents.llm.groq_provider import GroqProvider
     from agents.llm.openai_provider import OpenAIProvider
 
     try:
@@ -114,7 +113,7 @@ def build_router_from_env() -> ModelRouter:
         provider = OpenAIProvider(api_key=openai_key)
         logger.info("LLM router initialized: provider=openai")
     else:
-        raise EnvironmentError(
+        raise OSError(
             "No LLM API key configured. Set GROQ_API_KEY, ANTHROPIC_API_KEY, "
             "or OPENAI_API_KEY in your .env file."
         )
@@ -125,7 +124,7 @@ def build_router_from_env() -> ModelRouter:
 # ── Module-level lazy singleton ───────────────────────────────────────────────
 # Agents import `llm_router` directly. The router is built on first access
 # so that missing API keys raise at call time, not at import time.
-_router_instance: Optional[ModelRouter] = None
+_router_instance: ModelRouter | None = None
 
 
 def get_llm_router() -> ModelRouter:

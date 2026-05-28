@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing   import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from governance.audit_log   import audit_log, AuditEventType
+from governance.audit_log import AuditEventType, audit_log
 from governance.event_store import WorkflowEvent
 
 log = logging.getLogger("evidentrx.recovery.replay")
@@ -39,7 +39,7 @@ class InvestigationReplayer:
         actor_id:  str,
         tenant_id: str,
         events:    List[WorkflowEvent],
-        up_to:     Optional[datetime] = None,
+        up_to:     datetime | None = None,
     ) -> Dict[str, Any]:
         """
         Replay events and return the reconstructed case state.

@@ -18,10 +18,10 @@ Correction types
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from learning.memory.store import MemoryStore, MemoryType, get_memory_store
 
@@ -53,11 +53,11 @@ class CorrectionRecord:
     artifact_type:     str            # "case" | "finding" | "recommendation"
     system_value:      Any            # what the system produced
     corrected_value:   Any            # what the analyst says it should be
-    rule_code:         Optional[str]  # rule that produced the original output
+    rule_code:         str | None  # rule that produced the original output
     reasoning:         str            # analyst's stated reason
     recorded_at:       datetime
-    confidence:        Optional[float] = None   # analyst's confidence in correction (0–1)
-    supersedes_id:     Optional[str]  = None    # prior correction this replaces
+    confidence:        float | None = None   # analyst's confidence in correction (0–1)
+    supersedes_id:     str | None  = None    # prior correction this replaces
 
 
 class CorrectionMemory:
@@ -69,7 +69,7 @@ class CorrectionMemory:
     MemoryStore for persistence.
     """
 
-    def __init__(self, store: Optional[MemoryStore] = None) -> None:
+    def __init__(self, store: MemoryStore | None = None) -> None:
         self._store = store or get_memory_store()
 
     # ── Write ──────────────────────────────────────────────────────────────────
@@ -84,9 +84,9 @@ class CorrectionMemory:
         system_value:    Any,
         corrected_value: Any,
         reasoning:       str,
-        rule_code:       Optional[str]   = None,
-        confidence:      Optional[float] = None,
-        supersedes_id:   Optional[str]   = None,
+        rule_code:       str | None   = None,
+        confidence:      float | None = None,
+        supersedes_id:   str | None   = None,
     ) -> CorrectionRecord:
         """Record a new analyst correction."""
         content = {
@@ -140,7 +140,7 @@ class CorrectionMemory:
         system_score:   float,
         analyst_score:  float,
         reasoning:      str,
-        confidence:     Optional[float] = None,
+        confidence:     float | None = None,
     ) -> CorrectionRecord:
         """Convenience method for score/confidence overrides."""
         return await self.record_correction(
@@ -182,9 +182,9 @@ class CorrectionMemory:
     def get_corrections(
         self,
         tenant_id:       str,
-        correction_type: Optional[CorrectionType] = None,
-        rule_code:       Optional[str]             = None,
-        since:           Optional[datetime]        = None,
+        correction_type: CorrectionType | None = None,
+        rule_code:       str | None             = None,
+        since:           datetime | None        = None,
         limit:           int                       = 200,
     ) -> list[CorrectionRecord]:
         """Query corrections with optional filters."""
@@ -221,7 +221,7 @@ class CorrectionMemory:
         self,
         tenant_id: str,
         rule_code: str,
-        since:     Optional[datetime] = None,
+        since:     datetime | None = None,
     ) -> dict[str, Any]:
         """
         Summarise score overrides for a rule code.

@@ -20,9 +20,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 from regulatory.ingestion.models import DocumentFormat, DocumentSource, PolicyDomain
 
@@ -59,9 +59,9 @@ class MonitoredSource:
     frequency:    SyncFrequency
     active:       bool           = True
     created_by:   str            = "system"
-    created_at:   datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    last_synced_at: Optional[datetime] = None
-    next_sync_at: Optional[datetime]   = None
+    created_at:   datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
+    last_synced_at: datetime | None = None
+    next_sync_at: datetime | None   = None
     sync_count:   int            = 0
     error_count:  int            = 0
     metadata:     dict[str, Any] = field(default_factory=dict)
@@ -72,7 +72,7 @@ class MonitoredSource:
             return False
         if self.next_sync_at is None:
             return True
-        return datetime.now(tz=timezone.utc) >= self.next_sync_at
+        return datetime.now(tz=UTC) >= self.next_sync_at
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -102,8 +102,8 @@ class SyncJob:
     domains:   list[PolicyDomain]
     queued_at: datetime
     status:    str     = "queued"   # "queued"|"running"|"done"|"failed"
-    result_doc_id: Optional[str] = None
-    error:     Optional[str]     = None
+    result_doc_id: str | None = None
+    error:     str | None     = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -141,7 +141,7 @@ class PolicySyncScheduler:
         fetch_url:  str,
         frequency:  SyncFrequency,
         created_by: str = "system",
-        metadata:   Optional[dict[str, Any]] = None,
+        metadata:   dict[str, Any] | None = None,
     ) -> MonitoredSource:
         ms = MonitoredSource(
             source_id   = str(uuid.uuid4()),
@@ -153,7 +153,7 @@ class PolicySyncScheduler:
             fetch_url   = fetch_url,
             frequency   = frequency,
             created_by  = created_by,
-            next_sync_at = datetime.now(tz=timezone.utc),   # due immediately
+            next_sync_at = datetime.now(tz=UTC),   # due immediately
             metadata    = metadata or {},
         )
         self._sources[ms.source_id] = ms
@@ -187,7 +187,7 @@ class PolicySyncScheduler:
 
         Advances next_sync_at immediately to prevent double-firing.
         """
-        now  = datetime.now(tz=timezone.utc)
+        now  = datetime.now(tz=UTC)
         jobs: list[SyncJob] = []
 
         for src in self._sources.values():
@@ -214,7 +214,7 @@ class PolicySyncScheduler:
 
         return jobs
 
-    def trigger_manual(self, source_id: str) -> Optional[SyncJob]:
+    def trigger_manual(self, source_id: str) -> SyncJob | None:
         """Force an immediate sync job for a specific source."""
         src = self._sources.get(source_id)
         if src is None or not src.active:
@@ -227,7 +227,7 @@ class PolicySyncScheduler:
             source    = src.source,
             fmt       = src.fmt,
             domains   = src.domains,
-            queued_at = datetime.now(tz=timezone.utc),
+            queued_at = datetime.now(tz=UTC),
         )
         self._jobs[job.job_id] = job
         log.info("PolicySyncScheduler: manual sync triggered for source %s", source_id[:8])
@@ -258,7 +258,7 @@ class PolicySyncScheduler:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_scheduler: Optional[PolicySyncScheduler] = None
+_scheduler: PolicySyncScheduler | None = None
 
 
 def get_policy_scheduler() -> PolicySyncScheduler:

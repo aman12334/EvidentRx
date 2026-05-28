@@ -16,7 +16,7 @@ agent in the pipeline — its output is what gets filed.
 from __future__ import annotations
 
 import json
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from agents.agents.base import BaseAgent
 from agents.llm.base import LLMResponse, Message
@@ -144,7 +144,7 @@ class ComplianceNarrativeAgent(BaseAgent):
             Message(role="user",   content=user_content),
         ]
 
-    def _parse_response(self, response: LLMResponse) -> tuple[dict, Optional[float]]:
+    def _parse_response(self, response: LLMResponse) -> tuple[dict, float | None]:
         structured = response.structured or {}
         confidence = float(structured.get("confidence_score", 0.85))
         return structured, confidence

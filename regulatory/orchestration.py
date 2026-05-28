@@ -39,9 +39,9 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.orchestration")
 
@@ -68,7 +68,7 @@ class StageResult:
     success:     bool
     duration_ms: float
     summary:     str
-    error:       Optional[str]   = None
+    error:       str | None   = None
     entity_ids:  list[str]       = field(default_factory=list)   # IDs produced
 
     def to_dict(self) -> dict[str, Any]:
@@ -98,17 +98,17 @@ class PipelineRun:
     stages_requested: list[PipelineStage]
     # populated during execution
     stage_results:   list[StageResult]     = field(default_factory=list)
-    completed_at:    Optional[datetime]    = None
+    completed_at:    datetime | None    = None
     success:         bool                  = False
     total_duration_ms: float               = 0.0
     # output entity IDs (for downstream consumption)
-    ingested_doc_id:    Optional[str]      = None
-    diff_id:            Optional[str]      = None
-    drift_report_id:    Optional[str]      = None
+    ingested_doc_id:    str | None      = None
+    diff_id:            str | None      = None
+    drift_report_id:    str | None      = None
     impact_report_ids:  list[str]          = field(default_factory=list)
     recommendation_ids: list[str]          = field(default_factory=list)
-    readiness_snapshot_id: Optional[str]   = None
-    workflow_id:        Optional[str]      = None
+    readiness_snapshot_id: str | None   = None
+    workflow_id:        str | None      = None
     metadata:           dict[str, Any]     = field(default_factory=dict)
 
     @property
@@ -151,23 +151,23 @@ class PipelineConfig:
     tenant_id:          str
     triggered_by:       str                = "system"
     # Ingest stage
-    source_url:         Optional[str]      = None
-    raw_content:        Optional[bytes]    = None
+    source_url:         str | None      = None
+    raw_content:        bytes | None    = None
     doc_format:         str                = "pdf"      # "pdf"|"html"|"text"|"json"
     doc_source:         str                = "hrsa"     # DocumentSource enum value
-    doc_title:          Optional[str]      = None
+    doc_title:          str | None      = None
     doc_domains:        list[str]          = field(default_factory=list)
     # Diff stage — prior doc to compare against
-    prior_doc_id:       Optional[str]      = None
+    prior_doc_id:       str | None      = None
     # Stages to execute (defaults to full pipeline)
     stages:             list[PipelineStage] = field(
         default_factory=lambda: list(PipelineStage)
     )
     # Governance stage
     workflow_priority:  str                = "normal"   # WorkflowPriority enum value
-    workflow_deadline:  Optional[str]      = None       # ISO-8601 date
+    workflow_deadline:  str | None      = None       # ISO-8601 date
     # Misc
-    as_of:              Optional[datetime] = None
+    as_of:              datetime | None = None
     metadata:           dict[str, Any]     = field(default_factory=dict)
 
 
@@ -222,7 +222,7 @@ class RegulatoryIntelligencePlatform:
         """Execute the regulatory intelligence pipeline asynchronously."""
         return await self._execute(config)
 
-    def get_run(self, run_id: str) -> Optional[PipelineRun]:
+    def get_run(self, run_id: str) -> PipelineRun | None:
         return self._runs.get(run_id)
 
     def run_history(
@@ -255,7 +255,7 @@ class RegulatoryIntelligencePlatform:
             run_id           = str(uuid.uuid4()),
             tenant_id        = config.tenant_id,
             triggered_by     = config.triggered_by,
-            started_at       = config.as_of or datetime.now(tz=timezone.utc),
+            started_at       = config.as_of or datetime.now(tz=UTC),
             stages_requested = list(config.stages),
         )
         self._runs[run.run_id] = run
@@ -314,7 +314,7 @@ class RegulatoryIntelligencePlatform:
             )
 
         # ── Finalise ─────────────────────────────────────────────────────────
-        run.completed_at      = datetime.now(tz=timezone.utc)
+        run.completed_at      = datetime.now(tz=UTC)
         run.total_duration_ms = (time.monotonic() - wall_start) * 1000.0
         run.success = all(r.success for r in run.stage_results)
 
@@ -336,9 +336,9 @@ class RegulatoryIntelligencePlatform:
         config:  PipelineConfig,
         metrics: Any,
     ) -> StageResult:
+        from regulatory.ingestion.models import DocumentFormat, DocumentSource, PolicyDomain
         from regulatory.ingestion.pipeline import get_ingestion_pipeline
-        from regulatory.ingestion.models   import DocumentSource, DocumentFormat, PolicyDomain
-        from regulatory.observability      import time_ingestion
+        from regulatory.observability import time_ingestion
 
         t0 = time.monotonic()
         try:
@@ -403,9 +403,9 @@ class RegulatoryIntelligencePlatform:
         config:  PipelineConfig,
         metrics: Any,
     ) -> StageResult:
-        from regulatory.diff.engine      import get_diff_engine
+        from regulatory.diff.engine import get_diff_engine
         from regulatory.ingestion.pipeline import get_ingestion_pipeline
-        from regulatory.observability    import time_diff
+        from regulatory.observability import time_diff
 
         t0 = time.monotonic()
         try:
@@ -460,7 +460,7 @@ class RegulatoryIntelligencePlatform:
         config:  PipelineConfig,
         metrics: Any,
     ) -> StageResult:
-        from regulatory.diff.drift         import get_drift_service
+        from regulatory.diff.drift import get_drift_service
         from regulatory.ingestion.pipeline import get_ingestion_pipeline
 
         t0 = time.monotonic()
@@ -514,7 +514,7 @@ class RegulatoryIntelligencePlatform:
         metrics: Any,
     ) -> StageResult:
         from regulatory.impact.analysis import get_impact_service
-        from regulatory.observability   import time_impact
+        from regulatory.observability import time_impact
 
         t0 = time.monotonic()
         try:
@@ -568,9 +568,9 @@ class RegulatoryIntelligencePlatform:
         config:  PipelineConfig,
         metrics: Any,
     ) -> StageResult:
+        from regulatory.diff.drift import get_drift_service
+        from regulatory.impact.analysis import get_impact_service
         from regulatory.recommendations.engine import get_recommendation_service
-        from regulatory.impact.analysis        import get_impact_service
-        from regulatory.diff.drift             import get_drift_service
 
         t0 = time.monotonic()
         try:
@@ -622,9 +622,9 @@ class RegulatoryIntelligencePlatform:
         config:  PipelineConfig,
         metrics: Any,
     ) -> StageResult:
-        from regulatory.intelligence.readiness import get_readiness_service, ReadinessBand
-        from regulatory.ingestion.pipeline     import get_ingestion_pipeline
-        from regulatory.diff.drift             import get_drift_service
+        from regulatory.diff.drift import get_drift_service
+        from regulatory.ingestion.pipeline import get_ingestion_pipeline
+        from regulatory.intelligence.readiness import ReadinessBand, get_readiness_service
         from regulatory.recommendations.engine import get_recommendation_service
 
         t0 = time.monotonic()
@@ -676,12 +676,11 @@ class RegulatoryIntelligencePlatform:
         run:    PipelineRun,
         config: PipelineConfig,
     ) -> StageResult:
-        from regulatory.timeline.service import (
-            get_timeline_service,
-            TimelineEventType,
-            TimelineEventSeverity,
-        )
         from regulatory.observability import get_metrics
+        from regulatory.timeline.service import (
+            TimelineEventType,
+            get_timeline_service,
+        )
 
         t0 = time.monotonic()
         metrics = get_metrics()
@@ -767,8 +766,8 @@ class RegulatoryIntelligencePlatform:
         metrics: Any,
     ) -> StageResult:
         from regulatory.governance.workflows import (
-            get_review_workflow,
             WorkflowPriority,
+            get_review_workflow,
         )
         from regulatory.ingestion.pipeline import get_ingestion_pipeline
 
@@ -823,7 +822,7 @@ class RegulatoryIntelligencePlatform:
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
-_platform: Optional[RegulatoryIntelligencePlatform] = None
+_platform: RegulatoryIntelligencePlatform | None = None
 
 
 def get_platform() -> RegulatoryIntelligencePlatform:

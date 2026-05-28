@@ -29,19 +29,18 @@ Design goals
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, AsyncIterator, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from interoperability.mapping.engine     import MappingEngine, get_mapping_engine
-from interoperability.mapping.lineage    import LineageBuilder, LineageRecord, LineageStep, StepStatus
+from interoperability.governance.policy import get_policy_engine
+from interoperability.mapping.engine import MappingEngine
+from interoperability.mapping.lineage import LineageBuilder, LineageRecord, LineageStep, StepStatus
 from interoperability.reconciliation.deduplication import DeduplicationEngine
-from interoperability.reconciliation.quality       import DataQualityScorer
-from interoperability.governance.policy            import get_policy_engine
-from interoperability.streaming.event_bus          import InMemoryEventBus
-from interoperability.streaming.producer           import InteropProducer
-from interoperability.sdk.simulator                import FHIRSimulator, HL7Simulator, EDISimulator
+from interoperability.reconciliation.quality import DataQualityScorer
+from interoperability.sdk.simulator import EDISimulator, FHIRSimulator, HL7Simulator
+from interoperability.streaming.event_bus import InMemoryEventBus
+from interoperability.streaming.producer import InteropProducer
 
 
 @dataclass
@@ -94,7 +93,7 @@ class InteropTestHarness:
 
     # ── Context manager ────────────────────────────────────────────────────────
 
-    async def __aenter__(self) -> "InteropTestHarness":
+    async def __aenter__(self) -> InteropTestHarness:
         await self._event_bus.start()
         await self._producer.start()
         return self
@@ -105,14 +104,14 @@ class InteropTestHarness:
 
     # ── Record loading ─────────────────────────────────────────────────────────
 
-    def simulate_fhir(self, resource_type: str, count: int = 5) -> "InteropTestHarness":
+    def simulate_fhir(self, resource_type: str, count: int = 5) -> InteropTestHarness:
         """Queue synthetic FHIR records for processing."""
         records = self._fhir_sim.batch(resource_type, count, self.tenant_id)
         for r in records:
             self._raw_queue.append((r, "fhir", resource_type))
         return self
 
-    def simulate_hl7(self, msg_type: str, count: int = 5) -> "InteropTestHarness":
+    def simulate_hl7(self, msg_type: str, count: int = 5) -> InteropTestHarness:
         """Queue synthetic HL7 v2 message strings for processing."""
         from interoperability.hl7.parser import HL7Parser
         parser = HL7Parser()
@@ -126,10 +125,10 @@ class InteropTestHarness:
                     self._raw_queue.append((canonical, "hl7v2", msg_type))
         return self
 
-    def simulate_edi(self, count: int = 5) -> "InteropTestHarness":
+    def simulate_edi(self, count: int = 5) -> InteropTestHarness:
         """Queue synthetic X12 837P EDI claims for processing."""
-        from interoperability.edi.x12_parser      import X12Parser
         from interoperability.edi.pharmacy_claims import normalise_837p
+        from interoperability.edi.x12_parser import X12Parser
         parser = X12Parser()
         raw_strs = self._edi_sim.batch(count, self.tenant_id)
         for raw in raw_strs:
@@ -144,7 +143,7 @@ class InteropTestHarness:
         record:        dict[str, Any],
         source_system: str,
         resource_type: str,
-    ) -> "InteropTestHarness":
+    ) -> InteropTestHarness:
         """Manually queue a raw record for processing."""
         self._raw_queue.append((record, source_system, resource_type))
         return self
@@ -162,7 +161,7 @@ class InteropTestHarness:
           4. Data quality scoring
           5. Publish to event bus
         """
-        started = datetime.now(tz=timezone.utc)
+        started = datetime.now(tz=UTC)
         failed = rejected = duplicates = canonical_count = 0
         errors: list[str] = []
 
@@ -208,7 +207,7 @@ class InteropTestHarness:
             builder.step(LineageStep.VALIDATE_CANON, StepStatus.SUCCESS)
 
             # ── Quality ────────────────────────────────────────────────────────
-            quality = self._quality_scorer.score(canonical)
+            self._quality_scorer.score(canonical)
             # Log quality but do not block (quality is informational in test mode)
 
             # ── Publish ────────────────────────────────────────────────────────
@@ -225,7 +224,7 @@ class InteropTestHarness:
 
         await self._producer.flush()
 
-        finished = datetime.now(tz=timezone.utc)
+        finished = datetime.now(tz=UTC)
         return PipelineRunResult(
             total_records    = len(self._raw_queue),
             canonical_count  = canonical_count,

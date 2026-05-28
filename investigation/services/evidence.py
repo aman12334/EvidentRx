@@ -10,9 +10,8 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -99,7 +98,7 @@ class EvidenceAggregationService:
         """
         summary = self.build_summary(session, case_id)
         snapshot_id = uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         tw = summary.get("temporal_window", {})
 
@@ -142,7 +141,7 @@ class EvidenceAggregationService:
         logger.debug("Snapshot %s taken for case %s (trigger=%s)", snapshot_id, case_id, trigger)
         return snapshot_id
 
-    def latest_snapshot(self, session: Session, case_id: UUID) -> Optional[dict]:
+    def latest_snapshot(self, session: Session, case_id: UUID) -> dict | None:
         """Returns the most recent risk snapshot for a case, or None."""
         row = session.execute(text("""
             SELECT snapshot_id, snapshot_at, snapshot_trigger,

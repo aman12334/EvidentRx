@@ -9,9 +9,8 @@ Entirely deterministic — reads persisted eval results, no LLM calls.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
-from typing import Optional
+from dataclasses import dataclass
+from datetime import date, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -37,9 +36,9 @@ class LongitudinalReport:
     data_points:     list[EvalDataPoint]
     trend_direction: str                    # improving / stable / degrading
     mean_pass_rate:  float
-    latest_pass_rate: Optional[float]
-    earliest_pass_rate: Optional[float]
-    pass_rate_delta: Optional[float]        # latest - earliest
+    latest_pass_rate: float | None
+    earliest_pass_rate: float | None
+    pass_rate_delta: float | None        # latest - earliest
 
 
 class LongitudinalReplay:

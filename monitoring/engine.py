@@ -21,7 +21,6 @@ import logging
 import traceback
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import text
@@ -32,7 +31,7 @@ from intelligence.services.correlation import CorrelationEngine
 from intelligence.services.drift_detection import DriftDetectionService, DriftReport
 from intelligence.services.predictive_risk import PredictiveRiskService, RiskScoringReport
 from intelligence.services.trend_analysis import TrendAnalysisService, TrendSummary
-from monitoring.windows import ALL_WINDOWS, RollingWindow, resolve_windows
+from monitoring.windows import ALL_WINDOWS
 
 logger = logging.getLogger(__name__)
 
@@ -43,17 +42,17 @@ class MonitoringRunResult:
     run_type:             str
     status:               str            # running | completed | failed
     started_at:           datetime
-    completed_at:         Optional[datetime] = None
+    completed_at:         datetime | None = None
     findings_evaluated:   int = 0
     new_findings:         int = 0        # findings added since last run
     drifts_detected:      int = 0
     correlations_found:   int = 0
-    trends_30d:           Optional[TrendSummary] = None
-    trends_60d:           Optional[TrendSummary] = None
-    trends_90d:           Optional[TrendSummary] = None
-    risk_report:          Optional[RiskScoringReport] = None
-    drift_report:         Optional[DriftReport] = None
-    error_message:        Optional[str] = None
+    trends_30d:           TrendSummary | None = None
+    trends_60d:           TrendSummary | None = None
+    trends_90d:           TrendSummary | None = None
+    risk_report:          RiskScoringReport | None = None
+    drift_report:         DriftReport | None = None
+    error_message:        str | None = None
     metadata:             dict = field(default_factory=dict)
 
 
@@ -83,7 +82,7 @@ class MonitoringEngine:
         self,
         session: Session,
         run_type: str = "scheduled",
-        as_of: Optional[date] = None,
+        as_of: date | None = None,
         persist: bool = True,
     ) -> MonitoringRunResult:
         """

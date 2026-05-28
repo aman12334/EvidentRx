@@ -16,9 +16,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.lifecycle.archival")
 
@@ -59,7 +59,7 @@ class ArchivalPolicy:
     retention_days: int            = _MIN_RETENTION_DAYS
     legal_hold:     bool           = False    # prevents purge even after retention
     created_by:     str            = "system"
-    created_at:     datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:     datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
     notes:          str            = ""
 
     def __post_init__(self) -> None:
@@ -95,11 +95,11 @@ class ArchivalRecord:
     status:       ArchivalStatus
     initiated_by: str
     initiated_at: datetime
-    archived_at:  Optional[datetime]  = None
-    purge_eligible_at: Optional[datetime] = None
-    purged_at:    Optional[datetime]  = None
-    restored_at:  Optional[datetime]  = None
-    storage_location: Optional[str]  = None    # S3 bucket/prefix or similar
+    archived_at:  datetime | None  = None
+    purge_eligible_at: datetime | None = None
+    purged_at:    datetime | None  = None
+    restored_at:  datetime | None  = None
+    storage_location: str | None  = None    # S3 bucket/prefix or similar
     metadata:     dict[str, Any]     = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,7 +154,7 @@ class TenantArchivalService:
             policy_id    = policy.policy_id,
             status       = ArchivalStatus.SCHEDULED,
             initiated_by = initiated_by,
-            initiated_at = datetime.now(tz=timezone.utc),
+            initiated_at = datetime.now(tz=UTC),
         )
         self._records[record.record_id] = record
         log.info(
@@ -170,7 +170,7 @@ class TenantArchivalService:
     ) -> ArchivalRecord:
         record = self._get_record(record_id)
         policy = self._policies.get(record.policy_id)
-        now    = datetime.now(tz=timezone.utc)
+        now    = datetime.now(tz=UTC)
 
         record.status            = ArchivalStatus.ARCHIVED
         record.archived_at       = now
@@ -193,7 +193,7 @@ class TenantArchivalService:
             raise ArchivalError(
                 f"Tenant {record.tenant_id[:8]} is under legal hold — purge blocked"
             )
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if record.purge_eligible_at and now < record.purge_eligible_at:
             raise ArchivalError(
                 f"Purge not eligible until {record.purge_eligible_at.isoformat()}"
@@ -204,7 +204,7 @@ class TenantArchivalService:
     def mark_purged(self, record_id: str) -> ArchivalRecord:
         record = self._get_record(record_id)
         record.status    = ArchivalStatus.PURGED
-        record.purged_at = datetime.now(tz=timezone.utc)
+        record.purged_at = datetime.now(tz=UTC)
         log.info("TenantArchivalService: tenant %s purged", record.tenant_id[:8])
         return record
 
@@ -215,12 +215,12 @@ class TenantArchivalService:
                 f"Cannot restore from status {record.status.value}"
             )
         record.status      = ArchivalStatus.RESTORED
-        record.restored_at = datetime.now(tz=timezone.utc)
+        record.restored_at = datetime.now(tz=UTC)
         record.metadata["restored_by"] = restored_by
         log.info("TenantArchivalService: tenant %s restored", record.tenant_id[:8])
         return record
 
-    def get_record(self, tenant_id: str) -> Optional[ArchivalRecord]:
+    def get_record(self, tenant_id: str) -> ArchivalRecord | None:
         return next(
             (r for r in self._records.values() if r.tenant_id == tenant_id),
             None,
@@ -250,9 +250,9 @@ class HealthFlag:
     tenant_id:  str
     message:    str
     severity:   str            = "warning"   # "warning" | "critical"
-    flagged_at: datetime       = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    flagged_at: datetime       = field(default_factory=lambda: datetime.now(tz=UTC))
     resolved:   bool           = False
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
 
 
 class HealthTracker:
@@ -291,14 +291,14 @@ class HealthTracker:
         for hf in self._flags:
             if hf.tenant_id == tenant_id and hf.signal == signal and not hf.resolved:
                 hf.resolved    = True
-                hf.resolved_at = datetime.now(tz=timezone.utc)
+                hf.resolved_at = datetime.now(tz=UTC)
                 count += 1
         return count
 
     def list_active_flags(
         self,
-        tenant_id: Optional[str]   = None,
-        severity:  Optional[str]   = None,
+        tenant_id: str | None   = None,
+        severity:  str | None   = None,
     ) -> list[HealthFlag]:
         return [
             hf for hf in self._flags
@@ -323,8 +323,8 @@ class ArchivalError(Exception):
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
 
-_archival: Optional[TenantArchivalService] = None
-_health:   Optional[HealthTracker]         = None
+_archival: TenantArchivalService | None = None
+_health:   HealthTracker | None         = None
 
 
 def get_archival_service() -> TenantArchivalService:

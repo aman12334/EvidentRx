@@ -17,18 +17,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 from interoperability.streaming.event_bus import (
     BusMessage,
     EventBus,
-    get_event_bus,
     canonical_topic,
-    raw_topic,
     dlq_topic,
+    get_event_bus,
     lineage_topic,
+    raw_topic,
 )
 
 log = logging.getLogger("evidentrx.interop.streaming.producer")
@@ -42,7 +42,7 @@ class ProducerStats:
     published:     int = 0
     failed:        int = 0
     batches:       int = 0
-    last_flush_at: Optional[datetime] = None
+    last_flush_at: datetime | None = None
 
 
 class InteropProducer:
@@ -57,7 +57,7 @@ class InteropProducer:
 
     def __init__(
         self,
-        event_bus:          Optional[EventBus] = None,
+        event_bus:          EventBus | None = None,
         flush_size:         int                = _DEFAULT_FLUSH_SIZE,
         flush_interval_sec: int                = _DEFAULT_FLUSH_INTERVAL_SEC,
     ) -> None:
@@ -67,7 +67,7 @@ class InteropProducer:
         self._buffer:        list[BusMessage] = []
         self._lock           = asyncio.Lock()
         self._stats          = ProducerStats()
-        self._flush_task:    Optional[asyncio.Task] = None
+        self._flush_task:    asyncio.Task | None = None
 
     # ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -158,7 +158,7 @@ class InteropProducer:
                 "record":   record,
                 "reason":   reason,
                 "errors":   errors,
-                "failed_at": datetime.now(tz=timezone.utc).isoformat(),
+                "failed_at": datetime.now(tz=UTC).isoformat(),
             },
             partition_key = tenant_id,
         )
@@ -201,7 +201,7 @@ class InteropProducer:
             await self._bus.publish_batch(batch)
             self._stats.published  += len(batch)
             self._stats.batches    += 1
-            self._stats.last_flush_at = datetime.now(tz=timezone.utc)
+            self._stats.last_flush_at = datetime.now(tz=UTC)
             return len(batch)
         except Exception as exc:
             log.error("InteropProducer: flush failed (%s), %d messages lost", exc, len(batch))
@@ -224,7 +224,7 @@ class InteropProducer:
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_producer: Optional[InteropProducer] = None
+_producer: InteropProducer | None = None
 
 
 def get_producer() -> InteropProducer:

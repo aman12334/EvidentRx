@@ -24,10 +24,11 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.feedback.lineage")
 
@@ -83,7 +84,7 @@ class FeedbackLineageTracker:
     its content + its prior_hash.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._chains: dict[str, list[LineageEntry]] = {}   # feedback_id → entries
         self._db_writer = db_writer
 
@@ -95,7 +96,7 @@ class FeedbackLineageTracker:
         event_type:  LineageEventType,
         actor_id:    str,
         tenant_id:   str,
-        payload:     Optional[dict[str, Any]] = None,
+        payload:     dict[str, Any] | None = None,
     ) -> LineageEntry:
         """
         Append a new entry to a feedback's lineage chain.
@@ -104,7 +105,7 @@ class FeedbackLineageTracker:
         """
         chain       = self._chains.setdefault(feedback_id, [])
         prior_hash  = chain[-1].chain_hash if chain else feedback_id    # genesis seed
-        now         = datetime.now(tz=timezone.utc)
+        now         = datetime.now(tz=UTC)
         event_payload = payload or {}
 
         chain_hash = _compute_chain_hash(prior_hash, event_type, actor_id, now, event_payload)
@@ -138,7 +139,7 @@ class FeedbackLineageTracker:
         """Return the full lineage chain for a feedback record."""
         return list(self._chains.get(feedback_id, []))
 
-    def verify_chain(self, feedback_id: str) -> tuple[bool, Optional[str]]:
+    def verify_chain(self, feedback_id: str) -> tuple[bool, str | None]:
         """
         Verify the cryptographic integrity of a lineage chain.
 
@@ -168,7 +169,7 @@ class FeedbackLineageTracker:
 
         return True, None
 
-    def current_state(self, feedback_id: str) -> Optional[LineageEventType]:
+    def current_state(self, feedback_id: str) -> LineageEventType | None:
         """Return the most recent event type in a feedback's chain."""
         chain = self._chains.get(feedback_id, [])
         return chain[-1].event_type if chain else None
@@ -199,10 +200,10 @@ def _compute_chain_hash(
 
 # ── Module-level singleton ────────────────────────────────────────────────────
 
-_tracker: Optional[FeedbackLineageTracker] = None
+_tracker: FeedbackLineageTracker | None = None
 
 
-def get_lineage_tracker(db_writer: Optional[Callable] = None) -> FeedbackLineageTracker:
+def get_lineage_tracker(db_writer: Callable | None = None) -> FeedbackLineageTracker:
     global _tracker
     if _tracker is None:
         _tracker = FeedbackLineageTracker(db_writer=db_writer)

@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing   import Optional
+from datetime import UTC, datetime
 
 from interoperability.base.connector import (
-    BaseConnector, ConnectorConfig, ConnectorHealth,
-    ConnectorState, SourceType,
+    BaseConnector,
+    ConnectorHealth,
+    ConnectorState,
+    SourceType,
 )
 
 log = logging.getLogger("evidentrx.interop.registry")
@@ -83,7 +84,7 @@ class ConnectorRegistry:
 
     # ── Lookup ────────────────────────────────────────────────────────────────
 
-    def get(self, connector_id: str, tenant_id: str) -> Optional[BaseConnector]:
+    def get(self, connector_id: str, tenant_id: str) -> BaseConnector | None:
         """Return the connector or None. Does not acquire the lock (read-only)."""
         return self._connectors.get(tenant_id, {}).get(connector_id)
 
@@ -128,7 +129,7 @@ class ConnectorRegistry:
                 return ConnectorHealth(
                     connector_id = c.connector_id,
                     state        = ConnectorState.FAILED,
-                    last_checked = datetime.now(tz=timezone.utc),
+                    last_checked = datetime.now(tz=UTC),
                     error_message= str(e),
                 )
 

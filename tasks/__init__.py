@@ -13,8 +13,8 @@ archive jobs) are dispatched as async tasks to prevent API request timeouts
 and enable horizontal scaling of the worker fleet.
 """
 
-from tasks.queue  import celery_app
-from tasks.retry  import RetryPolicy, with_retry
+from tasks.queue import celery_app
+from tasks.retry import RetryPolicy, with_retry
 
 __all__ = [
     "celery_app",

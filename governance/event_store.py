@@ -28,8 +28,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import datetime, timezone
-from typing   import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Dict, List
 
 
 class WorkflowEvent:
@@ -45,8 +45,8 @@ class WorkflowEvent:
         workflow_id:  str,
         event_type:   str,
         payload:      Dict[str, Any],
-        aggregate_id: Optional[str] = None,
-        case_id:      Optional[str] = None,
+        aggregate_id: str | None = None,
+        case_id:      str | None = None,
     ) -> None:
         self.event_id     = str(uuid.uuid4())
         self.workflow_id  = workflow_id
@@ -54,7 +54,7 @@ class WorkflowEvent:
         self.aggregate_id = aggregate_id or workflow_id
         self.event_type   = event_type
         self.payload      = payload
-        self.occurred_at  = datetime.now(tz=timezone.utc)
+        self.occurred_at  = datetime.now(tz=UTC)
         # Checksum covers payload + timestamp for tamper detection
         self.checksum     = self._compute_checksum()
 
@@ -99,8 +99,8 @@ class EventStore:
         workflow_id:  str,
         event_type:   str,
         payload:      Dict[str, Any],
-        aggregate_id: Optional[str] = None,
-        case_id:      Optional[str] = None,
+        aggregate_id: str | None = None,
+        case_id:      str | None = None,
     ) -> WorkflowEvent:
         """Append an event to the store."""
         event = WorkflowEvent(

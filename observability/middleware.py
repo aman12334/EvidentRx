@@ -13,12 +13,13 @@ from request.state.user when recording metrics.
 
 from __future__ import annotations
 
+import logging
 import time
 import uuid
-import logging
+
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests        import Request
-from starlette.responses       import Response
+from starlette.requests import Request
+from starlette.responses import Response
 
 from observability.metrics import metrics_registry
 
@@ -45,7 +46,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         try:
             response = await call_next(request)
-        except Exception as exc:
+        except Exception:
             elapsed = time.perf_counter() - start
             self._record_error(request, elapsed)
             raise

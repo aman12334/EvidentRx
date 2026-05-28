@@ -6,8 +6,6 @@ and any future consumer (e.g. webhook callbacks, async result polling).
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -33,7 +31,7 @@ class UploadResult(BaseModel):
     total_findings:     int   = Field(..., ge=0)
     critical_findings:  int   = Field(..., ge=0)
     high_findings:      int   = Field(..., ge=0)
-    estimated_exposure: Optional[float] = Field(None, description="Total financial exposure in USD")
+    estimated_exposure: float | None = Field(None, description="Total financial exposure in USD")
     findings_by_rule:   list[FindingSummary] = Field(default_factory=list)
     case_ids:           list[str]            = Field(default_factory=list)
     processing_ms:      int   = Field(..., ge=0, description="End-to-end processing time in ms")
@@ -46,16 +44,16 @@ class BatchHistoryItem(BaseModel):
     status:         str           = Field(..., description="processing | complete | failed")
     record_count:   int           = Field(..., ge=0)
     started_at:     str           = Field(..., description="ISO-8601 UTC timestamp")
-    completed_at:   Optional[str] = Field(None)
-    findings_count: Optional[int] = Field(None, ge=0)
+    completed_at:   str | None = Field(None)
+    findings_count: int | None = Field(None, ge=0)
 
 
 class UploadError(BaseModel):
     """Structured error response for failed uploads."""
     error_code: str
     detail:     str
-    row_number: Optional[int] = None
-    column:     Optional[str] = None
+    row_number: int | None = None
+    column:     str | None = None
 
 
 class ColumnMapping(BaseModel):
@@ -63,7 +61,7 @@ class ColumnMapping(BaseModel):
     source_column:  str
     target_field:   str
     mapped:         bool
-    sample_value:   Optional[str] = None
+    sample_value:   str | None = None
 
 
 class UploadPreview(BaseModel):

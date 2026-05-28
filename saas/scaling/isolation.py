@@ -23,10 +23,9 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.scaling.isolation")
 
@@ -73,8 +72,8 @@ class TenantWorkloadState:
     active_count:    int            = 0
     queue_depth:     int            = 0
     trip_count:      int            = 0
-    last_tripped_at: Optional[float] = None   # monotonic
-    half_open_at:    Optional[float] = None
+    last_tripped_at: float | None = None   # monotonic
+    half_open_at:    float | None = None
     _HALF_OPEN_SECS: int            = 30      # probe window after open
 
     @property
@@ -257,7 +256,7 @@ class WorkloadIsolationManager:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_manager: Optional[WorkloadIsolationManager] = None
+_manager: WorkloadIsolationManager | None = None
 
 
 def get_isolation_manager(

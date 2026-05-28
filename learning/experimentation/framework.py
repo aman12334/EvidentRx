@@ -18,13 +18,13 @@ Safety constraints
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.experimentation.framework")
 
@@ -51,10 +51,10 @@ class ExperimentState(str, Enum):
 class ArmConfiguration:
     """Configuration for one arm (control or treatment) of an experiment."""
     arm:               ExperimentArm
-    prompt_version_id: Optional[str]   = None
-    workflow_version_id: Optional[str] = None
-    model_config:      Optional[str]   = None
-    calibration_snapshot_id: Optional[str] = None
+    prompt_version_id: str | None   = None
+    workflow_version_id: str | None = None
+    model_config:      str | None   = None
+    calibration_snapshot_id: str | None = None
     description:       str             = ""
 
 
@@ -76,9 +76,9 @@ class ABExperiment:
     treatment:        ArmConfiguration
     state:            ExperimentState
     created_by:       str
-    approved_by:      Optional[str]
+    approved_by:      str | None
     created_at:       datetime
-    start_at:         Optional[datetime]
+    start_at:         datetime | None
     stop_at:          datetime
     traffic_fraction: float           # fraction of eligible traffic in experiment (0–1)
     success_metric:   str             # primary metric to compare (e.g. "outcome_accuracy")
@@ -88,7 +88,7 @@ class ABExperiment:
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(tz=timezone.utc) > self.stop_at
+        return datetime.now(tz=UTC) > self.stop_at
 
     @property
     def duration_days(self) -> float:
@@ -123,7 +123,7 @@ class ExperimentFramework:
     - Read-only results (no automatic promotion)
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._experiments:  dict[str, ABExperiment] = {}
         # (tenant_id, slot) → experiment_id of RUNNING experiment
         self._active_slots: dict[tuple[str, str], str] = {}
@@ -144,15 +144,15 @@ class ExperimentFramework:
         traffic_fraction: float          = 0.10,
         success_metric:  str             = "outcome_accuracy",
         min_detectable_effect: float     = 0.02,
-        start_at:        Optional[datetime] = None,
-        metadata:        Optional[dict]  = None,
+        start_at:        datetime | None = None,
+        metadata:        dict | None  = None,
     ) -> ABExperiment:
         """
         Define a new A/B experiment.
 
         The experiment starts in PENDING state — call start() to activate.
         """
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # Validate duration cap
         duration_days = (stop_at - now).total_seconds() / 86400
@@ -232,7 +232,7 @@ class ExperimentFramework:
             )
 
         exp.state    = ExperimentState.RUNNING
-        exp.start_at = exp.start_at or datetime.now(tz=timezone.utc)
+        exp.start_at = exp.start_at or datetime.now(tz=UTC)
         self._active_slots[key] = experiment_id
         await self._persist("update", exp)
         log.info("ExperimentFramework: started experiment %s", experiment_id[:8])
@@ -288,10 +288,10 @@ class ExperimentFramework:
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get(self, experiment_id: str) -> Optional[ABExperiment]:
+    def get(self, experiment_id: str) -> ABExperiment | None:
         return self._experiments.get(experiment_id)
 
-    def get_active(self, tenant_id: str, slot: str) -> Optional[ABExperiment]:
+    def get_active(self, tenant_id: str, slot: str) -> ABExperiment | None:
         key = (tenant_id, slot)
         eid = self._active_slots.get(key)
         return self._experiments.get(eid) if eid else None
@@ -299,7 +299,7 @@ class ExperimentFramework:
     def list_experiments(
         self,
         tenant_id: str,
-        state:     Optional[ExperimentState] = None,
+        state:     ExperimentState | None = None,
     ) -> list[ABExperiment]:
         result = [
             e for e in self._experiments.values()
@@ -343,10 +343,10 @@ class ExperimentConflictError(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_framework: Optional[ExperimentFramework] = None
+_framework: ExperimentFramework | None = None
 
 
-def get_experiment_framework(db_writer: Optional[Callable] = None) -> ExperimentFramework:
+def get_experiment_framework(db_writer: Callable | None = None) -> ExperimentFramework:
     global _framework
     if _framework is None:
         _framework = ExperimentFramework(db_writer=db_writer)

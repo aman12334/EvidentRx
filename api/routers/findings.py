@@ -1,7 +1,6 @@
 """Finding retrieval API endpoints."""
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,8 +16,8 @@ router = APIRouter(prefix="/findings", tags=["Findings"])
 @router.get("/case/{case_id}", response_model=FindingListResponse)
 def get_findings_for_case(
     case_id: UUID,
-    severity: Optional[str] = Query(None),
-    rule_code: Optional[str] = Query(None),
+    severity: str | None = Query(None),
+    rule_code: str | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),

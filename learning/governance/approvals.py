@@ -21,10 +21,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.governance.approvals")
 
@@ -70,12 +71,12 @@ class ApprovalRequest:
     created_at:    datetime
     expires_at:    datetime
     min_approvers: int           = 1
-    approvals:     list["ApprovalDecision"] = field(default_factory=list)
-    rejections:    list["ApprovalDecision"] = field(default_factory=list)
+    approvals:     list[ApprovalDecision] = field(default_factory=list)
+    rejections:    list[ApprovalDecision] = field(default_factory=list)
 
     @property
     def is_expired(self) -> bool:
-        return datetime.now(tz=timezone.utc) > self.expires_at and self.status == ApprovalStatus.PENDING
+        return datetime.now(tz=UTC) > self.expires_at and self.status == ApprovalStatus.PENDING
 
     @property
     def approval_count(self) -> int:
@@ -137,7 +138,7 @@ class ApprovalGate:
 
     def __init__(
         self,
-        db_writer:     Optional[Callable] = None,
+        db_writer:     Callable | None = None,
         expiry_hours:  int                = _DEFAULT_EXPIRY_HOURS,
     ) -> None:
         self._requests:   dict[str, ApprovalRequest] = {}
@@ -159,7 +160,7 @@ class ApprovalGate:
         min_approvers:  int = 1,
     ) -> ApprovalRequest:
         """Create a new approval request."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         req = ApprovalRequest(
             request_id     = str(uuid.uuid4()),
             tenant_id      = tenant_id,
@@ -249,7 +250,7 @@ class ApprovalGate:
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get(self, request_id: str) -> Optional[ApprovalRequest]:
+    def get(self, request_id: str) -> ApprovalRequest | None:
         req = self._requests.get(request_id)
         if req and req.is_expired:
             req.status = ApprovalStatus.EXPIRED
@@ -262,7 +263,7 @@ class ApprovalGate:
     def list_pending(
         self,
         tenant_id:   str,
-        change_type: Optional[ChangeType] = None,
+        change_type: ChangeType | None = None,
     ) -> list[ApprovalRequest]:
         result = []
         for req in self._requests.values():
@@ -308,7 +309,7 @@ def _make_decision(
     decision:   str,
     rationale:  str,
 ) -> ApprovalDecision:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     payload = json.dumps(
         {"request_id": request_id, "reviewer": reviewer,
          "decision": decision, "decided_at": now.isoformat()},
@@ -337,11 +338,11 @@ class ApprovalError(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_gate: Optional[ApprovalGate] = None
+_gate: ApprovalGate | None = None
 
 
 def get_approval_gate(
-    db_writer:    Optional[Callable] = None,
+    db_writer:    Callable | None = None,
     expiry_hours: int                = _DEFAULT_EXPIRY_HOURS,
 ) -> ApprovalGate:
     global _gate

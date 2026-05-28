@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Optional
 
 from intelligence.graph.builder import ComplianceGraph
 from intelligence.graph.nodes import GraphNode
@@ -69,7 +68,7 @@ class GraphTraversalService:
         start_type: str,
         start_id: str,
         max_depth: int = 2,
-        relationship_filter: Optional[set[str]] = None,
+        relationship_filter: set[str] | None = None,
     ) -> TraversalResult:
         """
         Breadth-first traversal from a start node up to max_depth hops.
@@ -120,7 +119,6 @@ class GraphTraversalService:
         for edge in graph.edges:
             if edge.relationship == "involves_pharmacy":
                 # finding → pharmacy; find which case this finding belongs to
-                finding_key = f"{edge.source_type}:{edge.source_id}"
                 for case_edge in graph.outgoing("finding", edge.source_id):
                     if case_edge.relationship == "grouped_in_case":
                         pharmacy_cases[edge.target_id].add(case_edge.target_id)
@@ -185,7 +183,7 @@ class GraphTraversalService:
     def compute_centrality(
         self,
         graph: ComplianceGraph,
-        node_type: Optional[str] = None,
+        node_type: str | None = None,
         top_n: int = 20,
     ) -> list[CentralityResult]:
         """

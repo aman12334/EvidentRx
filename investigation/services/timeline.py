@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -44,7 +43,7 @@ class TimelineService:
         case_id: UUID,
         event_type: str,
         event_data: dict,
-        actor_id: Optional[str] = None,
+        actor_id: str | None = None,
         actor_type: str = "system",
     ) -> UUID:
         """
@@ -55,7 +54,7 @@ class TimelineService:
             raise ValueError(f"Unknown event_type '{event_type}'. Must be one of: {sorted(EVENT_TYPES)}")
 
         event_id = uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         session.execute(text("""
             INSERT INTO audit.investigation_timelines

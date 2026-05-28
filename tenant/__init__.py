@@ -11,8 +11,8 @@ Components:
   - isolation.py:  Runtime isolation enforcement and violation detection
 """
 
-from tenant.context    import get_tenant_id, set_tenant_id, TenantContext
-from tenant.isolation  import TenantIsolationError, assert_tenant_access
+from tenant.context import TenantContext, get_tenant_id, set_tenant_id
+from tenant.isolation import TenantIsolationError, assert_tenant_access
 
 __all__ = [
     "get_tenant_id",

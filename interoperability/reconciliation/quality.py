@@ -21,8 +21,8 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.reconciliation.quality")
 
@@ -38,13 +38,13 @@ class QualityDimension:
 
 @dataclass
 class RecordQuality:
-    record_id:     Optional[str]
+    record_id:     str | None
     canonical_type: str
     source_system:  str
     overall_score:  float               # weighted average of dimensions
     dimensions:     list[QualityDimension]
     issues:         list[str]           = field(default_factory=list)
-    scored_at:      datetime            = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    scored_at:      datetime            = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def is_acceptable(self) -> bool:
@@ -72,7 +72,7 @@ class BatchQualityReport:
     acceptable_count: int
     unacceptable_count: int
     common_issues:    list[str]        = field(default_factory=list)
-    scored_at:        datetime         = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    scored_at:        datetime         = field(default_factory=lambda: datetime.now(tz=UTC))
 
     @property
     def acceptable_rate(self) -> float:

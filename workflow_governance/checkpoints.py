@@ -25,9 +25,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Dict, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any, Dict
 
 
 class CheckpointStatus(str, Enum):
@@ -44,36 +44,36 @@ class HumanCheckpoint:
     """
     checkpoint_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     workflow_id:   str = ""
-    case_id:       Optional[str] = None
+    case_id:       str | None = None
     tenant_id:     str = ""
     trigger:       str = ""              # why this checkpoint was hit
     node_name:     str = ""              # which workflow node triggered it
     workflow_state: Dict[str, Any] = field(default_factory=dict)  # serialized state
     status:        CheckpointStatus = CheckpointStatus.PENDING
-    reviewer_id:   Optional[str] = None
-    review_notes:  Optional[str] = None
+    reviewer_id:   str | None = None
+    review_notes:  str | None = None
     reviewer_input: Dict[str, Any] = field(default_factory=dict)  # analyst context
-    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    reviewed_at:   Optional[datetime] = None
+    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=UTC))
+    reviewed_at:   datetime | None = None
 
     def review(
         self,
         reviewer_id:    str,
-        notes:          Optional[str] = None,
-        reviewer_input: Optional[dict] = None,
+        notes:          str | None = None,
+        reviewer_input: dict | None = None,
     ) -> None:
         """Mark checkpoint as reviewed and capture analyst input."""
         self.status         = CheckpointStatus.REVIEWED
         self.reviewer_id    = reviewer_id
         self.review_notes   = notes
         self.reviewer_input = reviewer_input or {}
-        self.reviewed_at    = datetime.now(tz=timezone.utc)
+        self.reviewed_at    = datetime.now(tz=UTC)
 
     def skip(self, actor_id: str) -> None:
         """Analyst acknowledges but does not provide additional input."""
         self.status      = CheckpointStatus.SKIPPED
         self.reviewer_id = actor_id
-        self.reviewed_at = datetime.now(tz=timezone.utc)
+        self.reviewed_at = datetime.now(tz=UTC)
 
     @property
     def is_resolved(self) -> bool:

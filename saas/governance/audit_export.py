@@ -25,9 +25,9 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.governance.audit_export")
 
@@ -51,11 +51,11 @@ class AuditExportRequest:
     requested_by: str
     source:       AuditLogSource
     fmt:          AuditExportFormat
-    from_dt:      Optional[datetime]
-    to_dt:        Optional[datetime]
+    from_dt:      datetime | None
+    to_dt:        datetime | None
     event_types:  list[str]            = field(default_factory=list)  # [] = all
-    org_id:       Optional[str]        = None
-    requested_at: datetime             = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    org_id:       str | None        = None
+    requested_at: datetime             = field(default_factory=lambda: datetime.now(tz=UTC))
     status:       str                  = "pending"   # "pending"|"ready"|"failed"
 
     def to_dict(self) -> dict[str, Any]:
@@ -82,7 +82,7 @@ class AuditExportResult:
     fmt:          AuditExportFormat
     record_count: int
     fingerprint:  str          # SHA-256 of content (tamper detection)
-    exported_at:  datetime     = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    exported_at:  datetime     = field(default_factory=lambda: datetime.now(tz=UTC))
     filename:     str          = ""
     size_bytes:   int          = 0
 
@@ -168,7 +168,7 @@ class AuditExporter:
         payload = {
             "export_metadata": request.to_dict(),
             "record_count":    len(records),
-            "exported_at":     datetime.now(tz=timezone.utc).isoformat(),
+            "exported_at":     datetime.now(tz=UTC).isoformat(),
             "records":         records,
         }
         return json.dumps(payload, indent=2, default=str).encode("utf-8")
@@ -218,10 +218,10 @@ class AuditExportRegistry:
         requested_by: str,
         source:       AuditLogSource,
         fmt:          AuditExportFormat,
-        from_dt:      Optional[datetime]  = None,
-        to_dt:        Optional[datetime]  = None,
-        event_types:  Optional[list[str]] = None,
-        org_id:       Optional[str]       = None,
+        from_dt:      datetime | None  = None,
+        to_dt:        datetime | None  = None,
+        event_types:  list[str] | None = None,
+        org_id:       str | None       = None,
     ) -> AuditExportRequest:
         req = AuditExportRequest(
             request_id   = str(uuid.uuid4()),
@@ -250,7 +250,7 @@ class AuditExportRegistry:
         req.status = "ready"
         return result
 
-    def get_result(self, export_id: str) -> Optional[AuditExportResult]:
+    def get_result(self, export_id: str) -> AuditExportResult | None:
         return self._results.get(export_id)
 
     def list_requests(
@@ -271,7 +271,7 @@ class ExportError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_registry: Optional[AuditExportRegistry] = None
+_registry: AuditExportRegistry | None = None
 
 
 def get_audit_export_registry() -> AuditExportRegistry:

@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class EdgeRelationship(str, Enum):
@@ -61,11 +61,11 @@ class PolicyEdge:
     target_id:    str                 # target node_id
     relationship: EdgeRelationship
     confidence:   float               = 1.0
-    valid_from:   datetime            = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    valid_until:  Optional[datetime]  = None
+    valid_from:   datetime            = field(default_factory=lambda: datetime.now(tz=UTC))
+    valid_until:  datetime | None  = None
     provenance:   str                 = "system"   # doc_id | analyst_id | "system"
     properties:   dict[str, Any]      = field(default_factory=dict)
-    created_at:   datetime            = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:   datetime            = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def is_active_at(self, t: datetime) -> bool:
         if t < self.valid_from:
@@ -94,7 +94,7 @@ def make_edge(
     relationship: EdgeRelationship,
     confidence:   float              = 1.0,
     provenance:   str                = "system",
-    properties:   Optional[dict[str, Any]] = None,
+    properties:   dict[str, Any] | None = None,
 ) -> PolicyEdge:
     return PolicyEdge(
         edge_id      = f"ge_{uuid.uuid4().hex[:12]}",

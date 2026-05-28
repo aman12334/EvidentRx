@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pandas as pd
@@ -21,7 +21,7 @@ from ingestion.base import BaseLoader, bulk_insert, scd2_upsert
 from ingestion.normalizers import clean_str, parse_date
 
 logger = logging.getLogger(__name__)
-UTC = timezone.utc
+UTC = UTC
 
 _HASH_FIELDS = [
     "entity_type_code", "provider_last_name", "provider_first_name",

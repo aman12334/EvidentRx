@@ -17,15 +17,18 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import date
-from typing import Optional
-from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from intelligence.graph.edges import GraphEdge, compute_edge_weight
+from intelligence.graph.edges import GraphEdge
 from intelligence.graph.nodes import (
-    CaseNode, CoveredEntityNode, FindingNode, GraphNode, NdcNode, PharmacyNode,
+    CaseNode,
+    CoveredEntityNode,
+    FindingNode,
+    GraphNode,
+    NdcNode,
+    PharmacyNode,
 )
 
 logger = logging.getLogger(__name__)

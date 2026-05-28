@@ -14,18 +14,14 @@ stored in plaintext; callers must hash them before persisting.
 from __future__ import annotations
 
 import logging
-import re
-from typing import Any, Optional
+from typing import Any
 
+from interoperability.edi.pharmacy_claims import normalise_837p
 from interoperability.edi.x12_parser import (
     X12Interchange,
-    X12Segment,
     X12Transaction,
-    X12TransactionType,
-    get_nm1,
     get_ref,
 )
-from interoperability.edi.pharmacy_claims import normalise_837p, _normalise_ndc, _float, _date
 
 log = logging.getLogger("evidentrx.interop.edi.medicaid")
 
@@ -140,7 +136,7 @@ def _detect_340b(tx: X12Transaction) -> bool:
     return False
 
 
-def _extract_eligibility_category(tx: X12Transaction) -> Optional[str]:
+def _extract_eligibility_category(tx: X12Transaction) -> str | None:
     """
     Extract Medicaid eligibility category from ELG or SBR segment.
 
@@ -155,8 +151,8 @@ def _extract_eligibility_category(tx: X12Transaction) -> Optional[str]:
 
 def _find_tx(
     interchange: X12Interchange,
-    ctrl_number: Optional[str],
-) -> Optional[X12Transaction]:
+    ctrl_number: str | None,
+) -> X12Transaction | None:
     """Locate a transaction by its ST control number."""
     if not ctrl_number:
         return None

@@ -12,12 +12,11 @@ from __future__ import annotations
 
 import random
 from datetime import date, timedelta
-from typing import Optional
 
 
 def inject(
     dispense: dict,
-    ce_start: Optional[date],
+    ce_start: date | None,
     rng: random.Random,
 ) -> dict:
     """

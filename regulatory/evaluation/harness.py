@@ -30,10 +30,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.evaluation.harness")
 
@@ -61,7 +62,7 @@ class ScenarioAssertion:
     description:  str
     expected:     Any           # type depends on assertion_type
     # For CUSTOM assertions, provide a callable(result_bag) → bool
-    custom_fn:    Optional[Callable[[dict[str, Any]], bool]] = None
+    custom_fn:    Callable[[dict[str, Any]], bool] | None = None
 
 
 @dataclass
@@ -120,7 +121,7 @@ class EvaluationResult:
     assertion_results: list[AssertionResult]
     stages_executed:   list[str]
     result_bag:        dict[str, Any]    = field(default_factory=dict)
-    error:             Optional[str]     = None
+    error:             str | None     = None
     duration_ms:       float             = 0.0
 
     @property
@@ -186,10 +187,10 @@ class RegulatoryEvaluationHarness:
         t0 = time.monotonic()
 
         run_id = str(uuid.uuid4())
-        run_at = datetime.now(tz=timezone.utc)
+        run_at = datetime.now(tz=UTC)
         result_bag: dict[str, Any] = {}
         stages_executed: list[str] = []
-        error: Optional[str] = None
+        error: str | None = None
 
         try:
             result_bag, stages_executed = self._execute_stages(scenario)
@@ -265,10 +266,10 @@ class RegulatoryEvaluationHarness:
         Uses freshly instantiated service classes (not singletons) to
         guarantee isolation.  Collects results into a result_bag dict.
         """
-        from regulatory.diff.drift       import DriftDetectionService
-        from regulatory.impact.analysis  import ImpactAnalysisService
-        from regulatory.recommendations.engine import PolicyRecommendationService
+        from regulatory.diff.drift import DriftDetectionService
+        from regulatory.impact.analysis import ImpactAnalysisService
         from regulatory.intelligence.readiness import ComplianceReadinessService
+        from regulatory.recommendations.engine import PolicyRecommendationService
 
         bag: dict[str, Any]    = {}
         executed: list[str]    = []
@@ -470,9 +471,9 @@ def make_scenario(
     description: str,
     tenant_id:   str,
     stages:      list[str],
-    documents:   Optional[list] = None,
-    diffs:       Optional[list] = None,
-    assertions:  Optional[list[ScenarioAssertion]] = None,
+    documents:   list | None = None,
+    diffs:       list | None = None,
+    assertions:  list[ScenarioAssertion] | None = None,
 ) -> EvaluationScenario:
     """Convenience constructor for EvaluationScenario."""
     return EvaluationScenario(
@@ -491,7 +492,7 @@ def make_assertion(
     assertion_type: AssertionType,
     expected:       Any,
     description:    str = "",
-    custom_fn:      Optional[Callable[[dict], bool]] = None,
+    custom_fn:      Callable[[dict], bool] | None = None,
 ) -> ScenarioAssertion:
     """Convenience constructor for ScenarioAssertion."""
     return ScenarioAssertion(
@@ -511,7 +512,7 @@ class HarnessError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_harness: Optional[RegulatoryEvaluationHarness] = None
+_harness: RegulatoryEvaluationHarness | None = None
 
 
 def get_evaluation_harness() -> RegulatoryEvaluationHarness:

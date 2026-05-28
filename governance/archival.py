@@ -25,12 +25,12 @@ import gzip
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
-from pathlib  import Path
-from typing   import Any, Dict, Optional
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Dict
 
-from governance.audit_log  import audit_log, AuditEventType
-from governance.retention  import retention_policy
+from governance.audit_log import AuditEventType, audit_log
+from governance.retention import retention_policy
 
 log = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class ArchivalService:
 
         archive_record = {
             "archive_id":  archive_id,
-            "archived_at": datetime.now(tz=timezone.utc).isoformat(),
+            "archived_at": datetime.now(tz=UTC).isoformat(),
             "archived_by": actor_id,
             "tenant_id":   tenant_id,
             "case_data":   case_data,
@@ -109,7 +109,7 @@ class ArchivalService:
         self,
         case_id:   str,
         tenant_id: str,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         Retrieve an archived case snapshot.
         Returns None if the archive does not exist.

@@ -15,7 +15,8 @@ Adds:
   audit.evaluation_runs          — advanced evaluation framework persistence
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
 from alembic import op

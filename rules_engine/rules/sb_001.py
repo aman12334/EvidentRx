@@ -4,14 +4,13 @@ SB-001: Accumulator Imbalance — Dispenses Exceed 340B Purchases in Period
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID
 
 from rules_engine.context import RuleContext
 from rules_engine.finding_builder import build_finding
 
 
-def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> Optional[dict]:
+def evaluate(ctx: RuleContext, rule_id: UUID, rule_version: str) -> dict | None:
     if (
         ctx.accumulator_balance is not None
         and ctx.accumulator_balance < Decimal("0")

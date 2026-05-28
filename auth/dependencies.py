@@ -24,13 +24,13 @@ Usage:
 
 from __future__ import annotations
 
-from fastapi          import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from auth.jwt         import decode_access_token, TokenValidationError
-from auth.models      import AuthUser
-from auth.rbac        import Permission, Role, has_permission
-from auth.session     import session_store
+from auth.jwt import TokenValidationError, decode_access_token
+from auth.models import AuthUser
+from auth.rbac import Permission, Role, has_permission
+from auth.session import session_store
 
 _bearer = HTTPBearer(auto_error=False)
 

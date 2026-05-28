@@ -19,10 +19,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from learning.evaluation.harness import EvaluationCase
 
@@ -51,7 +52,7 @@ class BenchmarkCase:
     category:      str                   # "false_positive" | "escalation" | "remediation" | …
     difficulty:    str                   # "easy" | "medium" | "hard" | "adversarial"
     evaluation_case: EvaluationCase
-    created_at:    datetime              = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:    datetime              = field(default_factory=lambda: datetime.now(tz=UTC))
     tags:          list[str]             = field(default_factory=list)
 
 
@@ -71,10 +72,10 @@ class BenchmarkSuite:
     status:        BenchmarkStatus
     cases:         list[BenchmarkCase]   = field(default_factory=list)
     content_hash:  str                   = ""
-    created_at:    datetime              = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:    datetime              = field(default_factory=lambda: datetime.now(tz=UTC))
     created_by:    str                   = ""
-    published_at:  Optional[datetime]    = None
-    parent_version: Optional[str]        = None
+    published_at:  datetime | None    = None
+    parent_version: str | None        = None
 
     @property
     def case_count(self) -> int:
@@ -112,7 +113,7 @@ class BenchmarkStore:
     Evaluations reference benchmark_id + version for reproducibility.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._suites:    dict[str, BenchmarkSuite] = {}
         self._by_tenant: dict[str, list[str]] = {}
         self._db_writer  = db_writer
@@ -124,7 +125,7 @@ class BenchmarkStore:
         version:       str,
         description:   str,
         created_by:    str,
-        parent_version: Optional[str] = None,
+        parent_version: str | None = None,
     ) -> BenchmarkSuite:
         """Create an empty benchmark suite in DRAFT status."""
         bid = str(uuid.uuid4())
@@ -170,7 +171,7 @@ class BenchmarkStore:
 
         suite.content_hash = _hash_suite(suite)
         suite.status       = BenchmarkStatus.PUBLISHED
-        suite.published_at = datetime.now(tz=timezone.utc)
+        suite.published_at = datetime.now(tz=UTC)
 
         await self._persist("update", suite)
         log.info(
@@ -185,14 +186,14 @@ class BenchmarkStore:
         await self._persist("update", suite)
         return suite
 
-    def get(self, benchmark_id: str) -> Optional[BenchmarkSuite]:
+    def get(self, benchmark_id: str) -> BenchmarkSuite | None:
         return self._suites.get(benchmark_id)
 
     def get_latest_published(
         self,
         tenant_id: str,
-        name:      Optional[str] = None,
-    ) -> Optional[BenchmarkSuite]:
+        name:      str | None = None,
+    ) -> BenchmarkSuite | None:
         """Return the most recently published suite for a tenant (optionally by name)."""
         published = [
             s for s in self._suites.values()
@@ -205,7 +206,7 @@ class BenchmarkStore:
     def list_for_tenant(
         self,
         tenant_id: str,
-        status:    Optional[BenchmarkStatus] = None,
+        status:    BenchmarkStatus | None = None,
     ) -> list[BenchmarkSuite]:
         ids    = self._by_tenant.get(tenant_id, [])
         suites = [self._suites[i] for i in ids if i in self._suites]

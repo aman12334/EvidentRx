@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import logging
 import re
-import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.search.index")
 
@@ -60,9 +59,9 @@ class SearchDocument:
     title:       str
     body:        str                    = ""
     tags:        list[str]             = field(default_factory=list)
-    org_id:      Optional[str]         = None
+    org_id:      str | None         = None
     score_boost: float                 = 1.0
-    indexed_at:  datetime              = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    indexed_at:  datetime              = field(default_factory=lambda: datetime.now(tz=UTC))
     fields:      dict[str, Any]        = field(default_factory=dict)
 
     def searchable_text(self) -> str:
@@ -124,15 +123,15 @@ class SearchIndex:
         del self._documents[doc_id]
         return True
 
-    def get(self, doc_id: str) -> Optional[SearchDocument]:
+    def get(self, doc_id: str) -> SearchDocument | None:
         return self._documents.get(doc_id)
 
     def search(
         self,
         query:        str,
-        doc_type:     Optional[DocumentType] = None,
-        tags:         Optional[list[str]]    = None,
-        org_id:       Optional[str]          = None,
+        doc_type:     DocumentType | None = None,
+        tags:         list[str] | None    = None,
+        org_id:       str | None          = None,
         limit:        int                    = 20,
         offset:       int                    = 0,
     ) -> list[SearchResult]:
@@ -236,9 +235,9 @@ class TenantAwareIndex:
         self,
         tenant_id: str,
         query:     str,
-        doc_type:  Optional[DocumentType] = None,
-        tags:      Optional[list[str]]    = None,
-        org_id:    Optional[str]          = None,
+        doc_type:  DocumentType | None = None,
+        tags:      list[str] | None    = None,
+        org_id:    str | None          = None,
         limit:     int                    = 20,
         offset:    int                    = 0,
     ) -> list[SearchResult]:
@@ -251,7 +250,7 @@ class TenantAwareIndex:
             offset   = offset,
         )
 
-    def get(self, tenant_id: str, doc_id: str) -> Optional[SearchDocument]:
+    def get(self, tenant_id: str, doc_id: str) -> SearchDocument | None:
         return self._shard(tenant_id).get(doc_id)
 
     def tenant_doc_count(self, tenant_id: str) -> int:
@@ -268,7 +267,7 @@ def _tokenise(text: str) -> list[str]:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_index: Optional[TenantAwareIndex] = None
+_index: TenantAwareIndex | None = None
 
 
 def get_search_index() -> TenantAwareIndex:

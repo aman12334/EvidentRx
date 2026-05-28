@@ -37,16 +37,17 @@ from __future__ import annotations
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
+from langgraph.graph.graph import CompiledGraph
 
 from agents.nodes.case_intake import case_intake
-from agents.nodes.classification import classification
-from agents.nodes.evidence_aggregation import evidence_aggregation
-from agents.nodes.risk_prioritization import risk_prioritization
-from agents.nodes.pattern_analysis import pattern_analysis
-from agents.nodes.deep_analysis import deep_analysis, should_run_deep_analysis
-from agents.nodes.narrative_generation import narrative_generation
-from agents.nodes.escalation_decision import escalation_decision, route_after_escalation
 from agents.nodes.case_summary import case_summary
+from agents.nodes.classification import classification
+from agents.nodes.deep_analysis import deep_analysis, should_run_deep_analysis
+from agents.nodes.escalation_decision import escalation_decision, route_after_escalation
+from agents.nodes.evidence_aggregation import evidence_aggregation
+from agents.nodes.narrative_generation import narrative_generation
+from agents.nodes.pattern_analysis import pattern_analysis
+from agents.nodes.risk_prioritization import risk_prioritization
 from agents.state import InvestigationState
 
 
@@ -76,7 +77,7 @@ def _analyst_queue(state: InvestigationState, config) -> dict:
     }
 
 
-def build_investigation_graph() -> "CompiledGraph":
+def build_investigation_graph() -> CompiledGraph:
     """
     Constructs and compiles the investigation workflow graph.
     Returns a compiled LangGraph app ready for .invoke() calls.
@@ -138,7 +139,7 @@ def build_investigation_graph() -> "CompiledGraph":
 
 
 # Module-level compiled graph — build once, reuse across all runs
-_GRAPH: "CompiledGraph | None" = None
+_GRAPH: CompiledGraph | None = None
 
 
 def get_graph():

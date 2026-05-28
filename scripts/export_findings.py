@@ -22,17 +22,19 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
+
 load_dotenv(ROOT / ".env")
 
-from app.database import SessionLocal  # noqa: E402
 from sqlalchemy import text
+
+from app.database import SessionLocal  # noqa: E402
 
 
 def export_findings(
@@ -152,7 +154,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     out_path = Path(args.out) if args.out else Path(f"findings_{ts}.csv")
 
     print(f"Exporting findings → {out_path}")

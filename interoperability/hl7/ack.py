@@ -20,12 +20,11 @@ Usage
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum     import Enum
-from typing   import Optional
 import uuid
+from datetime import UTC, datetime
+from enum import Enum
 
-from interoperability.hl7.parser import HL7Message, HL7MessageType
+from interoperability.hl7.parser import HL7Message
 
 
 class AckCode(str, Enum):
@@ -170,7 +169,7 @@ def _build_msa(
 
 def _hl7_now() -> str:
     """Return current UTC time in HL7 DTM format: YYYYMMDDHHMMSS."""
-    return datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
+    return datetime.now(tz=UTC).strftime("%Y%m%d%H%M%S")
 
 
 def _ack_message_id() -> str:

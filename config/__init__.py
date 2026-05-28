@@ -13,10 +13,10 @@ All configuration is read-only after startup. Mutations require restart or
 feature flag updates through the admin API (which go through this module).
 """
 
-from config.settings        import settings, Settings
-from config.feature_flags   import feature_flags, FeatureFlags
-from config.model_routing   import model_router, ModelRoutingConfig
-from config.workflow_policy import workflow_policy, WorkflowPolicy
+from config.feature_flags import FeatureFlags, feature_flags
+from config.model_routing import ModelRoutingConfig, model_router
+from config.settings import Settings, settings
+from config.workflow_policy import WorkflowPolicy, workflow_policy
 
 __all__ = [
     "settings",

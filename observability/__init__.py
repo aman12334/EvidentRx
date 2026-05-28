@@ -11,9 +11,9 @@ Provides:
   - DB query performance metrics
 """
 
-from observability.tracing     import tracer, get_tracer, start_span
-from observability.metrics     import metrics_registry, MetricsRegistry
-from observability.logging     import configure_logging, get_logger
+from observability.logging import configure_logging, get_logger
+from observability.metrics import MetricsRegistry, metrics_registry
+from observability.tracing import get_tracer, start_span, tracer
 
 __all__ = [
     "tracer",

@@ -15,10 +15,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.config.overrides")
 
@@ -57,7 +58,7 @@ class PolicyOverride:
     created_at:    datetime
     created_by:    str
     effective_from: datetime
-    effective_until: Optional[datetime] = None
+    effective_until: datetime | None = None
     description:   str               = ""
     org_ids:       list[str]         = field(default_factory=list)   # [] = tenant-wide
     version:       int               = 1
@@ -65,7 +66,7 @@ class PolicyOverride:
 
     @property
     def is_active_now(self) -> bool:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         if self.status != OverrideStatus.ACTIVE:
             return False
         if now < self.effective_from:
@@ -107,7 +108,7 @@ class PayerComplianceConfig:
     audit_format:  str                      # "cms_standard" | "state_medicaid" | "custom"
     reporting_requirements: list[str]
     active:        bool   = True
-    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:    datetime = field(default_factory=lambda: datetime.now(tz=UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -132,7 +133,7 @@ class OverrideRegistry:
     5. Rule pack defaults
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._overrides: dict[str, PolicyOverride] = {}
         self._payer_configs: dict[str, PayerComplianceConfig] = {}
         self._by_tenant: dict[str, list[str]] = {}
@@ -149,11 +150,11 @@ class OverrideRegistry:
         policy_config:  dict[str, Any],
         created_by:     str,
         description:    str             = "",
-        org_ids:        Optional[list[str]] = None,
-        effective_from: Optional[datetime]  = None,
-        effective_until: Optional[datetime] = None,
+        org_ids:        list[str] | None = None,
+        effective_from: datetime | None  = None,
+        effective_until: datetime | None = None,
     ) -> PolicyOverride:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         override = PolicyOverride(
             override_id    = str(uuid.uuid4()),
             tenant_id      = tenant_id,
@@ -184,15 +185,15 @@ class OverrideRegistry:
             raise OverrideNotFoundError(override_id)
         ov.status = OverrideStatus.REVOKED
         ov.metadata["revoked_by"] = revoked_by
-        ov.metadata["revoked_at"] = datetime.now(tz=timezone.utc).isoformat()
+        ov.metadata["revoked_at"] = datetime.now(tz=UTC).isoformat()
         await self._persist("update_override", ov)
         return ov
 
     def get_active_overrides(
         self,
         tenant_id: str,
-        scope:     Optional[OverrideScope] = None,
-        org_id:    Optional[str]           = None,
+        scope:     OverrideScope | None = None,
+        org_id:    str | None           = None,
     ) -> list[PolicyOverride]:
         ids      = self._by_tenant.get(tenant_id, [])
         result   = []
@@ -211,7 +212,7 @@ class OverrideRegistry:
     def effective_policy_config(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> dict[str, Any]:
         """Merge all active overrides into a single policy config dict."""
         overrides = self.get_active_overrides(tenant_id, org_id=org_id)
@@ -250,7 +251,7 @@ class OverrideRegistry:
         self,
         tenant_id: str,
         payer_id:  str,
-    ) -> Optional[PayerComplianceConfig]:
+    ) -> PayerComplianceConfig | None:
         return self._payer_configs.get(f"{tenant_id}:{payer_id}")
 
     def list_payer_configs(self, tenant_id: str) -> list[PayerComplianceConfig]:
@@ -275,10 +276,10 @@ class OverrideNotFoundError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_registry: Optional[OverrideRegistry] = None
+_registry: OverrideRegistry | None = None
 
 
-def get_override_registry(db_writer: Optional[Callable] = None) -> OverrideRegistry:
+def get_override_registry(db_writer: Callable | None = None) -> OverrideRegistry:
     global _registry
     if _registry is None:
         _registry = OverrideRegistry(db_writer=db_writer)

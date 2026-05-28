@@ -27,12 +27,12 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
-from regulatory.ingestion.models import PolicyDomain, RegulatoryDocument, DocumentStatus
-from regulatory.diff.drift       import DriftFinding, DriftSeverity
+from regulatory.diff.drift import DriftFinding, DriftSeverity
+from regulatory.ingestion.models import DocumentStatus, PolicyDomain, RegulatoryDocument
 from regulatory.recommendations.models import (
     PolicyRecommendation,
     RecommendationPriority,
@@ -177,9 +177,9 @@ class ComplianceReadinessService:
         self,
         tenant_id:       str,
         documents:       list[RegulatoryDocument],
-        drift_findings:  Optional[list[DriftFinding]]         = None,
-        recommendations: Optional[list[PolicyRecommendation]] = None,
-        as_of:           Optional[datetime]                   = None,
+        drift_findings:  list[DriftFinding] | None         = None,
+        recommendations: list[PolicyRecommendation] | None = None,
+        as_of:           datetime | None                   = None,
         generated_by:    str                                  = "system",
     ) -> ComplianceReadinessSnapshot:
         """
@@ -192,7 +192,7 @@ class ComplianceReadinessService:
         recommendations : pending/approved recommendations (optional)
         as_of           : point-in-time override (defaults to now)
         """
-        now      = as_of or datetime.now(tz=timezone.utc)
+        now      = as_of or datetime.now(tz=UTC)
         signals: list[ReadinessSignal] = []
 
         # ── 1. Domain coverage ──────────────────────────────────────────────────
@@ -372,7 +372,7 @@ class ComplianceReadinessService:
             for s in reversed(history)
         ]
 
-    def get_snapshot(self, snapshot_id: str) -> Optional[ComplianceReadinessSnapshot]:
+    def get_snapshot(self, snapshot_id: str) -> ComplianceReadinessSnapshot | None:
         return self._snapshots.get(snapshot_id)
 
     # ── Private ─────────────────────────────────────────────────────────────────
@@ -413,7 +413,7 @@ class ReadinessAssessmentError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[ComplianceReadinessService] = None
+_service: ComplianceReadinessService | None = None
 
 
 def get_readiness_service() -> ComplianceReadinessService:

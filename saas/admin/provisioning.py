@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.admin.provisioning")
 
@@ -54,9 +55,9 @@ class ProvisioningStep:
     step:       ProvisioningStepName
     status:     ProvisioningStatus
     started_at: datetime
-    ended_at:   Optional[datetime]  = None
+    ended_at:   datetime | None  = None
     output:     dict[str, Any]      = field(default_factory=dict)
-    error:      Optional[str]       = None
+    error:      str | None       = None
 
     @property
     def succeeded(self) -> bool:
@@ -80,9 +81,9 @@ class ProvisioningResult:
     status:      ProvisioningStatus
     started_at:  datetime
     steps:       list[ProvisioningStep] = field(default_factory=list)
-    tenant_id:   Optional[str]          = None
-    org_id:      Optional[str]          = None
-    ended_at:    Optional[datetime]     = None
+    tenant_id:   str | None          = None
+    org_id:      str | None          = None
+    ended_at:    datetime | None     = None
     metadata:    dict[str, Any]         = field(default_factory=dict)
 
     @property
@@ -90,7 +91,7 @@ class ProvisioningResult:
         return [s for s in self.steps if s.succeeded]
 
     @property
-    def failed_step(self) -> Optional[ProvisioningStep]:
+    def failed_step(self) -> ProvisioningStep | None:
         return next((s for s in self.steps if s.status == ProvisioningStatus.FAILED), None)
 
     def to_dict(self) -> dict[str, Any]:
@@ -118,7 +119,7 @@ class ProvisioningRequest:
     org_type:        str               # OrgType value
     rule_pack_ids:   list[str]         = field(default_factory=list)
     trial_days:      int               = 0
-    parent_tenant_id: Optional[str]   = None
+    parent_tenant_id: str | None   = None
     metadata:        dict[str, Any]   = field(default_factory=dict)
 
 
@@ -138,9 +139,9 @@ class TenantProvisioner:
         self,
         tenant_registry:          Any,
         org_registry:             Any,
-        rule_pack_store:          Optional[Any]      = None,
-        notification_dispatcher:  Optional[Any]      = None,
-        db_writer:                Optional[Callable] = None,
+        rule_pack_store:          Any | None      = None,
+        notification_dispatcher:  Any | None      = None,
+        db_writer:                Callable | None = None,
     ) -> None:
         self._tenants    = tenant_registry
         self._orgs       = org_registry
@@ -151,13 +152,12 @@ class TenantProvisioner:
 
     async def provision(self, request: ProvisioningRequest) -> ProvisioningResult:
         """Execute the full provisioning pipeline for a new tenant."""
-        from saas.tenancy.models import TenantContact, TenantTier, OrgType
 
         job = ProvisioningResult(
             job_id      = str(uuid.uuid4()),
             tenant_name = request.tenant_name,
             status      = ProvisioningStatus.IN_PROGRESS,
-            started_at  = datetime.now(tz=timezone.utc),
+            started_at  = datetime.now(tz=UTC),
         )
         self._jobs[job.job_id] = job
         log.info("TenantProvisioner: starting job %s for '%s'", job.job_id[:8], request.tenant_name)
@@ -179,7 +179,7 @@ class TenantProvisioner:
             step = ProvisioningStep(
                 step       = step_name,
                 status     = ProvisioningStatus.IN_PROGRESS,
-                started_at = datetime.now(tz=timezone.utc),
+                started_at = datetime.now(tz=UTC),
             )
             try:
                 output = await handler(ctx)
@@ -189,10 +189,10 @@ class TenantProvisioner:
             except Exception as exc:
                 step.status = ProvisioningStatus.FAILED
                 step.error  = str(exc)
-                step.ended_at = datetime.now(tz=timezone.utc)
+                step.ended_at = datetime.now(tz=UTC)
                 job.steps.append(step)
                 job.status  = ProvisioningStatus.FAILED
-                job.ended_at = datetime.now(tz=timezone.utc)
+                job.ended_at = datetime.now(tz=UTC)
                 log.error(
                     "TenantProvisioner: job %s FAILED at step %s: %s",
                     job.job_id[:8], step_name.value, exc,
@@ -200,7 +200,7 @@ class TenantProvisioner:
                 await self._persist(job)
                 return job
 
-            step.ended_at = datetime.now(tz=timezone.utc)
+            step.ended_at = datetime.now(tz=UTC)
             job.steps.append(step)
             if step_name == ProvisioningStepName.CREATE_TENANT:
                 job.tenant_id = ctx.get("tenant_id")
@@ -208,7 +208,7 @@ class TenantProvisioner:
                 job.org_id = ctx.get("org_id")
 
         job.status   = ProvisioningStatus.COMPLETED
-        job.ended_at = datetime.now(tz=timezone.utc)
+        job.ended_at = datetime.now(tz=UTC)
         log.info(
             "TenantProvisioner: job %s COMPLETED — tenant=%s",
             job.job_id[:8], job.tenant_id[:8] if job.tenant_id else "?",
@@ -284,7 +284,7 @@ class TenantProvisioner:
         return {"rule_packs_assigned": len(req.rule_pack_ids)}
 
     async def _provision_admin(self, ctx: dict) -> dict:
-        req = ctx["request"]
+        ctx["request"]
         admin_user_id = f"usr_{uuid.uuid4().hex[:16]}"
         log.info(
             "TenantProvisioner: provisioned admin user %s for tenant %s",
@@ -311,7 +311,7 @@ class TenantProvisioner:
 
     # ── Query ──────────────────────────────────────────────────────────────────
 
-    def get_job(self, job_id: str) -> Optional[ProvisioningResult]:
+    def get_job(self, job_id: str) -> ProvisioningResult | None:
         return self._jobs.get(job_id)
 
     async def _persist(self, job: ProvisioningResult) -> None:

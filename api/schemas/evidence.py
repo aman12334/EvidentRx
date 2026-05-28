@@ -1,8 +1,7 @@
 """Typed API contracts for evidence and lineage endpoints."""
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Any, Optional
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -15,7 +14,7 @@ class PurchaseEvent(BaseModel):
     quantity:           float
     unit_cost:          float
     purchase_date:      date
-    vendor_name:        Optional[str] = None
+    vendor_name:        str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -26,7 +25,7 @@ class DispenseEvent(BaseModel):
     ndc_11:             str
     quantity:           float
     dispense_date:      date
-    pharmacy_id:        Optional[UUID] = None
+    pharmacy_id:        UUID | None = None
 
     model_config = {"from_attributes": True}
 
@@ -38,7 +37,7 @@ class ClaimEvent(BaseModel):
     claim_date:         date
     billed_amount:      float
     paid_amount:        float
-    payer_type:         Optional[str] = None
+    payer_type:         str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -48,13 +47,13 @@ class EvidenceChain(BaseModel):
     finding_id:         UUID
     rule_code:          str
     severity:           str
-    purchase:           Optional[PurchaseEvent] = None
-    dispense:           Optional[DispenseEvent] = None
-    claim:              Optional[ClaimEvent] = None
-    split_billing_id:   Optional[UUID] = None
-    pharmacy_name:      Optional[str] = None
-    pharmacy_id:        Optional[str] = None
-    ndc_11:             Optional[str] = None
+    purchase:           PurchaseEvent | None = None
+    dispense:           DispenseEvent | None = None
+    claim:              ClaimEvent | None = None
+    split_billing_id:   UUID | None = None
+    pharmacy_name:      str | None = None
+    pharmacy_id:        str | None = None
+    ndc_11:             str | None = None
     notes:              str = ""
 
 

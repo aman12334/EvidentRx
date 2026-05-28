@@ -22,7 +22,6 @@ from api.routers.upload import (
     _read_csv_rows,
 )
 
-
 # ── _parse_date ───────────────────────────────────────────────────────────────
 
 class TestParseDate:

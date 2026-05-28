@@ -26,9 +26,9 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class RecommendationType(str, Enum):
@@ -66,7 +66,7 @@ class RecommendationLineageEntry:
     event:       str        # "created"|"submitted"|"approved"|"rejected"|"superseded"|"rolled_back"
     actor_id:    str
     notes:       str        = ""
-    occurred_at: datetime   = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    occurred_at: datetime   = field(default_factory=lambda: datetime.now(tz=UTC))
     content_hash: str       = ""   # SHA-256 of (rec_id + event + actor_id + occurred_at)
 
     def __post_init__(self) -> None:
@@ -108,15 +108,15 @@ class PolicyRecommendation:
     priority:         RecommendationPriority
     content_hash:     str
     version:          int                  = 1
-    prior_rec_id:     Optional[str]        = None   # if this supersedes another
+    prior_rec_id:     str | None        = None   # if this supersedes another
     created_by:       str                  = "system"
-    created_at:       datetime             = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    submitted_at:     Optional[datetime]   = None
-    decided_at:       Optional[datetime]   = None
-    decided_by:       Optional[str]        = None
+    created_at:       datetime             = field(default_factory=lambda: datetime.now(tz=UTC))
+    submitted_at:     datetime | None   = None
+    decided_at:       datetime | None   = None
+    decided_by:       str | None        = None
     decision_notes:   str                  = ""
-    implemented_at:   Optional[datetime]   = None
-    action_by_date:   Optional[str]        = None   # ISO-8601 date deadline
+    implemented_at:   datetime | None   = None
+    action_by_date:   str | None        = None   # ISO-8601 date deadline
     lineage:          list[RecommendationLineageEntry] = field(default_factory=list)
     metadata:         dict[str, Any]       = field(default_factory=dict)
 

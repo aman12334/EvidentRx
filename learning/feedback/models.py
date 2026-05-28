@@ -22,12 +22,11 @@ Feedback taxonomy
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
 import uuid
-
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 # ── Feedback types ─────────────────────────────────────────────────────────────
 
@@ -97,10 +96,10 @@ class FeedbackRecord:
     artifact_type:   str                         = ""              # "finding" | "case" | "agent_run" | "recommendation"
     artifact_id:     str                         = ""              # FK to the artifact being rated
     status:          FeedbackStatus              = FeedbackStatus.PENDING
-    created_at:      datetime                    = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    notes:           Optional[str]               = None
+    created_at:      datetime                    = field(default_factory=lambda: datetime.now(tz=UTC))
+    notes:           str | None               = None
     metadata:        dict[str, Any]              = field(default_factory=dict)
-    supersedes_id:   Optional[str]               = None            # if this replaces prior feedback
+    supersedes_id:   str | None               = None            # if this replaces prior feedback
     lineage_hash:    str                         = ""              # computed on creation
 
     def to_dict(self) -> dict[str, Any]:
@@ -137,7 +136,7 @@ class FalsePositiveReport(FeedbackRecord):
     finding_id:         str                  = ""
     rule_code:          str                  = ""
     analyst_reasoning:  str                  = ""
-    suggested_severity: Optional[SeverityAssessment] = None
+    suggested_severity: SeverityAssessment | None = None
 
     def __post_init__(self) -> None:
         self.feedback_type = FeedbackType.FALSE_POSITIVE
@@ -156,7 +155,7 @@ class FalseNegativeEscalation(FeedbackRecord):
     rule_code:           str                  = ""
     analyst_reasoning:   str                  = ""
     estimated_severity:  SeverityAssessment   = SeverityAssessment.MEDIUM
-    estimated_exposure:  Optional[float]      = None     # financial exposure estimate
+    estimated_exposure:  float | None      = None     # financial exposure estimate
 
     def __post_init__(self) -> None:
         self.feedback_type = FeedbackType.FALSE_NEGATIVE
@@ -174,10 +173,10 @@ class OutcomeLabel(FeedbackRecord):
     """
     case_id:             str                      = ""
     outcome:             InvestigationOutcome     = InvestigationOutcome.INCONCLUSIVE
-    actual_severity:     Optional[SeverityAssessment] = None
-    actual_exposure:     Optional[float]          = None
-    time_to_resolution_days: Optional[int]        = None
-    investigation_quality: Optional[int]          = None  # 1-5 rating of investigation quality
+    actual_severity:     SeverityAssessment | None = None
+    actual_exposure:     float | None          = None
+    time_to_resolution_days: int | None        = None
+    investigation_quality: int | None          = None  # 1-5 rating of investigation quality
 
     def __post_init__(self) -> None:
         self.feedback_type = FeedbackType.OUTCOME_LABEL
@@ -197,8 +196,8 @@ class RemediationOutcomeReport(FeedbackRecord):
     recommendation_id:    str                       = ""
     effectiveness:        RemediationEffectiveness  = RemediationEffectiveness.UNKNOWN
     recurrence_observed:  bool                      = False
-    recurrence_window_days: Optional[int]           = None
-    analyst_rating:       Optional[int]             = None    # 1-5
+    recurrence_window_days: int | None           = None
+    analyst_rating:       int | None             = None    # 1-5
 
     def __post_init__(self) -> None:
         self.feedback_type = FeedbackType.REMEDIATION_OUTCOME
@@ -236,7 +235,7 @@ class RecommendationRating(FeedbackRecord):
     recommendation_id:   str   = ""
     usefulness_score:    int   = 3       # 1=not useful, 5=highly useful
     was_followed:        bool  = False
-    outcome_if_followed: Optional[str] = None
+    outcome_if_followed: str | None = None
 
     def __post_init__(self) -> None:
         self.feedback_type = FeedbackType.RECOMMENDATION_RATING

@@ -6,7 +6,6 @@ Designed to be opened directly in a browser or attached to email.
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from pathlib import Path
 
@@ -141,7 +140,7 @@ class HTMLReporter:
 
     def _metrics_section(self, data: ReportData) -> str:
         snap = data.risk_snapshot or {}
-        by_sev = snap.get("by_severity", {})
+        snap.get("by_severity", {})
         exposure = data.financial_exposure
 
         metrics = [
@@ -168,7 +167,7 @@ class HTMLReporter:
         text = data.narrative.get("executive_summary", "")
         if not text:
             snap = data.risk_snapshot or {}
-            by_sev = snap.get("by_severity", {})
+            snap.get("by_severity", {})
             text = (
                 f"This investigation case covers {data.total_findings} confirmed 340B compliance "
                 f"findings for {data.ce_name}. The finding set includes {data.critical_count} "

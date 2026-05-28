@@ -14,9 +14,9 @@ Invariant: once written, no audit record can be silently modified.
 Any modification attempt is itself audited.
 """
 
-from governance.audit_log     import audit_log, AuditLog
 from governance.action_logger import log_analyst_action
-from governance.phi_handler   import PHIHandler, phi_handler
+from governance.audit_log import AuditLog, audit_log
+from governance.phi_handler import PHIHandler, phi_handler
 
 __all__ = [
     "audit_log",

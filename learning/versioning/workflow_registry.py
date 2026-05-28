@@ -26,10 +26,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.versioning.workflow_registry")
 
@@ -60,9 +61,9 @@ class WorkflowStep:
     step_id:      str
     name:         str
     step_type:    str           # "agent" | "human_review" | "decision" | "parallel" | "end"
-    prompt_slot:  Optional[str] = None    # PromptSlot name used by agent steps
+    prompt_slot:  str | None = None    # PromptSlot name used by agent steps
     conditions:   dict[str, Any] = field(default_factory=dict)  # routing conditions
-    timeout_seconds: Optional[int] = None
+    timeout_seconds: int | None = None
     required:     bool           = True
 
 
@@ -87,9 +88,9 @@ class WorkflowVersion:
     created_at:        datetime
     created_by:        str
     change_summary:    str              = ""
-    approved_by:       Optional[str]    = None
-    approved_at:       Optional[datetime] = None
-    parent_version_id: Optional[str]   = None
+    approved_by:       str | None    = None
+    approved_at:       datetime | None = None
+    parent_version_id: str | None   = None
     min_agent_version: str              = "1.0.0"  # minimum compatible agent SDK version
     metadata:          dict[str, Any]  = field(default_factory=dict)
 
@@ -131,7 +132,7 @@ class WorkflowRegistry:
     definition per workflow slot. All promotions require explicit approval.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._workflows: dict[str, WorkflowVersion] = {}
         # (tenant_id, workflow_name) → workflow_id of ACTIVE version
         self._active:   dict[tuple[str, str], str] = {}
@@ -150,9 +151,9 @@ class WorkflowRegistry:
         output_contract:  dict[str, Any],
         created_by:       str,
         change_summary:   str             = "",
-        parent_version_id: Optional[str] = None,
+        parent_version_id: str | None = None,
         min_agent_version: str            = "1.0.0",
-        metadata:         Optional[dict] = None,
+        metadata:         dict | None = None,
     ) -> WorkflowVersion:
         """Register a new workflow version in DRAFT status."""
         content_hash = _hash_workflow(steps, output_contract)
@@ -168,7 +169,7 @@ class WorkflowRegistry:
             output_contract   = output_contract,
             status            = WorkflowStatus.DRAFT,
             content_hash      = content_hash,
-            created_at        = datetime.now(tz=timezone.utc),
+            created_at        = datetime.now(tz=UTC),
             created_by        = created_by,
             change_summary    = change_summary,
             parent_version_id = parent_version_id,
@@ -207,7 +208,7 @@ class WorkflowRegistry:
         wv = self._require(workflow_id, WorkflowStatus.REVIEW)
         wv.status      = WorkflowStatus.ACTIVE
         wv.approved_by = approved_by
-        wv.approved_at = datetime.now(tz=timezone.utc)
+        wv.approved_at = datetime.now(tz=UTC)
 
         key = (wv.tenant_id, wv.workflow_name)
         current_id = self._active.get(key)
@@ -235,7 +236,7 @@ class WorkflowRegistry:
         wv.status = WorkflowStatus.REJECTED
         wv.metadata["rejection_reason"] = reason
         wv.metadata["rejected_by"]      = rejected_by
-        wv.metadata["rejected_at"]      = datetime.now(tz=timezone.utc).isoformat()
+        wv.metadata["rejected_at"]      = datetime.now(tz=UTC).isoformat()
         await self._persist("update", wv)
         return wv
 
@@ -269,7 +270,7 @@ class WorkflowRegistry:
         target.approved_by   = None
         target.approved_at   = None
         target.metadata["rolled_back_by"] = rolled_by
-        target.metadata["rolled_back_at"] = datetime.now(tz=timezone.utc).isoformat()
+        target.metadata["rolled_back_at"] = datetime.now(tz=UTC).isoformat()
 
         log.info(
             "WorkflowRegistry: rollback %s to v%s by %s",
@@ -283,7 +284,7 @@ class WorkflowRegistry:
         self,
         tenant_id: str,
         workflow_name: str,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Return the full active workflow snapshot for reproducibility.
 
@@ -299,7 +300,7 @@ class WorkflowRegistry:
             "workflow_name": wv.workflow_name,
             "version":       wv.version,
             "content_hash":  wv.content_hash,
-            "snapshotted_at": datetime.now(tz=timezone.utc).isoformat(),
+            "snapshotted_at": datetime.now(tz=UTC).isoformat(),
         }
 
     # ── Queries ────────────────────────────────────────────────────────────────
@@ -308,19 +309,19 @@ class WorkflowRegistry:
         self,
         tenant_id:     str,
         workflow_name: str,
-    ) -> Optional[WorkflowVersion]:
+    ) -> WorkflowVersion | None:
         key = (tenant_id, workflow_name)
         wid = self._active.get(key)
         return self._workflows.get(wid) if wid else None
 
-    def get(self, workflow_id: str) -> Optional[WorkflowVersion]:
+    def get(self, workflow_id: str) -> WorkflowVersion | None:
         return self._workflows.get(workflow_id)
 
     def list_versions(
         self,
         tenant_id:     str,
-        workflow_name: Optional[str]       = None,
-        status:        Optional[WorkflowStatus] = None,
+        workflow_name: str | None       = None,
+        status:        WorkflowStatus | None = None,
     ) -> list[WorkflowVersion]:
         result = [
             wv for wv in self._workflows.values()
@@ -398,10 +399,10 @@ class WorkflowRegistryError(Exception):
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_registry: Optional[WorkflowRegistry] = None
+_registry: WorkflowRegistry | None = None
 
 
-def get_workflow_registry(db_writer: Optional[Callable] = None) -> WorkflowRegistry:
+def get_workflow_registry(db_writer: Callable | None = None) -> WorkflowRegistry:
     global _registry
     if _registry is None:
         _registry = WorkflowRegistry(db_writer=db_writer)

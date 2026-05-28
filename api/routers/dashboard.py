@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -37,8 +36,8 @@ class DashboardSummary(BaseModel):
     total_findings:      int
     critical_findings:   int
     high_findings:       int
-    total_exposure:      Optional[float]
-    avg_risk_score:      Optional[float]
+    total_exposure:      float | None
+    avg_risk_score:      float | None
     covered_entities:    int
     uploads_this_week:   int
     findings_this_week:  int
@@ -49,7 +48,7 @@ class RuleBreakdownItem(BaseModel):
     rule_name:   str
     severity:    str
     count:       int
-    exposure:    Optional[float]
+    exposure:    float | None
 
 
 class RiskMatrixCell(BaseModel):

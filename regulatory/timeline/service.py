@@ -29,9 +29,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.regulatory.timeline.service")
 
@@ -87,7 +87,7 @@ class TimelineEvent:
     external_type: str         # "document" | "diff" | "drift" | "recommendation" | ...
     severity:     TimelineEventSeverity  = TimelineEventSeverity.INFORMATIONAL
     actor_id:     str                    = "system"
-    domain:       Optional[str]          = None    # PolicyDomain.value if applicable
+    domain:       str | None          = None    # PolicyDomain.value if applicable
     tags:         list[str]              = field(default_factory=list)
     metadata:     dict[str, Any]         = field(default_factory=dict)
 
@@ -112,13 +112,13 @@ class TimelineEvent:
 class TimelineQuery:
     """Parameters for a timeline query."""
     tenant_id:    str
-    since:        Optional[datetime]                = None
-    until:        Optional[datetime]                = None
-    event_types:  Optional[list[TimelineEventType]] = None
-    severity_min: Optional[TimelineEventSeverity]   = None
-    external_id:  Optional[str]                     = None
-    domain:       Optional[str]                     = None
-    actor_id:     Optional[str]                     = None
+    since:        datetime | None                = None
+    until:        datetime | None                = None
+    event_types:  list[TimelineEventType] | None = None
+    severity_min: TimelineEventSeverity | None   = None
+    external_id:  str | None                     = None
+    domain:       str | None                     = None
+    actor_id:     str | None                     = None
     limit:        int                               = 100
 
     def matches(self, event: TimelineEvent) -> bool:
@@ -176,17 +176,17 @@ class RegulatoryTimelineService:
         external_type: str,
         severity:      TimelineEventSeverity = TimelineEventSeverity.INFORMATIONAL,
         actor_id:      str                   = "system",
-        domain:        Optional[str]         = None,
-        tags:          Optional[list[str]]   = None,
-        metadata:      Optional[dict]        = None,
-        occurred_at:   Optional[datetime]    = None,
+        domain:        str | None         = None,
+        tags:          list[str] | None   = None,
+        metadata:      dict | None        = None,
+        occurred_at:   datetime | None    = None,
     ) -> TimelineEvent:
         """Append a new immutable event to the timeline."""
         event = TimelineEvent(
             event_id      = str(uuid.uuid4()),
             tenant_id     = tenant_id,
             event_type    = event_type,
-            occurred_at   = occurred_at or datetime.now(tz=timezone.utc),
+            occurred_at   = occurred_at or datetime.now(tz=UTC),
             title         = title,
             description   = description,
             external_id   = external_id,
@@ -362,8 +362,8 @@ class RegulatoryTimelineService:
     def tenant_timeline(
         self,
         tenant_id: str,
-        since:     Optional[datetime] = None,
-        until:     Optional[datetime] = None,
+        since:     datetime | None = None,
+        until:     datetime | None = None,
         limit:     int = 100,
     ) -> list[TimelineEvent]:
         """Full regulatory timeline for a tenant between two timestamps."""
@@ -377,7 +377,7 @@ class RegulatoryTimelineService:
     def critical_events(
         self,
         tenant_id: str,
-        since:     Optional[datetime] = None,
+        since:     datetime | None = None,
     ) -> list[TimelineEvent]:
         """Return CRITICAL and HIGH severity events for rapid triage."""
         return self.query(TimelineQuery(
@@ -393,7 +393,7 @@ class RegulatoryTimelineService:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[RegulatoryTimelineService] = None
+_service: RegulatoryTimelineService | None = None
 
 
 def get_timeline_service() -> RegulatoryTimelineService:

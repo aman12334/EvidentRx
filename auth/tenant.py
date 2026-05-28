@@ -17,10 +17,9 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Optional
 
 from auth.models import AuthUser
-from auth.rbac   import Role
+from auth.rbac import Role
 
 _UUID4_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
@@ -45,7 +44,7 @@ def validate_tenant_id(tenant_id: str) -> str:
 
 def assert_tenant_scope(
     user:       AuthUser,
-    resource_tenant_id: Optional[str],
+    resource_tenant_id: str | None,
 ) -> None:
     """
     Assert that the authenticated user belongs to the same tenant as the

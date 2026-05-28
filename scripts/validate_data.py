@@ -29,10 +29,12 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
+
 load_dotenv(ROOT / ".env")
 
-from app.database import SessionLocal  # noqa: E402
 from sqlalchemy import text
+
+from app.database import SessionLocal  # noqa: E402
 
 
 def _banner(title: str) -> None:
@@ -189,7 +191,7 @@ def main() -> None:
     if args.report:
         report_path = ROOT / "validation_report.txt"
         with open(report_path, "w") as f:
-            f.write(f"EvidentRx Data Validation Report\n")
+            f.write("EvidentRx Data Validation Report\n")
             f.write(f"Generated: {date.today()}\n\n")
             if not issues:
                 f.write("All checks passed.\n")

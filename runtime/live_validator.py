@@ -28,7 +28,6 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import text
@@ -45,8 +44,8 @@ _SUPPORTED_AGENTS = ("evidence_analysis", "risk_prioritization", "narrative_gene
 class LiveValidationReport:
     agent_type:     str
     case_id:        str
-    model_id:       Optional[str]
-    provider:       Optional[str]
+    model_id:       str | None
+    provider:       str | None
     input_tokens:   int   = 0
     output_tokens:  int   = 0
     cache_tokens:   int   = 0
@@ -54,8 +53,8 @@ class LiveValidationReport:
     schema_issues:  list[ValidationIssue] = field(default_factory=list)
     hallucination_issues: list[str] = field(default_factory=list)
     output_keys:    list[str] = field(default_factory=list)
-    confidence:     Optional[float] = None
-    error:          Optional[str] = None
+    confidence:     float | None = None
+    error:          str | None = None
 
     @property
     def passed(self) -> bool:
@@ -86,14 +85,14 @@ class LiveValidationReport:
             for issue in self.schema_issues:
                 print(f"    ✗ {issue.field}: {issue.issue}")
         else:
-            print(f"\n  Schema validation : OK")
+            print("\n  Schema validation : OK")
 
         if self.hallucination_issues:
             print(f"\n  Hallucination issues ({len(self.hallucination_issues)}):")
             for h in self.hallucination_issues:
                 print(f"    ⚠ {h}")
         else:
-            print(f"  Hallucination check: OK")
+            print("  Hallucination check: OK")
 
         if self.error:
             print(f"\n  ERROR: {self.error}")
@@ -132,7 +131,7 @@ class LiveExecutionValidator:
         self._hallucination_detector = HallucinationDetector()
 
     @classmethod
-    def from_env(cls) -> "LiveExecutionValidator":
+    def from_env(cls) -> LiveExecutionValidator:
         from agents.runner import InvestigationRunner
         return cls(runner=InvestigationRunner.from_env())
 
@@ -165,7 +164,7 @@ class LiveExecutionValidator:
 
             # Run the full workflow but only validate the target agent's output
             t0 = time.monotonic()
-            run_result = self._runner.run(session, case_id)
+            self._runner.run(session, case_id)
             elapsed_ms = (time.monotonic() - t0) * 1000
             session.commit()
 
@@ -244,7 +243,7 @@ class LiveExecutionValidator:
         """), {"cid": case_id}).fetchall()
         return [r[0] for r in rows if r[0]]
 
-    def _load_agent_run_meta(self, session: Session, case_id: str, agent_type: str) -> Optional[dict]:
+    def _load_agent_run_meta(self, session: Session, case_id: str, agent_type: str) -> dict | None:
         row = session.execute(text("""
             SELECT model_id, input_tokens, output_tokens, cache_read_tokens, latency_ms
             FROM audit.agent_runs
@@ -259,7 +258,7 @@ class LiveExecutionValidator:
         session: Session,
         case_id: str,
         agent_type: str,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         import json
         row = session.execute(text("""
             SELECT output_payload
@@ -279,7 +278,7 @@ class LiveExecutionValidator:
         return payload if isinstance(payload, dict) else None
 
     @staticmethod
-    def _infer_provider(model_id: Optional[str]) -> Optional[str]:
+    def _infer_provider(model_id: str | None) -> str | None:
         if not model_id:
             return None
         m = model_id.lower()

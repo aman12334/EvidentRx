@@ -19,8 +19,7 @@ Error handling:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
@@ -53,7 +52,7 @@ class InvestigationRunner:
         }
 
     @classmethod
-    def from_env(cls) -> "InvestigationRunner":
+    def from_env(cls) -> InvestigationRunner:
         """Builds a runner from environment variable API keys."""
         router = build_router_from_env()
         return cls(router=router)
@@ -62,7 +61,7 @@ class InvestigationRunner:
         self,
         session: Session,
         case_id: UUID,
-        thread_id: Optional[str] = None,
+        thread_id: str | None = None,
     ) -> dict:
         """
         Runs the full investigation workflow for a case.
@@ -79,7 +78,7 @@ class InvestigationRunner:
             run_id=run_id,
             session_id=session_id,
         )
-        state["started_at"] = datetime.now(timezone.utc).isoformat()
+        state["started_at"] = datetime.now(UTC).isoformat()
 
         config = {
             "configurable": {

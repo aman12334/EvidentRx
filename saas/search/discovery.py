@@ -14,15 +14,13 @@ WorkflowDiscovery  — find published workflow templates and installed
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing      import Any, Optional
+from dataclasses import dataclass
+from typing import Any
 
 from saas.search.index import (
     DocumentType,
     SearchDocument,
     SearchResult,
-    TenantAwareIndex,
-    get_search_index,
 )
 from saas.search.query import (
     SearchFilter,
@@ -41,11 +39,11 @@ class EntityMatch:
     """A covered entity returned by EntityDiscovery."""
     entity_id:    str
     tenant_id:    str
-    org_id:       Optional[str]
+    org_id:       str | None
     name:         str
-    npi:          Optional[str]
-    taxonomy:     Optional[str]
-    entity_340b_id: Optional[str]
+    npi:          str | None
+    taxonomy:     str | None
+    entity_340b_id: str | None
     score:        float
     tags:         list[str]
 
@@ -76,7 +74,7 @@ class EntityDiscovery:
 
     def __init__(
         self,
-        executor: Optional[SearchQueryExecutor] = None,
+        executor: SearchQueryExecutor | None = None,
     ) -> None:
         self._executor = executor or get_query_executor()
 
@@ -84,10 +82,10 @@ class EntityDiscovery:
         self,
         tenant_id:   str,
         query:       str,
-        org_id:      Optional[str] = None,
-        tags:        Optional[list[str]] = None,
+        org_id:      str | None = None,
+        tags:        list[str] | None = None,
         user_role:   str           = "analyst",
-        user_org_id: Optional[str] = None,
+        user_org_id: str | None = None,
         limit:       int           = 20,
     ) -> list[EntityMatch]:
         sq = SearchQuery(
@@ -108,7 +106,7 @@ class EntityDiscovery:
         tenant_id: str,
         npi:       str,
         user_role: str           = "analyst",
-        user_org_id: Optional[str] = None,
+        user_org_id: str | None = None,
     ) -> list[EntityMatch]:
         return self.find(
             tenant_id   = tenant_id,
@@ -124,7 +122,7 @@ class EntityDiscovery:
         tenant_id:    str,
         entity_340b_id: str,
         user_role:    str           = "analyst",
-        user_org_id:  Optional[str] = None,
+        user_org_id:  str | None = None,
     ) -> list[EntityMatch]:
         return self.find(
             tenant_id   = tenant_id,
@@ -140,11 +138,11 @@ class EntityDiscovery:
         entity_id:      str,
         tenant_id:      str,
         name:           str,
-        org_id:         Optional[str] = None,
-        npi:            Optional[str] = None,
-        taxonomy:       Optional[str] = None,
-        entity_340b_id: Optional[str] = None,
-        tags:           Optional[list[str]] = None,
+        org_id:         str | None = None,
+        npi:            str | None = None,
+        taxonomy:       str | None = None,
+        entity_340b_id: str | None = None,
+        tags:           list[str] | None = None,
     ) -> SearchDocument:
         """Build a SearchDocument ready for indexing."""
         all_tags = list(tags or [])
@@ -198,9 +196,9 @@ class WorkflowMatch:
     description:   str
     tags:          list[str]
     score:         float
-    template_type: Optional[str]
-    version:       Optional[str]
-    status:        Optional[str]
+    template_type: str | None
+    version:       str | None
+    status:        str | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -231,7 +229,7 @@ class WorkflowDiscovery:
 
     def __init__(
         self,
-        executor: Optional[SearchQueryExecutor] = None,
+        executor: SearchQueryExecutor | None = None,
     ) -> None:
         self._executor = executor or get_query_executor()
 
@@ -239,10 +237,10 @@ class WorkflowDiscovery:
         self,
         tenant_id:     str,
         query:         str,
-        template_type: Optional[str]      = None,
-        tags:          Optional[list[str]] = None,
+        template_type: str | None      = None,
+        tags:          list[str] | None = None,
         user_role:     str                 = "analyst",
-        user_org_id:   Optional[str]       = None,
+        user_org_id:   str | None       = None,
         limit:         int                 = 20,
     ) -> list[WorkflowMatch]:
         filter_tags = list(tags or [])
@@ -265,9 +263,9 @@ class WorkflowDiscovery:
         self,
         tenant_id:   str,
         query:       str,
-        org_id:      Optional[str] = None,
+        org_id:      str | None = None,
         user_role:   str           = "analyst",
-        user_org_id: Optional[str] = None,
+        user_org_id: str | None = None,
         limit:       int           = 20,
     ) -> list[WorkflowMatch]:
         sq = SearchQuery(
@@ -291,7 +289,7 @@ class WorkflowDiscovery:
         template_type:  str,
         version:        str,
         status:         str,
-        tags:           Optional[list[str]] = None,
+        tags:           list[str] | None = None,
     ) -> SearchDocument:
         all_tags = list(tags or [])
         all_tags.append(f"type:{template_type}")
@@ -317,8 +315,8 @@ class WorkflowDiscovery:
         name:             str,
         template_id:      str,
         template_version: str,
-        org_id:           Optional[str] = None,
-        tags:             Optional[list[str]] = None,
+        org_id:           str | None = None,
+        tags:             list[str] | None = None,
     ) -> SearchDocument:
         return SearchDocument(
             doc_id    = entry_id,

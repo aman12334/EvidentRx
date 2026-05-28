@@ -16,7 +16,6 @@ This agent does NOT write violations or override the rules engine.
 from __future__ import annotations
 
 import json
-from typing import ClassVar, Optional
 
 from agents.agents.base import BaseAgent
 from agents.llm.base import LLMResponse, Message
@@ -121,7 +120,7 @@ class DeepAnalysisAgent(BaseAgent):
             Message(role="user",   content=user_content),
         ]
 
-    def _parse_response(self, response: LLMResponse) -> tuple[dict, Optional[float]]:
+    def _parse_response(self, response: LLMResponse) -> tuple[dict, float | None]:
         structured = response.structured or {}
         confidence = float(structured.get("confidence_score", 0.75))
         return structured, confidence

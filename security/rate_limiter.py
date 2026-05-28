@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import defaultdict, deque
-from typing      import Deque, Dict, Optional, Tuple
+from typing import Deque, Dict, Tuple
 
 from config.settings import settings
 
@@ -81,7 +81,7 @@ class RateLimiter:
     async def check(
         self,
         key:        str,
-        limit:      Optional[int] = None,
+        limit:      int | None = None,
         window_sec: float = 60.0,
     ) -> Tuple[bool, int, float]:
         """

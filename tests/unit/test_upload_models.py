@@ -3,8 +3,6 @@ Unit tests for upload Pydantic response models.
 """
 from __future__ import annotations
 
-import pytest
-
 from api.routers.upload import (
     BatchHistoryItem,
     ColumnMapping,

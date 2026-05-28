@@ -19,9 +19,9 @@ from __future__ import annotations
 import hashlib
 import logging
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.scaling.partitioning")
 
@@ -40,7 +40,7 @@ class PartitionAssignment:
     partition_id:   str       # e.g. "partition_04"
     strategy:       PartitionStrategy
     queue_name:     str       # physical queue identifier
-    assigned_at:    datetime  = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    assigned_at:    datetime  = field(default_factory=lambda: datetime.now(tz=UTC))
     dedicated:      bool      = False
 
     def to_dict(self) -> dict[str, Any]:
@@ -108,7 +108,7 @@ class TenantQueuePartitioner:
         )
         return assignment
 
-    def get_queue(self, tenant_id: str) -> Optional[str]:
+    def get_queue(self, tenant_id: str) -> str | None:
         a = self._assignments.get(tenant_id)
         return a.queue_name if a else None
 
@@ -172,7 +172,7 @@ class TenantQueuePartitioner:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_partitioner: Optional[TenantQueuePartitioner] = None
+_partitioner: TenantQueuePartitioner | None = None
 
 
 def get_partitioner(

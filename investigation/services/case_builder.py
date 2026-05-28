@@ -19,9 +19,8 @@ are excluded from the fetch query, so re-runs are safe.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -29,9 +28,12 @@ from sqlalchemy.orm import Session
 
 from ingestion.base import bulk_insert
 from investigation.domain.clustering import (
-    Cluster, ClusterConfig, FindingRow, build_clusters, CATEGORY_LABELS,
+    Cluster,
+    ClusterConfig,
+    FindingRow,
+    build_clusters,
 )
-from investigation.domain.states import CasePriority, CaseStatus, derive_priority
+from investigation.domain.states import CaseStatus, derive_priority
 from investigation.services.evidence import EvidenceAggregationService
 from investigation.services.timeline import TimelineService
 
@@ -75,8 +77,8 @@ class CaseBuilderService:
     def run(
         self,
         session: Session,
-        batch_id: Optional[str] = None,
-        config: Optional[ClusterConfig] = None,
+        batch_id: str | None = None,
+        config: ClusterConfig | None = None,
     ) -> dict:
         """
         Full clustering pass. Returns summary stats.
@@ -138,7 +140,7 @@ class CaseBuilderService:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _fetch_findings(self, session: Session, batch_id: Optional[str]) -> list[FindingRow]:
+    def _fetch_findings(self, session: Session, batch_id: str | None) -> list[FindingRow]:
         rows = session.execute(
             _UNCLUSTERED_FINDINGS_SQL, {"batch_id": batch_id}
         ).fetchall()
@@ -173,7 +175,7 @@ class CaseBuilderService:
         year = cluster.window_start.year
         case_number = self._next_case_number(year)
         priority = derive_priority(cluster.severities)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         session.execute(text("""
             INSERT INTO audit.investigation_cases (

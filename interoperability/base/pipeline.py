@@ -22,12 +22,15 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Callable, Coroutine, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from interoperability.base.connector import (
-    BaseConnector, ConnectorState, IngestRecord, SyncCursor,
+    BaseConnector,
+    IngestRecord,
+    SyncCursor,
 )
 
 log = logging.getLogger("evidentrx.interop.pipeline")
@@ -93,8 +96,8 @@ class IngestionPipeline:
         self,
         connector:      BaseConnector,
         record_writer:  RecordWriter,
-        lineage_writer: Optional[LineageWriter]  = None,
-        validator:      Optional[Callable]        = None,
+        lineage_writer: LineageWriter | None  = None,
+        validator:      Callable | None        = None,
         max_errors:     int                       = 100,
     ) -> None:
         self._connector      = connector
@@ -119,7 +122,7 @@ class IngestionPipeline:
           5. Write data records (upsert)
           6. Save cursor checkpoint
         """
-        started_at = datetime.now(tz=timezone.utc)
+        started_at = datetime.now(tz=UTC)
         result = PipelineResult(
             connector_id  = self._connector.connector_id,
             resource_type = resource_type,
@@ -128,7 +131,7 @@ class IngestionPipeline:
             status        = "running",
         )
 
-        cursor: Optional[SyncCursor] = None
+        cursor: SyncCursor | None = None
         if not force_full:
             cursor = await self._connector.get_cursor(resource_type)
 
@@ -205,7 +208,7 @@ class IngestionPipeline:
                     connector_id  = self._connector.connector_id,
                     tenant_id     = self._connector.tenant_id,
                     resource_type = resource_type,
-                    last_synced   = datetime.now(tz=timezone.utc),
+                    last_synced   = datetime.now(tz=UTC),
                     records_total = result.total_fetched,
                 ))
 
@@ -229,7 +232,7 @@ class IngestionPipeline:
                           self._connector.connector_id, resource_type, e)
             result.status = "failed"
 
-        result.completed_at = datetime.now(tz=timezone.utc)
+        result.completed_at = datetime.now(tz=UTC)
 
         log.info(
             "Pipeline %s: connector=%s resource=%s fetched=%d written=%d "

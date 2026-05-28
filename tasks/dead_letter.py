@@ -19,12 +19,11 @@ Storage:
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from collections import deque
-from datetime    import datetime, timezone
-from typing      import Any, Deque, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, Deque, Dict, List
 
 log = logging.getLogger("evidentrx.dlq")
 
@@ -45,19 +44,19 @@ class DLQItem:
         task_kwargs:   dict,
         error:         str,
         attempt_count: int,
-        tenant_id:     Optional[str] = None,
+        tenant_id:     str | None = None,
     ) -> None:
         self.dlq_id        = str(uuid.uuid4())
         self.task_name     = task_name
         self.task_args     = task_args
         self.task_kwargs   = task_kwargs
         self.error         = error
-        self.failed_at     = datetime.now(tz=timezone.utc)
+        self.failed_at     = datetime.now(tz=UTC)
         self.attempt_count = attempt_count
         self.tenant_id     = tenant_id
         self.resolved      = False
-        self.resolved_at:  Optional[datetime] = None
-        self.resolved_by:  Optional[str]      = None
+        self.resolved_at:  datetime | None = None
+        self.resolved_by:  str | None      = None
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -92,7 +91,7 @@ class DeadLetterQueue:
         task_kwargs:   dict,
         error:         str,
         attempt_count: int,
-        tenant_id:     Optional[str] = None,
+        tenant_id:     str | None = None,
     ) -> DLQItem:
         item = DLQItem(
             task_name=task_name,
@@ -110,7 +109,7 @@ class DeadLetterQueue:
         return item
 
     def list_pending(
-        self, tenant_id: Optional[str] = None
+        self, tenant_id: str | None = None
     ) -> List[Dict[str, Any]]:
         items = [i for i in self._queue if not i.resolved]
         if tenant_id:
@@ -122,7 +121,7 @@ class DeadLetterQueue:
         for item in self._queue:
             if item.dlq_id == dlq_id and not item.resolved:
                 item.resolved    = True
-                item.resolved_at = datetime.now(tz=timezone.utc)
+                item.resolved_at = datetime.now(tz=UTC)
                 item.resolved_by = actor_id
                 self._resolved.append(item)
                 log.info("DLQ item %s resolved by %s", dlq_id, actor_id)

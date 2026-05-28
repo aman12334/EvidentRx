@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.recommendations.tracker")
 
@@ -90,7 +91,7 @@ class RecommendationRecord:
         )
 
     @property
-    def outcome(self) -> Optional[RecommendationStatus]:
+    def outcome(self) -> RecommendationStatus | None:
         for e in reversed(self.events):
             if e.event_type in (
                 RecommendationStatus.EFFECTIVE,
@@ -100,7 +101,7 @@ class RecommendationRecord:
         return None
 
     @property
-    def time_to_decision_hours(self) -> Optional[float]:
+    def time_to_decision_hours(self) -> float | None:
         """Hours between generation and analyst decision (followed/dismissed)."""
         for e in self.events:
             if e.event_type in (RecommendationStatus.FOLLOWED, RecommendationStatus.DISMISSED):
@@ -117,7 +118,7 @@ class RecommendationTracker:
     effectiveness scorer and analytics layer.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._records:  dict[str, RecommendationRecord] = {}
         self._by_case:  dict[str, list[str]] = {}         # case_id → [rec_ids]
         self._by_tenant:dict[str, list[str]] = {}         # tenant_id → [rec_ids]
@@ -145,7 +146,7 @@ class RecommendationTracker:
             content              = content,
             confidence           = confidence,
             version              = version,
-            generated_at         = datetime.now(tz=timezone.utc),
+            generated_at         = datetime.now(tz=UTC),
         )
         self._records[rec_id]  = record
         self._by_case.setdefault(case_id, []).append(rec_id)
@@ -204,7 +205,7 @@ class RecommendationTracker:
 
     # ── Queries ────────────────────────────────────────────────────────────────
 
-    def get(self, rec_id: str) -> Optional[RecommendationRecord]:
+    def get(self, rec_id: str) -> RecommendationRecord | None:
         return self._records.get(rec_id)
 
     def for_case(self, case_id: str) -> list[RecommendationRecord]:
@@ -214,8 +215,8 @@ class RecommendationTracker:
     def for_tenant(
         self,
         tenant_id: str,
-        rec_type:  Optional[RecommendationType] = None,
-        status:    Optional[RecommendationStatus] = None,
+        rec_type:  RecommendationType | None = None,
+        status:    RecommendationStatus | None = None,
     ) -> list[RecommendationRecord]:
         ids    = self._by_tenant.get(tenant_id, [])
         recs   = [self._records[i] for i in ids if i in self._records]
@@ -233,7 +234,7 @@ class RecommendationTracker:
         tenant_id:  str,
         event_type: RecommendationStatus,
         actor_id:   str,
-        payload:    Optional[dict] = None,
+        payload:    dict | None = None,
     ) -> RecommendationEvent:
         return RecommendationEvent(
             event_id          = str(uuid.uuid4()),
@@ -241,7 +242,7 @@ class RecommendationTracker:
             event_type        = event_type,
             actor_id          = actor_id,
             tenant_id         = tenant_id,
-            occurred_at       = datetime.now(tz=timezone.utc),
+            occurred_at       = datetime.now(tz=UTC),
             payload           = payload or {},
         )
 
@@ -250,7 +251,7 @@ class RecommendationTracker:
         rec_id:     str,
         actor_id:   str,
         event_type: RecommendationStatus,
-        payload:    Optional[dict] = None,
+        payload:    dict | None = None,
     ) -> None:
         record = self._records.get(rec_id)
         if not record:

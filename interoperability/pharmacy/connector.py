@@ -21,13 +21,13 @@ Supported feed types
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from abc        import ABC, abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime   import datetime, timezone
-from enum       import Enum
-from typing     import Any, AsyncIterator, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.pharmacy.connector")
 
@@ -63,12 +63,12 @@ class PharmacyConnectorConfig:
     display_name:    str
 
     # Connection details (feed-type dependent)
-    host:            Optional[str]           = None
+    host:            str | None           = None
     port:            int                     = 22          # SFTP default
-    username:        Optional[str]           = None
-    password:        Optional[str]           = None        # resolved from secrets
-    api_key:         Optional[str]           = None
-    base_url:        Optional[str]           = None
+    username:        str | None           = None
+    password:        str | None           = None        # resolved from secrets
+    api_key:         str | None           = None
+    base_url:        str | None           = None
 
     # Operational settings
     batch_size:      int                     = 500
@@ -118,7 +118,7 @@ class PharmacyConnector(ABC):
     def __init__(self, config: PharmacyConnectorConfig) -> None:
         self.config    = config
         self._state    = PharmacyConnectorState.IDLE
-        self._last_pull: Optional[datetime] = None
+        self._last_pull: datetime | None = None
         self._pull_count: int = 0
 
     # ── Properties ─────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ class PharmacyConnector(ABC):
     @abstractmethod
     async def pull(
         self,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         """
         Fetch dispense records from the pharmacy source.
@@ -181,7 +181,7 @@ class PharmacyConnector(ABC):
                 self.connector_id, old.value, state.value,
             )
 
-    async def __aenter__(self) -> "PharmacyConnector":
+    async def __aenter__(self) -> PharmacyConnector:
         await self.connect()
         return self
 
@@ -204,7 +204,7 @@ class NCPDPBatchConnector(PharmacyConnector):
 
     def __init__(self, config: PharmacyConnectorConfig) -> None:
         super().__init__(config)
-        self._sftp_client: Optional[Any] = None
+        self._sftp_client: Any | None = None
 
     async def connect(self) -> None:
         self._set_state(PharmacyConnectorState.CONNECTING)
@@ -223,7 +223,7 @@ class NCPDPBatchConnector(PharmacyConnector):
 
     async def pull(
         self,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         """
         List remote directory, download new files, parse and yield records.
@@ -232,7 +232,7 @@ class NCPDPBatchConnector(PharmacyConnector):
         idempotent behaviour on retry.
         """
         self._set_state(PharmacyConnectorState.ACTIVE)
-        self._last_pull = datetime.now(tz=timezone.utc)
+        self._last_pull = datetime.now(tz=UTC)
         self._pull_count += 1
 
         log.info(
@@ -268,7 +268,7 @@ class PBMAPIConnector(PharmacyConnector):
 
     def __init__(self, config: PharmacyConnectorConfig) -> None:
         super().__init__(config)
-        self._http_client: Optional[Any] = None
+        self._http_client: Any | None = None
 
     async def connect(self) -> None:
         self._set_state(PharmacyConnectorState.CONNECTING)
@@ -282,7 +282,7 @@ class PBMAPIConnector(PharmacyConnector):
 
     async def pull(
         self,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
     ) -> AsyncIterator[list[dict[str, Any]]]:
         log.info(
             "PBMAPIConnector [%s]: pulling from %s",

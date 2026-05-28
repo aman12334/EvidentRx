@@ -14,7 +14,6 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,15 +34,15 @@ class CoveredEntity(BaseModel):
     ce_id:             str
     hrsa_id:           str
     entity_name:       str
-    entity_type_code:  Optional[str]
-    entity_type_description: Optional[str]
-    city:              Optional[str]
-    state_code:        Optional[str]
-    zip_code:          Optional[str]
-    npi:               Optional[str]
-    primary_340b_program: Optional[str]
+    entity_type_code:  str | None
+    entity_type_description: str | None
+    city:              str | None
+    state_code:        str | None
+    zip_code:          str | None
+    npi:               str | None
+    primary_340b_program: str | None
     program_status:    str
-    program_participation_start: Optional[str]
+    program_participation_start: str | None
     is_active:         bool
 
 
@@ -53,8 +52,8 @@ class EntitySummary(BaseModel):
     open_cases:     int
     total_findings: int
     critical_findings: int
-    total_exposure: Optional[float]
-    avg_risk_score: Optional[float]
+    total_exposure: float | None
+    avg_risk_score: float | None
 
 
 class EntityListResponse(BaseModel):
@@ -69,9 +68,9 @@ class EntityListResponse(BaseModel):
 
 @router.get("", response_model=EntityListResponse)
 def list_entities(
-    search:      Optional[str] = Query(None,  description="Search by name or HRSA ID"),
-    state_code:  Optional[str] = Query(None,  description="Filter by 2-letter state code"),
-    entity_type: Optional[str] = Query(None,  description="Filter by entity_type_code e.g. DSH, CHC"),
+    search:      str | None = Query(None,  description="Search by name or HRSA ID"),
+    state_code:  str | None = Query(None,  description="Filter by 2-letter state code"),
+    entity_type: str | None = Query(None,  description="Filter by entity_type_code e.g. DSH, CHC"),
     active_only: bool           = Query(True,  description="Only return active entities"),
     page:        int            = Query(1, ge=1),
     limit:       int            = Query(25, ge=1, le=100),

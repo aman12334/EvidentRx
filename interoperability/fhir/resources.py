@@ -11,9 +11,8 @@ by the FHIR normaliser, validator, and sync engine.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum        import Enum
-from typing      import Optional
+from dataclasses import dataclass
+from enum import Enum
 
 
 class FHIRResourceType(str, Enum):
@@ -47,7 +46,7 @@ class ResourceMeta:
     sync_params:      dict[str, str]
     phi_fields:       list[str]
     version_field:    str                       = "meta.versionId"
-    canonical_type:   Optional[str]             = None
+    canonical_type:   str | None             = None
     supported:        bool                      = True
 
 

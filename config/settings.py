@@ -10,9 +10,7 @@ with a descriptive error rather than a runtime panic later.
 
 from __future__ import annotations
 
-from typing import Optional
-
-from pydantic          import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,34 +51,34 @@ class Settings(BaseSettings):
     rate_limit_burst:         int = 20
 
     # ── Redis ──────────────────────────────────────────────────────────────
-    redis_url:                Optional[str] = None
+    redis_url:                str | None = None
     redis_max_connections:    int = 10
 
     # ── Celery / Task Queue ────────────────────────────────────────────────
-    celery_broker_url:        Optional[str] = None  # defaults to redis_url
-    celery_result_backend:    Optional[str] = None
+    celery_broker_url:        str | None = None  # defaults to redis_url
+    celery_result_backend:    str | None = None
     task_max_retries:         int = 3
     task_retry_backoff:       int = 60    # seconds
 
     # ── LLM Providers ──────────────────────────────────────────────────────
-    anthropic_api_key:        Optional[SecretStr] = None
-    openai_api_key:           Optional[SecretStr] = None
+    anthropic_api_key:        SecretStr | None = None
+    openai_api_key:           SecretStr | None = None
     default_llm_provider:     str = Field(default="anthropic", pattern="^(anthropic|openai)$")
     default_model:            str = "claude-3-5-sonnet-20241022"
     llm_timeout_seconds:      int = 120
     llm_max_tokens:           int = 4096
 
     # ── Observability ──────────────────────────────────────────────────────
-    otlp_endpoint:            Optional[str] = None   # OpenTelemetry collector
+    otlp_endpoint:            str | None = None   # OpenTelemetry collector
     prometheus_enabled:       bool = True
-    sentry_dsn:               Optional[SecretStr] = None
+    sentry_dsn:               SecretStr | None = None
     structured_logging:       bool = True
 
     # ── Storage ────────────────────────────────────────────────────────────
-    s3_bucket:                Optional[str] = None
+    s3_bucket:                str | None = None
     s3_region:                str = "us-east-1"
-    aws_access_key_id:        Optional[SecretStr] = None
-    aws_secret_access_key:    Optional[SecretStr] = None
+    aws_access_key_id:        SecretStr | None = None
+    aws_secret_access_key:    SecretStr | None = None
 
     # ── Compliance / Governance ────────────────────────────────────────────
     audit_retention_days:     int = Field(default=2555, ge=365)   # 7 years
@@ -102,7 +100,7 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
-    def production_safety_checks(self) -> "Settings":
+    def production_safety_checks(self) -> Settings:
         if self.environment == "production":
             if self.debug:
                 raise ValueError("debug must be False in production")

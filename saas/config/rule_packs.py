@@ -27,10 +27,11 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.config.rule_packs")
 
@@ -64,9 +65,9 @@ class RulePack:
     content_hash:     str
     created_at:       datetime
     created_by:       str
-    published_at:     Optional[datetime] = None
-    deprecated_at:    Optional[datetime] = None
-    parent_pack_id:   Optional[str]      = None   # prior version
+    published_at:     datetime | None = None
+    deprecated_at:    datetime | None = None
+    parent_pack_id:   str | None      = None   # prior version
     tags:             list[str]          = field(default_factory=list)
     metadata:         dict[str, Any]     = field(default_factory=dict)
 
@@ -100,11 +101,11 @@ class TenantRulePackAssignment:
     assignment_id: str
     tenant_id:     str
     pack_id:       str
-    org_id:        Optional[str]      = None    # None = tenant-wide
+    org_id:        str | None      = None    # None = tenant-wide
     status:        AssignmentStatus   = AssignmentStatus.ACTIVE
     assigned_by:   str                = "system"
-    assigned_at:   datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    effective_from: datetime          = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    assigned_at:   datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
+    effective_from: datetime          = field(default_factory=lambda: datetime.now(tz=UTC))
     override_config: dict[str, Any]  = field(default_factory=dict)   # per-tenant threshold overrides
 
     def to_dict(self) -> dict[str, Any]:
@@ -127,11 +128,11 @@ class RulePackRegistry:
     tenants) and the per-tenant assignment table.
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._packs:       dict[str, RulePack] = {}
         self._assignments: dict[str, TenantRulePackAssignment] = {}
         # (tenant_id, org_id) → [assignment_id]
-        self._by_tenant:   dict[tuple[str, Optional[str]], list[str]] = {}
+        self._by_tenant:   dict[tuple[str, str | None], list[str]] = {}
         self._db_writer    = db_writer
 
     # ── Platform catalogue ─────────────────────────────────────────────────────
@@ -143,8 +144,8 @@ class RulePackRegistry:
         description:    str,
         rules_manifest: dict[str, Any],
         created_by:     str,
-        tags:           Optional[list[str]] = None,
-        parent_pack_id: Optional[str]       = None,
+        tags:           list[str] | None = None,
+        parent_pack_id: str | None       = None,
     ) -> RulePack:
         content_hash = hashlib.sha256(
             json.dumps(rules_manifest, sort_keys=True).encode()
@@ -158,7 +159,7 @@ class RulePackRegistry:
             rules_manifest = rules_manifest,
             status         = RulePackStatus.DRAFT,
             content_hash   = content_hash,
-            created_at     = datetime.now(tz=timezone.utc),
+            created_at     = datetime.now(tz=UTC),
             created_by     = created_by,
             parent_pack_id = parent_pack_id,
             tags           = tags or [],
@@ -172,16 +173,16 @@ class RulePackRegistry:
         if pack.status != RulePackStatus.DRAFT:
             raise RulePackError(f"Pack {pack_id[:8]} is not in DRAFT status")
         pack.status       = RulePackStatus.PUBLISHED
-        pack.published_at = datetime.now(tz=timezone.utc)
+        pack.published_at = datetime.now(tz=UTC)
         pack.metadata["published_by"] = published_by
         await self._persist("update_pack", pack)
         log.info("RulePackRegistry: published pack '%s' v%s", pack.name, pack.version)
         return pack
 
-    def get_pack(self, pack_id: str) -> Optional[RulePack]:
+    def get_pack(self, pack_id: str) -> RulePack | None:
         return self._packs.get(pack_id)
 
-    def list_published(self, tags: Optional[list[str]] = None) -> list[RulePack]:
+    def list_published(self, tags: list[str] | None = None) -> list[RulePack]:
         packs = [p for p in self._packs.values() if p.status == RulePackStatus.PUBLISHED]
         if tags:
             tag_set = set(tags)
@@ -195,8 +196,8 @@ class RulePackRegistry:
         tenant_id:       str,
         pack_id:         str,
         assigned_by:     str      = "system",
-        org_id:          Optional[str]      = None,
-        override_config: Optional[dict]     = None,
+        org_id:          str | None      = None,
+        override_config: dict | None     = None,
     ) -> TenantRulePackAssignment:
         pack = self._require_pack(pack_id)
         if pack.status != RulePackStatus.PUBLISHED:
@@ -226,14 +227,14 @@ class RulePackRegistry:
             raise RulePackNotFoundError(assignment_id)
         a.status = AssignmentStatus.REVOKED
         a.override_config["revoked_by"] = revoked_by
-        a.override_config["revoked_at"] = datetime.now(tz=timezone.utc).isoformat()
+        a.override_config["revoked_at"] = datetime.now(tz=UTC).isoformat()
         await self._persist("update_assignment", a)
         return a
 
     def active_packs_for_tenant(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> list[RulePack]:
         """
         Return all active rule packs for a tenant scope.
@@ -269,7 +270,7 @@ class RulePackRegistry:
     def effective_rules(
         self,
         tenant_id: str,
-        org_id:    Optional[str] = None,
+        org_id:    str | None = None,
     ) -> dict[str, Any]:
         """
         Return the merged rule manifest for a tenant scope.
@@ -309,10 +310,10 @@ class RulePackError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_registry: Optional[RulePackRegistry] = None
+_registry: RulePackRegistry | None = None
 
 
-def get_rule_pack_registry(db_writer: Optional[Callable] = None) -> RulePackRegistry:
+def get_rule_pack_registry(db_writer: Callable | None = None) -> RulePackRegistry:
     global _registry
     if _registry is None:
         _registry = RulePackRegistry(db_writer=db_writer)

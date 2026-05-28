@@ -13,26 +13,32 @@ to prevent brute-force attacks.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth.jwt      import (
-    create_token_pair, decode_refresh_token,
-    TokenValidationError, ACCESS_TOKEN_EXPIRE, REFRESH_TOKEN_EXPIRE,
+from auth.dependencies import require_auth
+from auth.jwt import (
+    ACCESS_TOKEN_EXPIRE,
+    REFRESH_TOKEN_EXPIRE,
+    TokenValidationError,
+    create_token_pair,
+    decode_refresh_token,
 )
-from auth.models   import (
-    AuthUser, LoginRequest, RefreshRequest, LogoutRequest,
-    TokenPair, RefreshTokenRecord,
+from auth.models import (
+    AuthUser,
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    RefreshTokenRecord,
+    TokenPair,
 )
-from auth.password          import verify_password
-from auth.rbac              import Role
-from auth.session           import session_store
-from auth.dependencies      import require_auth
-from auth.user_repository   import UserRepository
-from database.session       import get_async_session
-from governance.audit_log   import audit_log, AuditEventType
+from auth.password import verify_password
+from auth.session import session_store
+from auth.user_repository import UserRepository
+from database.session import get_async_session
+from governance.audit_log import AuditEventType, audit_log
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -101,7 +107,7 @@ async def login(
         role=user.role,
     )
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     await session_store.save(RefreshTokenRecord(
         jti=refresh_jti,
         user_id=user.user_id,
@@ -162,7 +168,7 @@ async def refresh(body: RefreshRequest) -> TokenPair:
         role=payload.role,
     )
 
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     await session_store.save(RefreshTokenRecord(
         jti=new_jti,
         user_id=payload.sub,

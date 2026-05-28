@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -15,10 +15,10 @@ class ReasoningTraceSchema(BaseModel):
     agent_type:         str
     workflow_node:      str
     workflow_step:      int
-    confidence_score:   Optional[float] = None
+    confidence_score:   float | None = None
     input_context:      dict[str, Any] = Field(default_factory=dict)
-    output_summary:     Optional[str] = None
-    created_at:         Optional[datetime] = None
+    output_summary:     str | None = None
+    created_at:         datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -31,9 +31,9 @@ class AgentRunSchema(BaseModel):
     input_tokens:       int = 0
     output_tokens:      int = 0
     cache_read_tokens:  int = 0
-    latency_ms:         Optional[int] = None
-    started_at:         Optional[datetime] = None
-    completed_at:       Optional[datetime] = None
+    latency_ms:         int | None = None
+    started_at:         datetime | None = None
+    completed_at:       datetime | None = None
     output:             dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"from_attributes": True}
@@ -42,8 +42,8 @@ class AgentRunSchema(BaseModel):
 class ConfidencePropagation(BaseModel):
     node:           str
     label:          str
-    confidence:     Optional[float] = None
-    delta:          Optional[float] = None
+    confidence:     float | None = None
+    delta:          float | None = None
 
 
 class WorkflowTrace(BaseModel):
@@ -54,5 +54,5 @@ class WorkflowTrace(BaseModel):
     confidence_chain:   list[ConfidencePropagation] = Field(default_factory=list)
     total_input_tokens:  int = 0
     total_output_tokens: int = 0
-    escalation_recommended: Optional[bool] = None
-    executive_summary:  Optional[str] = None
+    escalation_recommended: bool | None = None
+    executive_summary:  str | None = None

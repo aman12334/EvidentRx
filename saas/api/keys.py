@@ -22,9 +22,9 @@ import logging
 import secrets
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.api.keys")
 
@@ -55,13 +55,13 @@ class APIKey:
     key_prefix:  str                    # first 8 chars of raw key (for display)
     status:      APIKeyStatus
     scopes:      list[str]             = field(default_factory=list)   # OrgPermission values
-    org_id:      Optional[str]         = None
+    org_id:      str | None         = None
     created_by:  str                   = "system"
-    created_at:  datetime              = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    expires_at:  Optional[datetime]    = None
-    last_used_at: Optional[datetime]   = None
-    grace_until: Optional[datetime]    = None   # rotation grace-window end
-    rotated_to:  Optional[str]         = None   # key_id of replacement
+    created_at:  datetime              = field(default_factory=lambda: datetime.now(tz=UTC))
+    expires_at:  datetime | None    = None
+    last_used_at: datetime | None   = None
+    grace_until: datetime | None    = None   # rotation grace-window end
+    rotated_to:  str | None         = None   # key_id of replacement
     metadata:    dict[str, Any]        = field(default_factory=dict)
 
     @property
@@ -70,8 +70,8 @@ class APIKey:
             return False
         if self.status == APIKeyStatus.ROTATING:
             # Valid only within grace window
-            return self.grace_until is not None and datetime.now(tz=timezone.utc) <= self.grace_until
-        if self.expires_at and datetime.now(tz=timezone.utc) > self.expires_at:
+            return self.grace_until is not None and datetime.now(tz=UTC) <= self.grace_until
+        if self.expires_at and datetime.now(tz=UTC) > self.expires_at:
             return False
         return self.status == APIKeyStatus.ACTIVE
 
@@ -126,10 +126,10 @@ class APIKeyStore:
         tenant_id:    str,
         name:         str,
         created_by:   str,
-        scopes:       Optional[list[str]]  = None,
-        org_id:       Optional[str]        = None,
+        scopes:       list[str] | None  = None,
+        org_id:       str | None        = None,
         expiry_days:  int                  = _DEFAULT_EXPIRY_DAYS,
-        metadata:     Optional[dict[str, Any]] = None,
+        metadata:     dict[str, Any] | None = None,
     ) -> KeyIssuanceResult:
         raw     = _generate_key()
         khash   = _hash_key(raw)
@@ -143,7 +143,7 @@ class APIKeyStore:
             scopes     = scopes or [],
             org_id     = org_id,
             created_by = created_by,
-            expires_at = datetime.now(tz=timezone.utc) + timedelta(days=expiry_days),
+            expires_at = datetime.now(tz=UTC) + timedelta(days=expiry_days),
             metadata   = metadata or {},
         )
         self._keys[key.key_id]   = key
@@ -156,7 +156,7 @@ class APIKeyStore:
 
     # ── Authentication ─────────────────────────────────────────────────────────
 
-    def authenticate(self, raw_key: str) -> Optional[APIKey]:
+    def authenticate(self, raw_key: str) -> APIKey | None:
         """
         Validate a raw key. Returns the APIKey if valid, else None.
 
@@ -169,7 +169,7 @@ class APIKeyStore:
         key = self._keys.get(key_id)
         if key is None or not key.is_valid:
             return None
-        key.last_used_at = datetime.now(tz=timezone.utc)
+        key.last_used_at = datetime.now(tz=UTC)
         return key
 
     # ── Rotation ───────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ class APIKeyStore:
         )
         # Mark old key as rotating
         old.status      = APIKeyStatus.ROTATING
-        old.grace_until = datetime.now(tz=timezone.utc) + timedelta(hours=grace_hours)
+        old.grace_until = datetime.now(tz=UTC) + timedelta(hours=grace_hours)
         old.rotated_to  = result.api_key.key_id
         old.metadata["rotated_by"] = rotated_by
         log.info(
@@ -226,7 +226,7 @@ class APIKeyStore:
         key.status = APIKeyStatus.REVOKED
         key.metadata["revoked_by"] = revoked_by
         key.metadata["revoke_reason"] = reason
-        key.metadata["revoked_at"] = datetime.now(tz=timezone.utc).isoformat()
+        key.metadata["revoked_at"] = datetime.now(tz=UTC).isoformat()
         log.info("APIKeyStore: revoked key %s", key_id[:8])
         return key
 
@@ -236,7 +236,7 @@ class APIKeyStore:
         self,
         tenant_id:   str,
         active_only: bool = True,
-        org_id:      Optional[str] = None,
+        org_id:      str | None = None,
     ) -> list[APIKey]:
         return [
             k for k in self._keys.values()
@@ -245,7 +245,7 @@ class APIKeyStore:
             and (org_id is None or k.org_id == org_id)
         ]
 
-    def get_key(self, tenant_id: str, key_id: str) -> Optional[APIKey]:
+    def get_key(self, tenant_id: str, key_id: str) -> APIKey | None:
         k = self._keys.get(key_id)
         return k if k and k.tenant_id == tenant_id else None
 
@@ -254,7 +254,7 @@ class APIKeyStore:
         tenant_id:   str,
         within_days: int = 30,
     ) -> list[APIKey]:
-        threshold = datetime.now(tz=timezone.utc) + timedelta(days=within_days)
+        threshold = datetime.now(tz=UTC) + timedelta(days=within_days)
         return [
             k for k in self._keys.values()
             if k.tenant_id == tenant_id
@@ -280,7 +280,7 @@ class APIKeyNotFoundError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_store: Optional[APIKeyStore] = None
+_store: APIKeyStore | None = None
 
 
 def get_api_key_store() -> APIKeyStore:

@@ -26,10 +26,10 @@ Built-in policies
 from __future__ import annotations
 
 import logging
-from abc      import ABC, abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.governance.policies")
 
@@ -272,7 +272,7 @@ class RollbackRateLimitPolicy(LearningPolicy):
 
         slot      = context.payload.get("slot", context.artifact_id)
         key       = (context.tenant_id, slot)
-        now       = datetime.now(tz=timezone.utc)
+        now       = datetime.now(tz=UTC)
         cutoff    = now - self._window
         recent    = [t for t in self._history.get(key, []) if t >= cutoff]
 
@@ -304,7 +304,7 @@ class LearningPolicyEngine:
     Fail-closed: any failing policy blocks the action.
     """
 
-    def __init__(self, policies: Optional[list[LearningPolicy]] = None) -> None:
+    def __init__(self, policies: list[LearningPolicy] | None = None) -> None:
         self._policies: list[LearningPolicy] = policies or _default_policies()
 
     def evaluate(
@@ -348,11 +348,11 @@ def _default_policies() -> list[LearningPolicy]:
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_engine: Optional[LearningPolicyEngine] = None
+_engine: LearningPolicyEngine | None = None
 
 
 def get_policy_engine(
-    extra_policies: Optional[list[LearningPolicy]] = None,
+    extra_policies: list[LearningPolicy] | None = None,
 ) -> LearningPolicyEngine:
     global _engine
     if _engine is None:

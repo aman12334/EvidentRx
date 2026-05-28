@@ -25,7 +25,6 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import text
@@ -56,7 +55,7 @@ _STATUS_ICON = {
 _CONF_BAR_WIDTH = 20
 
 
-def _confidence_bar(score: Optional[float]) -> str:
+def _confidence_bar(score: float | None) -> str:
     if score is None:
         return "─" * _CONF_BAR_WIDTH + " (no data)"
     filled = round(score * _CONF_BAR_WIDTH)
@@ -70,26 +69,26 @@ class NodeTrace:
     display_label: str
     order:         int
     status:        str = "pending"       # completed | failed | skipped | pending
-    agent_type:    Optional[str] = None
-    agent_name:    Optional[str] = None
-    model_id:      Optional[str] = None
+    agent_type:    str | None = None
+    agent_name:    str | None = None
+    model_id:      str | None = None
     input_tokens:  int = 0
     output_tokens: int = 0
     cache_tokens:  int = 0
-    latency_ms:    Optional[float] = None
-    confidence:    Optional[float] = None
-    error:         Optional[str] = None
+    latency_ms:    float | None = None
+    confidence:    float | None = None
+    error:         str | None = None
     has_llm_call:  bool = False
 
 
 @dataclass
 class ConfidencePropagation:
     """Tracks how confidence flows from one agent to the next."""
-    evidence_analysis:   Optional[float] = None
-    risk_prioritization: Optional[float] = None
-    narrative_generation: Optional[float] = None
+    evidence_analysis:   float | None = None
+    risk_prioritization: float | None = None
+    narrative_generation: float | None = None
 
-    def delta(self, a: Optional[float], b: Optional[float]) -> str:
+    def delta(self, a: float | None, b: float | None) -> str:
         if a is None or b is None:
             return "—"
         diff = b - a
@@ -103,19 +102,19 @@ class EvidenceLineage:
     findings_by_rule: dict = field(default_factory=dict)
     ndc_count:        int = 0
     unique_patients:  int = 0
-    temporal_window:  Optional[dict] = None
+    temporal_window:  dict | None = None
     agents_that_consumed: list[str] = field(default_factory=list)
 
 
 @dataclass
 class TraceVisualization:
     case_id:    str
-    run_id:     Optional[str]
+    run_id:     str | None
     nodes:      list[NodeTrace]
     confidence: ConfidencePropagation
     lineage:    EvidenceLineage
     escalated:  bool = False
-    escalation_rationale: Optional[str] = None
+    escalation_rationale: str | None = None
     total_input_tokens:  int = 0
     total_output_tokens: int = 0
     total_cache_tokens:  int = 0
@@ -258,12 +257,11 @@ class TraceVisualizer:
 
         for i, node in enumerate(viz.nodes):
             icon   = _STATUS_ICON.get(node.status, "?")
-            conf   = _confidence_bar(node.confidence) if node.has_llm_call else " " * 28
+            _confidence_bar(node.confidence) if node.has_llm_call else " " * 28
             tokens = f"{node.input_tokens:,}/{node.output_tokens:,}" if node.has_llm_call else "—"
             agent_tag = f" [{node.agent_type}]" if node.agent_type else ""
             label  = node.display_label + agent_tag
 
-            prefix = "  " if i == 0 else "  │\n  "
             if i > 0:
                 print("  │")
             print(f"  {icon} {label:<34} {node.status:<12} {tokens:<18}")
@@ -277,7 +275,7 @@ class TraceVisualizer:
 
         # Confidence propagation
         print(f"\n  {'─' * 60}")
-        print(f"  Confidence Propagation")
+        print("  Confidence Propagation")
         print(f"  {'─' * 60}")
         cp = viz.confidence
         nodes = [
@@ -295,7 +293,7 @@ class TraceVisualizer:
         # Evidence lineage
         lin = viz.lineage
         print(f"\n  {'─' * 60}")
-        print(f"  Evidence Lineage")
+        print("  Evidence Lineage")
         print(f"  {'─' * 60}")
         print(f"  Total findings in scope : {lin.total_findings}")
         print(f"  NDCs affected           : {lin.ndc_count}")
@@ -303,7 +301,7 @@ class TraceVisualizer:
         if lin.temporal_window:
             print(f"  Window                  : {lin.temporal_window.get('start','—')} → {lin.temporal_window.get('end','—')}")
         if lin.findings_by_rule:
-            print(f"  Findings by rule:")
+            print("  Findings by rule:")
             for rule, count in sorted(lin.findings_by_rule.items()):
                 print(f"    {rule:<12}: {count}")
         if lin.agents_that_consumed:
@@ -398,7 +396,7 @@ class TraceVisualizer:
         """), {"cid": case_id}).mappings().fetchall()
         return [dict(r) for r in rows]
 
-    def _load_snapshot(self, session: Session, case_id: str) -> Optional[dict]:
+    def _load_snapshot(self, session: Session, case_id: str) -> dict | None:
         row = session.execute(text("""
             SELECT total_findings, by_severity, findings_by_rule,
                    ndc_list, unique_patients, temporal_window
@@ -417,7 +415,7 @@ class TraceVisualizer:
                     pass
         return d
 
-    def _load_agent_output(self, session: Session, run_id) -> Optional[dict]:
+    def _load_agent_output(self, session: Session, run_id) -> dict | None:
         if not run_id:
             return None
         row = session.execute(text("""

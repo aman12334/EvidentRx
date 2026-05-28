@@ -20,10 +20,11 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.admin.audit")
 
@@ -74,13 +75,13 @@ class AdminAuditRecord:
     tenant_id:    str
     event_type:   AdminEventType
     actor:        str             # user_id of the admin performing the action
-    target_id:    Optional[str]   # tenant_id, org_id, user_id, etc.
-    target_type:  Optional[str]   # "tenant" | "org" | "user" | "config" | …
+    target_id:    str | None   # tenant_id, org_id, user_id, etc.
+    target_type:  str | None   # "tenant" | "org" | "user" | "config" | …
     payload:      dict[str, Any]  # event-specific context (no raw credentials)
     occurred_at:  datetime
     content_hash: str
-    source_ip:    Optional[str]   = None
-    session_id:   Optional[str]   = None
+    source_ip:    str | None   = None
+    session_id:   str | None   = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -104,7 +105,7 @@ class AdminAuditLog:
     the action takes effect (log-then-act pattern).
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._records:   list[AdminAuditRecord] = []
         self._by_tenant: dict[str, list[str]]   = {}   # tenant_id → [audit_id]
         self._buffer:    list[AdminAuditRecord]  = []
@@ -118,10 +119,10 @@ class AdminAuditLog:
         event_type:  AdminEventType,
         actor:       str,
         payload:     dict[str, Any],
-        target_id:   Optional[str] = None,
-        target_type: Optional[str] = None,
-        source_ip:   Optional[str] = None,
-        session_id:  Optional[str] = None,
+        target_id:   str | None = None,
+        target_type: str | None = None,
+        source_ip:   str | None = None,
+        session_id:  str | None = None,
     ) -> AdminAuditRecord:
         content_hash = hashlib.sha256(
             json.dumps(payload, sort_keys=True, default=str).encode()
@@ -135,7 +136,7 @@ class AdminAuditLog:
             target_id    = target_id,
             target_type  = target_type,
             payload      = payload,
-            occurred_at  = datetime.now(tz=timezone.utc),
+            occurred_at  = datetime.now(tz=UTC),
             content_hash = content_hash,
             source_ip    = source_ip,
             session_id   = session_id,
@@ -185,7 +186,7 @@ class AdminAuditLog:
         actor:        str,
         target_user:  str,
         role:         str,
-        org_id:       Optional[str] = None,
+        org_id:       str | None = None,
     ) -> AdminAuditRecord:
         return await self.log(
             tenant_id   = tenant_id,
@@ -231,9 +232,9 @@ class AdminAuditLog:
     def query(
         self,
         tenant_id:  str,
-        event_type: Optional[AdminEventType] = None,
-        actor:      Optional[str]            = None,
-        since:      Optional[datetime]       = None,
+        event_type: AdminEventType | None = None,
+        actor:      str | None            = None,
+        since:      datetime | None       = None,
         limit:      int                      = 200,
     ) -> list[AdminAuditRecord]:
         result = [
@@ -248,10 +249,10 @@ class AdminAuditLog:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_audit_log: Optional[AdminAuditLog] = None
+_audit_log: AdminAuditLog | None = None
 
 
-def get_admin_audit_log(db_writer: Optional[Callable] = None) -> AdminAuditLog:
+def get_admin_audit_log(db_writer: Callable | None = None) -> AdminAuditLog:
     global _audit_log
     if _audit_log is None:
         _audit_log = AdminAuditLog(db_writer=db_writer)

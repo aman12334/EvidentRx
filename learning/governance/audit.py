@@ -22,10 +22,11 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.learning.governance.audit")
 
@@ -79,15 +80,15 @@ class LearningAuditRecord:
     tenant_id:   str
     event_type:  LearningAuditEventType
     actor:       str              # analyst_id, system account, or "system"
-    artifact_id: Optional[str]   # case_id, snapshot_id, prompt_id, etc.
-    artifact_type: Optional[str] # "calibration_snapshot" | "prompt" | "experiment" | …
+    artifact_id: str | None   # case_id, snapshot_id, prompt_id, etc.
+    artifact_type: str | None # "calibration_snapshot" | "prompt" | "experiment" | …
     payload:     dict[str, Any]  # event-specific context (PHI-free)
     occurred_at: datetime
     content_hash: str            # SHA-256 of payload
-    prior_hash:  Optional[str]   # chain link to previous record
+    prior_hash:  str | None   # chain link to previous record
     chain_hash:  str             # SHA-256(prior_hash + content_hash)
-    source_ip:   Optional[str]   = None
-    session_id:  Optional[str]   = None
+    source_ip:   str | None   = None
+    session_id:  str | None   = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,10 +112,10 @@ class LearningAuditLog:
     verified at any time with verify_chain().
     """
 
-    def __init__(self, db_writer: Optional[Callable] = None) -> None:
+    def __init__(self, db_writer: Callable | None = None) -> None:
         self._records:    list[LearningAuditRecord] = []
         self._by_tenant:  dict[str, list[str]] = {}   # tenant_id → [audit_ids]
-        self._last_hash:  dict[str, Optional[str]] = {}  # tenant_id → last chain_hash
+        self._last_hash:  dict[str, str | None] = {}  # tenant_id → last chain_hash
         self._db_writer   = db_writer
         self._buffer:     list[LearningAuditRecord] = []
 
@@ -126,12 +127,12 @@ class LearningAuditLog:
         event_type:    LearningAuditEventType,
         actor:         str,
         payload:       dict[str, Any],
-        artifact_id:   Optional[str]  = None,
-        artifact_type: Optional[str]  = None,
-        source_ip:     Optional[str]  = None,
-        session_id:    Optional[str]  = None,
+        artifact_id:   str | None  = None,
+        artifact_type: str | None  = None,
+        source_ip:     str | None  = None,
+        session_id:    str | None  = None,
     ) -> LearningAuditRecord:
-        now          = datetime.now(tz=timezone.utc)
+        now          = datetime.now(tz=UTC)
         content_hash = _hash_payload(payload)
         prior_hash   = self._last_hash.get(tenant_id)
         chain_hash   = _chain_hash(prior_hash, content_hash)
@@ -256,7 +257,7 @@ class LearningAuditLog:
         tenant_id:   str,
         actor:       str,
         policy_name: str,
-        artifact_id: Optional[str],
+        artifact_id: str | None,
         reason:      str,
     ) -> LearningAuditRecord:
         return await self.log(
@@ -282,7 +283,7 @@ class LearningAuditLog:
         records = [r for r in self._records if r.audit_id in ids]
         records.sort(key=lambda r: r.occurred_at)
 
-        prior_hash: Optional[str] = None
+        prior_hash: str | None = None
         for rec in records:
             # Recompute chain hash
             expected_chain = _chain_hash(prior_hash, rec.content_hash)
@@ -300,10 +301,10 @@ class LearningAuditLog:
     def query(
         self,
         tenant_id:    str,
-        event_type:   Optional[LearningAuditEventType] = None,
-        actor:        Optional[str]                    = None,
-        artifact_id:  Optional[str]                    = None,
-        since:        Optional[datetime]               = None,
+        event_type:   LearningAuditEventType | None = None,
+        actor:        str | None                    = None,
+        artifact_id:  str | None                    = None,
+        since:        datetime | None               = None,
         limit:        int                              = 200,
     ) -> list[LearningAuditRecord]:
         result = [
@@ -325,17 +326,17 @@ def _hash_payload(payload: dict[str, Any]) -> str:
     ).hexdigest()
 
 
-def _chain_hash(prior_hash: Optional[str], content_hash: str) -> str:
+def _chain_hash(prior_hash: str | None, content_hash: str) -> str:
     combined = (prior_hash or "") + content_hash
     return hashlib.sha256(combined.encode()).hexdigest()
 
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_audit_log: Optional[LearningAuditLog] = None
+_audit_log: LearningAuditLog | None = None
 
 
-def get_learning_audit_log(db_writer: Optional[Callable] = None) -> LearningAuditLog:
+def get_learning_audit_log(db_writer: Callable | None = None) -> LearningAuditLog:
     global _audit_log
     if _audit_log is None:
         _audit_log = LearningAuditLog(db_writer=db_writer)

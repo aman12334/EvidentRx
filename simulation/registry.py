@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -19,9 +18,9 @@ logger = logging.getLogger(__name__)
 class CERecord:
     ce_id: str
     hrsa_id: str
-    state_code: Optional[str]
-    program_participation_start: Optional[date]
-    program_termination_date: Optional[date]
+    state_code: str | None
+    program_participation_start: date | None
+    program_termination_date: date | None
     is_active: bool
 
 
@@ -31,17 +30,17 @@ class CPRecord:
     covered_entity_id: str
     hrsa_id: str
     pharmacy_name: str
-    state_code: Optional[str]
-    registration_date: Optional[date]
-    termination_date: Optional[date]
+    state_code: str | None
+    registration_date: date | None
+    termination_date: date | None
 
 
 @dataclass
 class NDCRecord:
     drug_id: str
     ndc_11: str
-    nonproprietary_name: Optional[str]
-    dea_schedule: Optional[str]
+    nonproprietary_name: str | None
+    dea_schedule: str | None
 
 
 @dataclass
@@ -50,7 +49,7 @@ class ExclusionRecord:
     state_code: str
     exclusion_type: str   # carve_out | carve_in | not_elected
     period_start: date
-    period_end: Optional[date]
+    period_end: date | None
 
 
 @dataclass
@@ -61,7 +60,7 @@ class ReferenceRegistry:
     exclusions_by_hrsa: dict[str, list[ExclusionRecord]] = field(default_factory=dict)
 
     @classmethod
-    def load(cls, session: Session, n_ces: int, n_ndcs: int) -> "ReferenceRegistry":
+    def load(cls, session: Session, n_ces: int, n_ndcs: int) -> ReferenceRegistry:
         reg = cls()
 
         # Active covered entities

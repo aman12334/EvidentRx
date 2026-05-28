@@ -20,20 +20,17 @@ import asyncio
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing   import Any, Callable, Optional
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from learning.feedback.models import (
-    FeedbackRecord,
-    FeedbackStatus,
-    FeedbackType,
-    FalsePositiveReport,
-    FalseNegativeEscalation,
-    OutcomeLabel,
-    RemediationOutcomeReport,
     ConfidenceOverride,
-    RecommendationRating,
+    FalsePositiveReport,
+    FeedbackRecord,
     InvestigationQualityScore,
+    OutcomeLabel,
+    RecommendationRating,
 )
 
 log = logging.getLogger("evidentrx.learning.feedback.collector")
@@ -54,9 +51,9 @@ class FeedbackCollector:
 
     def __init__(
         self,
-        db_writer:      Optional[Callable] = None,   # async (FeedbackRecord) → str (feedback_id)
-        event_emitter:  Optional[Callable] = None,   # async (FeedbackRecord) → None
-        audit_logger:   Optional[Callable] = None,   # async (event_type, detail) → None
+        db_writer:      Callable | None = None,   # async (FeedbackRecord) → str (feedback_id)
+        event_emitter:  Callable | None = None,   # async (FeedbackRecord) → None
+        audit_logger:   Callable | None = None,   # async (event_type, detail) → None
     ) -> None:
         self._db_writer     = db_writer
         self._event_emitter = event_emitter
@@ -142,7 +139,7 @@ class FeedbackCollector:
         tenant_id:         str,
         analyst_reasoning: str,
         rule_code:         str          = "",
-        notes:             Optional[str] = None,
+        notes:             str | None = None,
     ) -> FalsePositiveReport:
         fp = FalsePositiveReport(
             finding_id        = finding_id,
@@ -161,8 +158,8 @@ class FeedbackCollector:
         analyst_id:      str,
         tenant_id:       str,
         outcome:         Any,
-        actual_severity: Optional[Any] = None,
-        actual_exposure: Optional[float] = None,
+        actual_severity: Any | None = None,
+        actual_exposure: float | None = None,
     ) -> OutcomeLabel:
         label = OutcomeLabel(
             case_id         = case_id,
@@ -185,7 +182,7 @@ class FeedbackCollector:
         recommendation_quality: int,
         overall_score:          int,
         hallucination_observed: bool = False,
-        missed_issues:          Optional[list[str]] = None,
+        missed_issues:          list[str] | None = None,
     ) -> InvestigationQualityScore:
         iq = InvestigationQualityScore(
             agent_run_id           = agent_run_id,
@@ -229,7 +226,7 @@ class FeedbackCollector:
         seen_at = self._recent.get(feedback.lineage_hash)
         if seen_at is None:
             return False
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(minutes=_DEDUP_WINDOW_MINUTES)
+        cutoff = datetime.now(tz=UTC) - timedelta(minutes=_DEDUP_WINDOW_MINUTES)
         return seen_at > cutoff
 
     @property

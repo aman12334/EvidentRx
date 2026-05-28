@@ -33,8 +33,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from enum        import Enum
-from typing      import Any, Iterator, Optional
+from enum import Enum
 
 log = logging.getLogger("evidentrx.interop.edi.x12_parser")
 
@@ -59,7 +58,7 @@ class X12Segment:
     elements:   list[str]           # raw element strings; index 0 = segment ID
     raw:        str
 
-    def get(self, index: int, component: int = 0) -> Optional[str]:
+    def get(self, index: int, component: int = 0) -> str | None:
         """
         Return element at 1-based index, 0-based component.
         Returns None if out of bounds or empty.
@@ -90,9 +89,9 @@ class X12Loop:
     """
     loop_id:  str
     segments: list[X12Segment]      = field(default_factory=list)
-    children: list["X12Loop"]       = field(default_factory=list)
+    children: list[X12Loop]       = field(default_factory=list)
 
-    def get_segment(self, segment_id: str) -> Optional[X12Segment]:
+    def get_segment(self, segment_id: str) -> X12Segment | None:
         for seg in self.segments:
             if seg.segment_id == segment_id:
                 return seg
@@ -114,7 +113,7 @@ class X12Transaction:
     parse_errors:     list[str]          = field(default_factory=list)
     raw:              str                = ""
 
-    def get_segment(self, segment_id: str) -> Optional[X12Segment]:
+    def get_segment(self, segment_id: str) -> X12Segment | None:
         for seg in self.segments:
             if seg.segment_id == segment_id:
                 return seg
@@ -189,7 +188,7 @@ class X12Parser:
         )
 
         # Walk segments and group by ST…SE envelopes
-        current_tx: Optional[list[X12Segment]] = None
+        current_tx: list[X12Segment] | None = None
         current_tx_type  = X12TransactionType.UNKNOWN
         current_ctrl_num = ""
         current_raw_segs: list[str] = []
@@ -273,7 +272,7 @@ def _map_tx_type(code: str) -> X12TransactionType:
     return X12TransactionType.UNKNOWN
 
 
-def get_nm1(seg: X12Segment) -> dict[str, Optional[str]]:
+def get_nm1(seg: X12Segment) -> dict[str, str | None]:
     """
     Decode an NM1 segment into a structured dict.
 
@@ -290,6 +289,6 @@ def get_nm1(seg: X12Segment) -> dict[str, Optional[str]]:
     }
 
 
-def get_ref(seg: X12Segment) -> tuple[Optional[str], Optional[str]]:
+def get_ref(seg: X12Segment) -> tuple[str | None, str | None]:
     """Decode a REF segment into (qualifier, value) tuple."""
     return seg.get(1), seg.get(2)

@@ -19,16 +19,15 @@ import hashlib
 import random
 import string
 import uuid
-from datetime import date, datetime, timedelta, timezone
-from typing   import Any, Iterator, Optional
-
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 # ── Base simulator ────────────────────────────────────────────────────────────
 
 class BaseSimulator:
     """Shared utilities for all simulators."""
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(self, seed: int | None = None) -> None:
         self._rng = random.Random(seed)
 
     def _rand_ndc(self) -> str:
@@ -75,7 +74,7 @@ class FHIRSimulator(BaseSimulator):
         return {
             "resourceType":    "MedicationDispense",
             "id":              fhir_id,
-            "meta":            {"versionId": "1", "lastUpdated": datetime.now(tz=timezone.utc).isoformat()},
+            "meta":            {"versionId": "1", "lastUpdated": datetime.now(tz=UTC).isoformat()},
             "status":          self._rand_status(["completed", "in-progress"]),
             "medicationCodeableConcept": {
                 "coding": [{
@@ -157,7 +156,7 @@ class HL7Simulator(BaseSimulator):
 
     def adt_a01(self, tenant_id: str) -> str:
         """Generate a synthetic ADT^A01 admit message."""
-        now     = datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
+        now     = datetime.now(tz=UTC).strftime("%Y%m%d%H%M%S")
         mrn     = f"SIM{self._rng.randint(100000, 999999)}"
         msg_id  = f"SIM{uuid.uuid4().hex[:8].upper()}"
         npi     = self._rand_npi()
@@ -173,7 +172,7 @@ class HL7Simulator(BaseSimulator):
 
     def rde_o11(self, tenant_id: str) -> str:
         """Generate a synthetic RDE^O11 dispense message."""
-        now    = datetime.now(tz=timezone.utc).strftime("%Y%m%d%H%M%S")
+        now    = datetime.now(tz=UTC).strftime("%Y%m%d%H%M%S")
         mrn    = f"SIM{self._rng.randint(100000, 999999)}"
         msg_id = f"SIM{uuid.uuid4().hex[:8].upper()}"
         ndc    = self._rand_ndc()
@@ -208,7 +207,7 @@ class EDISimulator(BaseSimulator):
 
     def claim_837p(self, tenant_id: str) -> str:
         """Generate a minimal valid 837P pharmacy claim."""
-        now       = datetime.now(tz=timezone.utc).strftime("%y%m%d")
+        now       = datetime.now(tz=UTC).strftime("%y%m%d")
         ctrl      = f"{self._rng.randint(100000000, 999999999):09d}"
         gs_ctrl   = f"{self._rng.randint(10000, 99999)}"
         st_ctrl   = f"{self._rng.randint(1000, 9999):04d}"

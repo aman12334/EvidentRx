@@ -20,19 +20,19 @@ Replay guarantees
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, AsyncIterator, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from interoperability.streaming.event_bus import (
     BusMessage,
     EventBus,
     InMemoryEventBus,
-    get_event_bus,
     canonical_topic,
+    get_event_bus,
     raw_topic,
 )
 from interoperability.streaming.producer import InteropProducer, get_producer
@@ -45,10 +45,10 @@ class ReplaySpec:
     """Specifies what to replay and how."""
     tenant_id:      str
     source_system:  str                     # which raw topic to replay
-    resource_type:  Optional[str]   = None  # filter by resource type (None = all)
-    since:          Optional[datetime] = None
-    until:          Optional[datetime] = None
-    max_records:    Optional[int]   = None
+    resource_type:  str | None   = None  # filter by resource type (None = all)
+    since:          datetime | None = None
+    until:          datetime | None = None
+    max_records:    int | None   = None
     promote:        bool            = False  # write to live topic vs. _replay topic
     dry_run:        bool            = False  # normalise but do not publish
 
@@ -58,14 +58,14 @@ class ReplayResult:
     replay_id:     str
     spec:          ReplaySpec
     started_at:    datetime
-    finished_at:   Optional[datetime]   = None
+    finished_at:   datetime | None   = None
     replayed:      int                  = 0
     failed:        int                  = 0
     skipped:       int                  = 0
     errors:        list[str]            = field(default_factory=list)
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         if self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
@@ -91,9 +91,9 @@ class ReplayEngine:
 
     def __init__(
         self,
-        event_bus:    Optional[EventBus]       = None,
-        producer:     Optional[InteropProducer] = None,
-        raw_loader:   Optional[Callable]        = None,
+        event_bus:    EventBus | None       = None,
+        producer:     InteropProducer | None = None,
+        raw_loader:   Callable | None        = None,
     ) -> None:
         """
         Parameters
@@ -113,7 +113,7 @@ class ReplayEngine:
         Returns a ReplayResult with counts and any errors encountered.
         """
         replay_id = str(uuid.uuid4())
-        started   = datetime.now(tz=timezone.utc)
+        started   = datetime.now(tz=UTC)
         result    = ReplayResult(
             replay_id  = replay_id,
             spec       = spec,
@@ -162,7 +162,7 @@ class ReplayEngine:
                 result.errors.append(err_msg)
                 log.warning("Replay [%s]: %s", replay_id[:8], err_msg)
 
-        result.finished_at = datetime.now(tz=timezone.utc)
+        result.finished_at = datetime.now(tz=UTC)
         log.info(
             "Replay [%s]: done — replayed=%d failed=%d skipped=%d duration=%.1fs",
             replay_id[:8],
@@ -202,7 +202,7 @@ class ReplayEngine:
         self,
         raw: dict[str, Any],
         spec: ReplaySpec,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Re-normalise a raw record via the mapping engine."""
         from interoperability.mapping.engine import get_mapping_engine
         engine = get_mapping_engine()

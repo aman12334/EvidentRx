@@ -20,7 +20,6 @@ from api.routers.entities import (
     EntitySummary,
 )
 
-
 # ── DashboardSummary ──────────────────────────────────────────────────────────
 
 class TestDashboardSummary:

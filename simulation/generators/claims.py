@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import random
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import uuid4
-from typing import Optional
 
 from simulation.config import SimConfig
-
 
 _PAYER_TO_CLAIM_TYPE = {
     "medicaid": "medicaid",
@@ -31,7 +29,7 @@ def generate_claim(
     batch_id: str,
     force_medicaid: bool = False,    # violation: force Medicaid claim even if wrong payer
     force_340b_billed: bool = True,
-) -> Optional[dict]:
+) -> dict | None:
     """
     Generate one claim row from a dispense event.
     Returns None for self-pay dispenses (no claim filed) unless force_medicaid=True.

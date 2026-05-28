@@ -13,7 +13,6 @@ from __future__ import annotations
 import random
 from uuid import uuid4
 
-
 # Fake pharmacy IDs that will not match any registered CP
 _UNREGISTERED_CP_IDS = [str(uuid4()) for _ in range(20)]
 

@@ -32,15 +32,15 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from typing      import Any, Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
-from regulatory.diff.engine              import PolicyDiff, ChangeSeverity
-from regulatory.diff.drift               import DriftReport, DriftSeverity
-from regulatory.impact.analysis          import ImpactReport
-from regulatory.recommendations.models  import PolicyRecommendation, RecommendationPriority
-from regulatory.intelligence.readiness  import ComplianceReadinessSnapshot, ReadinessBand
+from regulatory.diff.drift import DriftReport, DriftSeverity
+from regulatory.diff.engine import ChangeSeverity, PolicyDiff
+from regulatory.impact.analysis import ImpactReport
+from regulatory.intelligence.readiness import ComplianceReadinessSnapshot, ReadinessBand
+from regulatory.recommendations.models import PolicyRecommendation, RecommendationPriority
 
 log = logging.getLogger("evidentrx.regulatory.outputs.reports")
 
@@ -75,7 +75,7 @@ class PolicyChangeSummary:
     critical_changes: list[dict[str, Any]]
     high_changes:     list[dict[str, Any]]
     affected_domains: list[str]
-    financial_exposure: Optional[dict[str, Any]]
+    financial_exposure: dict[str, Any] | None
     recommendation_count: int
     recommendations:  list[dict[str, Any]]
     narrative:        str
@@ -179,7 +179,7 @@ class ComplianceReadinessAssessment:
     domains_covered:    list[str]
     domains_missing:    list[str]
     signal_detail:      list[dict[str, Any]]    # ReadinessSignal details
-    drift_summary:      Optional[dict[str, Any]]
+    drift_summary:      dict[str, Any] | None
     pending_recs:       list[dict[str, Any]]    # sorted by priority
     required_actions:   list[dict[str, Any]]    # structured action items
     audit_readiness:    str                     # "ready" | "conditionally_ready" | "not_ready"
@@ -225,11 +225,11 @@ class RegulatoryReportGenerator:
         self,
         tenant_id:       str,
         diff:            PolicyDiff,
-        impact:          Optional[ImpactReport]              = None,
-        recommendations: Optional[list[PolicyRecommendation]] = None,
+        impact:          ImpactReport | None              = None,
+        recommendations: list[PolicyRecommendation] | None = None,
     ) -> PolicyChangeSummary:
         """Generate an analyst-facing report from a PolicyDiff."""
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         _sev_order = [
             ChangeSeverity.CRITICAL,
@@ -283,13 +283,13 @@ class RegulatoryReportGenerator:
         self,
         tenant_id:       str,
         snapshot:        ComplianceReadinessSnapshot,
-        drift_report:    Optional[DriftReport]               = None,
-        recommendations: Optional[list[PolicyRecommendation]] = None,
-        posture_trend:   Optional[list[dict[str, Any]]]      = None,
+        drift_report:    DriftReport | None               = None,
+        recommendations: list[PolicyRecommendation] | None = None,
+        posture_trend:   list[dict[str, Any]] | None      = None,
         reporting_period: str                                = "",
     ) -> ExecutiveRegulatoryIntelligence:
         """Generate a C-suite-level regulatory posture summary."""
-        now  = datetime.now(tz=timezone.utc)
+        now  = datetime.now(tz=UTC)
         recs = recommendations or []
 
         urgent_recs = sum(1 for r in recs if r.priority == RecommendationPriority.URGENT)
@@ -332,12 +332,12 @@ class RegulatoryReportGenerator:
         self,
         tenant_id:         str,
         snapshot:          ComplianceReadinessSnapshot,
-        drift_report:      Optional[DriftReport]               = None,
-        recommendations:   Optional[list[PolicyRecommendation]] = None,
+        drift_report:      DriftReport | None               = None,
+        recommendations:   list[PolicyRecommendation] | None = None,
         assessment_period: str                                 = "",
     ) -> ComplianceReadinessAssessment:
         """Generate a full audit-preparation readiness assessment."""
-        now  = datetime.now(tz=timezone.utc)
+        now  = datetime.now(tz=UTC)
         recs = recommendations or []
 
         _priority_order = {
@@ -381,7 +381,7 @@ class RegulatoryReportGenerator:
     @staticmethod
     def _derive_change_actions(
         diff:   PolicyDiff,
-        impact: Optional[ImpactReport],
+        impact: ImpactReport | None,
         recs:   list[PolicyRecommendation],
     ) -> list[str]:
         actions = []
@@ -411,7 +411,7 @@ class RegulatoryReportGenerator:
     @staticmethod
     def _change_narrative(
         diff:   PolicyDiff,
-        impact: Optional[ImpactReport],
+        impact: ImpactReport | None,
     ) -> str:
         parts = [
             f"Version {diff.new_version} of this regulatory document introduces "
@@ -426,7 +426,7 @@ class RegulatoryReportGenerator:
     @staticmethod
     def _top_risk_bullets(
         snapshot:     ComplianceReadinessSnapshot,
-        drift_report: Optional[DriftReport],
+        drift_report: DriftReport | None,
         recs:         list[PolicyRecommendation],
     ) -> list[str]:
         bullets = []
@@ -471,7 +471,7 @@ class RegulatoryReportGenerator:
     @staticmethod
     def _required_action_items(
         snapshot:     ComplianceReadinessSnapshot,
-        drift_report: Optional[DriftReport],
+        drift_report: DriftReport | None,
         recs:         list[PolicyRecommendation],
     ) -> list[dict[str, Any]]:
         actions: list[dict[str, Any]] = []
@@ -517,7 +517,7 @@ class RegulatoryReportGenerator:
     @staticmethod
     def _readiness_narrative(
         snapshot:     ComplianceReadinessSnapshot,
-        drift_report: Optional[DriftReport],
+        drift_report: DriftReport | None,
         recs:         list[PolicyRecommendation],
     ) -> str:
         parts = [snapshot.summary]
@@ -540,7 +540,7 @@ class RegulatoryReportGenerator:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_generator: Optional[RegulatoryReportGenerator] = None
+_generator: RegulatoryReportGenerator | None = None
 
 
 def get_report_generator() -> RegulatoryReportGenerator:

@@ -23,10 +23,11 @@ from __future__ import annotations
 
 import abc
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, AsyncIterator, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.interop.connector")
 
@@ -93,9 +94,9 @@ class ConnectorHealth:
     connector_id:   str
     state:          ConnectorState
     last_checked:   datetime
-    last_success:   Optional[datetime]      = None
-    error_message:  Optional[str]           = None
-    latency_ms:     Optional[float]         = None
+    last_success:   datetime | None      = None
+    error_message:  str | None           = None
+    latency_ms:     float | None         = None
     consecutive_failures: int               = 0
 
 
@@ -112,9 +113,9 @@ class IngestRecord:
     resource_type:  str                     # e.g. "Patient", "MedicationDispense"
     raw:            dict[str, Any]          # verbatim from source (for lineage)
     canonical:      dict[str, Any]          # after normalization
-    ingested_at:    datetime                = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    version:        Optional[str]           = None
-    checksum:       Optional[str]           = None
+    ingested_at:    datetime                = field(default_factory=lambda: datetime.now(tz=UTC))
+    version:        str | None           = None
+    checksum:       str | None           = None
 
 
 @dataclass
@@ -123,8 +124,8 @@ class SyncCursor:
     connector_id:   str
     tenant_id:      str
     resource_type:  str
-    last_value:     Optional[str]           = None   # ISO timestamp or opaque token
-    last_synced:    Optional[datetime]      = None
+    last_value:     str | None           = None   # ISO timestamp or opaque token
+    last_synced:    datetime | None      = None
     records_total:  int                     = 0
 
 
@@ -151,7 +152,7 @@ class BaseConnector(abc.ABC):
         self._health = ConnectorHealth(
             connector_id=config.connector_id,
             state=ConnectorState.REGISTERED,
-            last_checked=datetime.now(tz=timezone.utc),
+            last_checked=datetime.now(tz=UTC),
         )
 
     # ── Properties ────────────────────────────────────────────────────────────
@@ -197,7 +198,7 @@ class BaseConnector(abc.ABC):
     async def fetch(
         self,
         resource_type: str,
-        cursor:        Optional[SyncCursor] = None,
+        cursor:        SyncCursor | None = None,
     ) -> AsyncIterator[list[IngestRecord]]:
         """
         Core pull — yields batches of IngestRecord.
@@ -212,7 +213,7 @@ class BaseConnector(abc.ABC):
 
     # ── Cursor management (override for stateful connectors) ──────────────────
 
-    async def get_cursor(self, resource_type: str) -> Optional[SyncCursor]:
+    async def get_cursor(self, resource_type: str) -> SyncCursor | None:
         """Return the last saved cursor for this resource type, or None."""
         return None
 
@@ -224,10 +225,10 @@ class BaseConnector(abc.ABC):
     def _transition(
         self,
         new_state:     ConnectorState,
-        error_message: Optional[str] = None,
-        latency_ms:    Optional[float] = None,
+        error_message: str | None = None,
+        latency_ms:    float | None = None,
     ) -> None:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         self._state = new_state
         self._health = ConnectorHealth(
             connector_id=self.connector_id,
@@ -250,7 +251,7 @@ class BaseConnector(abc.ABC):
 
     # ── Async context manager ─────────────────────────────────────────────────
 
-    async def __aenter__(self) -> "BaseConnector":
+    async def __aenter__(self) -> BaseConnector:
         await self.initialise()
         return self
 

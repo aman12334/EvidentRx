@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 
 class TenantStatus(str, Enum):
@@ -58,7 +58,7 @@ class TenantContact:
     """Primary operational contact for a tenant."""
     name:  str
     email: str
-    phone: Optional[str] = None
+    phone: str | None = None
     role:  str           = "admin"
 
 
@@ -78,10 +78,10 @@ class Tenant:
     primary_contact:  TenantContact
     region:           str            # "us-east-1" | "us-west-2" | "eu-west-1"
     created_at:       datetime
-    trial_ends_at:    Optional[datetime]       = None
-    suspended_at:     Optional[datetime]       = None
-    archived_at:      Optional[datetime]       = None
-    parent_tenant_id: Optional[str]            = None   # for subsidiary structures
+    trial_ends_at:    datetime | None       = None
+    suspended_at:     datetime | None       = None
+    archived_at:      datetime | None       = None
+    parent_tenant_id: str | None            = None   # for subsidiary structures
     settings:         dict[str, Any]           = field(default_factory=dict)
     feature_flags:    dict[str, bool]          = field(default_factory=dict)
     metadata:         dict[str, Any]           = field(default_factory=dict)
@@ -121,11 +121,11 @@ class Organization:
     tenant_id:        str
     name:             str
     org_type:         OrgType
-    parent_org_id:    Optional[str]        = None    # subsidiary → parent
+    parent_org_id:    str | None        = None    # subsidiary → parent
     covered_entity_ids: list[str]          = field(default_factory=list)
     region:           str                  = "us"
     active:           bool                 = True
-    created_at:       datetime             = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:       datetime             = field(default_factory=lambda: datetime.now(tz=UTC))
     admin_user_ids:   list[str]            = field(default_factory=list)
     settings:         dict[str, Any]       = field(default_factory=dict)
     metadata:         dict[str, Any]       = field(default_factory=dict)

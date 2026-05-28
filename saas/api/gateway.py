@@ -19,9 +19,9 @@ from __future__ import annotations
 import logging
 import time
 from collections import deque
-from dataclasses  import dataclass, field
-from datetime     import datetime, timezone
-from typing       import Any, Callable, Deque, Optional
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any, Deque
 
 from saas.api.keys import APIKey, APIKeyStore, get_api_key_store
 
@@ -42,8 +42,8 @@ class GatewayRequest:
     raw_key:    str            # API key from Authorization header
     endpoint:   str            # e.g. "/api/v1/investigations"
     method:     str            = "GET"
-    org_id:     Optional[str] = None
-    client_ip:  Optional[str] = None
+    org_id:     str | None = None
+    client_ip:  str | None = None
     request_id: str            = field(default_factory=lambda: f"req_{int(time.monotonic()*1e6)}")
 
 
@@ -51,12 +51,12 @@ class GatewayRequest:
 class GatewayResponse:
     """Outcome of a gateway check."""
     allowed:      bool
-    api_key:      Optional[APIKey]
-    tenant_id:    Optional[str]
+    api_key:      APIKey | None
+    tenant_id:    str | None
     request_id:   str
-    deny_reason:  Optional[str]          = None
-    rate_limit_remaining: Optional[int]  = None
-    rate_limit_reset_at:  Optional[int]  = None  # Unix timestamp
+    deny_reason:  str | None          = None
+    rate_limit_remaining: int | None  = None
+    rate_limit_reset_at:  int | None  = None  # Unix timestamp
 
 
 class _SlidingWindow:
@@ -98,9 +98,9 @@ class APIGateway:
 
     def __init__(
         self,
-        key_store:       Optional[APIKeyStore]                    = None,
-        usage_recorder:  Optional[Callable]                       = None,
-        platform_config: Optional[RateLimitConfig]                = None,
+        key_store:       APIKeyStore | None                    = None,
+        usage_recorder:  Callable | None                       = None,
+        platform_config: RateLimitConfig | None                = None,
     ) -> None:
         self._key_store      = key_store or get_api_key_store()
         self._usage_recorder = usage_recorder     # async fn(tenant_id, endpoint, org_id)
@@ -225,13 +225,13 @@ class APIGateway:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_gateway: Optional[APIGateway] = None
+_gateway: APIGateway | None = None
 
 
 def get_api_gateway(
-    key_store:      Optional[APIKeyStore]   = None,
-    usage_recorder: Optional[Callable]      = None,
-    platform_config: Optional[RateLimitConfig] = None,
+    key_store:      APIKeyStore | None   = None,
+    usage_recorder: Callable | None      = None,
+    platform_config: RateLimitConfig | None = None,
 ) -> APIGateway:
     global _gateway
     if _gateway is None:

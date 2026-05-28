@@ -11,12 +11,12 @@ All /api/v1/* routes require a valid access token by default.
 from __future__ import annotations
 
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests        import Request
-from starlette.responses       import JSONResponse
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
-from auth.jwt    import decode_access_token, TokenValidationError
+from auth.jwt import TokenValidationError, decode_access_token
 from auth.models import AuthUser
-from auth.rbac   import Role
+from auth.rbac import Role
 
 # Routes that do NOT require authentication
 _PUBLIC_PATHS = frozenset({

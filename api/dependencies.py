@@ -2,12 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generator
 
-from fastapi import Depends, Header, HTTPException, Query
-from sqlalchemy.orm import Session
-
-from app.database import get_db
+from fastapi import Header, HTTPException, Query
 
 
 @dataclass

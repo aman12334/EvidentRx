@@ -13,27 +13,24 @@ from __future__ import annotations
 
 import logging
 import random
-from datetime import date, timedelta
+from datetime import UTC, date, timedelta
 from decimal import Decimal
-from typing import Optional
-from uuid import uuid4
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+import simulation.violations.contract_violation as viol_cp
+import simulation.violations.duplicate_discount as viol_dd
+import simulation.violations.split_billing_mismatch as viol_sb
+import simulation.violations.temporal_mismatch as viol_tm
 from ingestion.base import bulk_insert
 from simulation.config import SimConfig
 from simulation.generators.claims import generate_claim
 from simulation.generators.dispenses import generate_dispenses
 from simulation.generators.purchases import generate_purchases
 from simulation.generators.split_billing import build_split_billing
-from simulation.registry import CERecord, ReferenceRegistry
+from simulation.registry import ReferenceRegistry
 from simulation.state import InventoryPool, PatientPool
-
-import simulation.violations.duplicate_discount as viol_dd
-import simulation.violations.contract_violation as viol_cp
-import simulation.violations.split_billing_mismatch as viol_sb
-import simulation.violations.temporal_mismatch as viol_tm
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +104,8 @@ class SimulationOrchestrator:
                     drug_id = p["drug_id"]
                     qty = Decimal(p["quantity"])
 
-                    force_pharmacy_id: Optional[str] = None
-                    force_payer: Optional[str] = None
+                    force_pharmacy_id: str | None = None
+                    force_payer: str | None = None
                     force_medicaid_claim = False
 
                     # Violation injection — modify generation parameters
@@ -198,14 +195,15 @@ class SimulationOrchestrator:
     # ------------------------------------------------------------------
 
     def _create_sim_batch(self, session: Session) -> object:
+        from datetime import datetime
+
         from app.models.meta.ingestion_batch import IngestionBatch
-        from datetime import datetime, timezone
         batch = IngestionBatch(
             batch_name="synthetic_operational_simulation",
             source_type="other",
             source_file=self.cfg.source_tag,
             status="processing",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
         )
         session.add(batch)
         session.flush()
@@ -256,7 +254,7 @@ class SimulationOrchestrator:
     # Violation sampling
     # ------------------------------------------------------------------
 
-    def _sample_violation(self) -> Optional[str]:
+    def _sample_violation(self) -> str | None:
         if self.rng.random() > self.cfg.violation_rate:
             return None
         types = list(self.cfg.violation_mix.keys())

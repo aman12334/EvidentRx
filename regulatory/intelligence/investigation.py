@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from regulatory.ingestion.models import PolicyDomain, RegulatoryDocument
 
@@ -56,10 +56,10 @@ class PolicyCitation:
     excerpt:          str                # relevant text excerpt (≤500 chars)
     rationale:        str                # why this doc applies to this investigation
     strength:         CitationStrength
-    domain:           Optional[PolicyDomain]
+    domain:           PolicyDomain | None
     asserted_by:      str                # analyst_id or "system"
-    asserted_at:      datetime           = field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    effective_at:     Optional[str]      = None   # date when this regulation was active
+    asserted_at:      datetime           = field(default_factory=lambda: datetime.now(tz=UTC))
+    effective_at:     str | None      = None   # date when this regulation was active
     confidence:       float              = 1.0
     human_verified:   bool               = False
 
@@ -99,7 +99,7 @@ class InvestigationPolicyContext:
     applicable_domains: list[PolicyDomain]
     escalation_policy_notes: str      = ""
     compliance_rationale:    str      = ""    # synthesised compliance basis
-    created_at:       datetime        = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:       datetime        = field(default_factory=lambda: datetime.now(tz=UTC))
     created_by:       str             = "system"
     metadata:         dict[str, Any]  = field(default_factory=dict)
 
@@ -148,7 +148,7 @@ class PolicyAwareInvestigationService:
         investigation_domains: list[PolicyDomain],
         active_documents: list[RegulatoryDocument],
         created_by:       str               = "system",
-        as_of:            Optional[datetime] = None,
+        as_of:            datetime | None = None,
     ) -> InvestigationPolicyContext:
         """
         Build the policy context for an investigation.
@@ -156,7 +156,7 @@ class PolicyAwareInvestigationService:
         Matches active regulatory documents to the investigation's compliance
         domains and generates appropriate citations.
         """
-        now = as_of or datetime.now(tz=timezone.utc)
+        now = as_of or datetime.now(tz=UTC)
         citations: list[PolicyCitation] = []
 
         for doc in active_documents:
@@ -235,7 +235,7 @@ class PolicyAwareInvestigationService:
         excerpt:          str,
         rationale:        str,
         asserted_by:      str,
-        domain:           Optional[PolicyDomain] = None,
+        domain:           PolicyDomain | None = None,
     ) -> PolicyCitation:
         """Allow an analyst to manually assert a citation."""
         ctx = self._contexts.get(context_id)
@@ -261,7 +261,7 @@ class PolicyAwareInvestigationService:
         ctx.citations.append(citation)
         return citation
 
-    def get_context(self, context_id: str) -> Optional[InvestigationPolicyContext]:
+    def get_context(self, context_id: str) -> InvestigationPolicyContext | None:
         return self._contexts.get(context_id)
 
     def get_contexts_for_investigation(
@@ -310,7 +310,7 @@ class InvestigationIntelligenceError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_service: Optional[PolicyAwareInvestigationService] = None
+_service: PolicyAwareInvestigationService | None = None
 
 
 def get_investigation_intelligence() -> PolicyAwareInvestigationService:

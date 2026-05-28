@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime    import datetime, timezone
-from enum        import Enum
-from typing      import Any, Callable, Optional
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.lifecycle.onboarding")
 
@@ -47,8 +48,8 @@ class OnboardingStep:
     required:     bool          = True
     completed:    bool          = False
     skipped:      bool          = False
-    completed_at: Optional[datetime] = None
-    completed_by: Optional[str]     = None
+    completed_at: datetime | None = None
+    completed_by: str | None     = None
     metadata:     dict[str, Any]    = field(default_factory=dict)
 
     @property
@@ -74,11 +75,11 @@ class OnboardingState:
     status:        OnboardingStatus
     steps:         list[OnboardingStep]
     started_at:    datetime
-    completed_at:  Optional[datetime] = None
-    due_by:        Optional[datetime] = None   # trial expiry / activation deadline
+    completed_at:  datetime | None = None
+    due_by:        datetime | None = None   # trial expiry / activation deadline
 
     @property
-    def next_step(self) -> Optional[OnboardingStep]:
+    def next_step(self) -> OnboardingStep | None:
         for step in self.steps:
             if not step.done:
                 return step
@@ -151,7 +152,7 @@ class OnboardingWorkflow:
     def start(
         self,
         tenant_id: str,
-        due_by:    Optional[datetime] = None,
+        due_by:    datetime | None = None,
     ) -> OnboardingState:
         if tenant_id in self._states:
             existing = self._states[tenant_id]
@@ -172,7 +173,7 @@ class OnboardingWorkflow:
             tenant_id     = tenant_id,
             status        = OnboardingStatus.IN_PROGRESS,
             steps         = steps,
-            started_at    = datetime.now(tz=timezone.utc),
+            started_at    = datetime.now(tz=UTC),
             due_by        = due_by,
         )
         self._states[tenant_id] = state
@@ -184,7 +185,7 @@ class OnboardingWorkflow:
         tenant_id:    str,
         step_name:    OnboardingStepName,
         completed_by: str,
-        metadata:     Optional[dict[str, Any]] = None,
+        metadata:     dict[str, Any] | None = None,
     ) -> OnboardingState:
         state = self._get_state(tenant_id)
         step  = next((s for s in state.steps if s.step_name == step_name), None)
@@ -192,7 +193,7 @@ class OnboardingWorkflow:
             raise OnboardingError(f"Step {step_name.value} not found")
 
         step.completed    = True
-        step.completed_at = datetime.now(tz=timezone.utc)
+        step.completed_at = datetime.now(tz=UTC)
         step.completed_by = completed_by
         step.metadata.update(metadata or {})
 
@@ -214,7 +215,7 @@ class OnboardingWorkflow:
         self._check_completion(state)
         return state
 
-    def get_state(self, tenant_id: str) -> Optional[OnboardingState]:
+    def get_state(self, tenant_id: str) -> OnboardingState | None:
         return self._states.get(tenant_id)
 
     def _get_state(self, tenant_id: str) -> OnboardingState:
@@ -229,7 +230,7 @@ class OnboardingWorkflow:
         if required_done:
             if all_done:
                 state.status       = OnboardingStatus.COMPLETED
-                state.completed_at = datetime.now(tz=timezone.utc)
+                state.completed_at = datetime.now(tz=UTC)
                 log.info(
                     "OnboardingWorkflow: tenant %s completed onboarding",
                     state.tenant_id[:8],
@@ -280,8 +281,8 @@ class OnboardingError(Exception):
 
 # ── Singletons ─────────────────────────────────────────────────────────────────
 
-_workflow: Optional[OnboardingWorkflow] = None
-_checks:   Optional[ReadinessChecks]   = None
+_workflow: OnboardingWorkflow | None = None
+_checks:   ReadinessChecks | None   = None
 
 
 def get_onboarding_workflow() -> OnboardingWorkflow:

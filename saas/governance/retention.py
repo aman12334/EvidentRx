@@ -17,9 +17,9 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime    import datetime, timedelta, timezone
-from enum        import Enum
-from typing      import Any, Optional
+from datetime import UTC, datetime, timedelta
+from enum import Enum
+from typing import Any
 
 log = logging.getLogger("evidentrx.saas.governance.retention")
 
@@ -54,7 +54,7 @@ class RetentionPolicy:
     retention_days:  int
     action:          RetentionAction
     created_by:      str
-    created_at:      datetime = field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at:      datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     description:     str      = ""
     active:          bool     = True
 
@@ -98,8 +98,8 @@ class LegalHold:
     reason:      str
     imposed_by:  str
     imposed_at:  datetime
-    released_at: Optional[datetime] = None
-    released_by: Optional[str]      = None
+    released_at: datetime | None = None
+    released_by: str | None      = None
 
     @property
     def is_active(self) -> bool:
@@ -191,7 +191,7 @@ class RetentionManager:
             scope_query = scope_query,
             reason      = reason,
             imposed_by  = imposed_by,
-            imposed_at  = datetime.now(tz=timezone.utc),
+            imposed_at  = datetime.now(tz=UTC),
         )
         self._holds[hold.hold_id] = hold
         log.info(
@@ -209,7 +209,7 @@ class RetentionManager:
         hold = self._get_hold(tenant_id, hold_id)
         if not hold.is_active:
             raise RetentionError(f"Hold {hold_id[:8]} is already released")
-        hold.released_at = datetime.now(tz=timezone.utc)
+        hold.released_at = datetime.now(tz=UTC)
         hold.released_by = released_by
         log.info(
             "RetentionManager: legal hold '%s' released for tenant %s",
@@ -244,7 +244,7 @@ class RetentionManager:
         # Check retention period
         policy     = self.get_policy(tenant_id, category)
         eligible_at = policy.eligible_for_action_after(record_created_at)
-        now         = datetime.now(tz=timezone.utc)
+        now         = datetime.now(tz=UTC)
         if now < eligible_at:
             return False, f"Retention period not yet elapsed (eligible {eligible_at.isoformat()})"
 
@@ -284,7 +284,7 @@ class RetentionError(Exception):
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_manager: Optional[RetentionManager] = None
+_manager: RetentionManager | None = None
 
 
 def get_retention_manager() -> RetentionManager:
