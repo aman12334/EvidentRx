@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # ── Application ────────────────────────────────────────────────────────
     app_name:     str = "EvidentRx"
-    environment:  str = Field(default="development", pattern="^(development|staging|production)$")
+    environment:  str = Field(default="development", pattern="^(development|staging|production|test)$")
     log_level:    str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
     debug:        bool = False
     version:      str = "9.0.0"
