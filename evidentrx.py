@@ -279,20 +279,78 @@ def cmd_setup(args: argparse.Namespace) -> None:
     step_rules_engine()
 
     print()
-    print(f"{BOLD}{G}Setup complete!{RESET}")
+    print(f"{BOLD}{'═' * 56}{RESET}")
+    print(f"{BOLD}{G}  Setup complete!{RESET}")
+    print(f"{BOLD}{'═' * 56}{RESET}")
     print()
-    print(f"  Start servers:  {BOLD}python evidentrx.py start{RESET}")
-    print(f"  API only:       {BOLD}python evidentrx.py start --api-only{RESET}")
-    print(f"  Load real data: {BOLD}python evidentrx.py seed --real{RESET}")
+    print(f"  {BOLD}Start everything:{RESET}")
+    print(f"    make start")
+    print(f"    — or —")
+    print(f"    python evidentrx.py start")
     print()
+    print(f"  {BOLD}Other commands:{RESET}")
+    print(f"    make api        API only (port 8000)")
+    print(f"    make ui         Dashboard only (port 3000)")
+    print(f"    make seed       Re-seed demo data")
+    print(f"    make status     Health check + data counts")
+    print()
+
+
+def _check_venv_ready() -> None:
+    """
+    Guard: make sure the venv exists and has the core packages.
+    If not, offer to run setup automatically.
+    """
+    if not PYTHON.exists():
+        err("Virtual environment not found at .venv/")
+        err("Run setup first:  python evidentrx.py setup")
+        err("Or:               make setup")
+        sys.exit(1)
+
+    # Quick import check — psycopg2 is the canary; if it's missing nothing DB works
+    result = subprocess.run(
+        [str(PYTHON), "-c", "import psycopg2, fastapi, sqlalchemy"],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        warn("Core dependencies not installed in .venv — installing now...")
+        run([str(PIP), "install", "-e", ".", "--quiet"])
+        ok("Dependencies installed")
+
+
+def _auto_migrate() -> None:
+    """Run migrations silently; warn on failure but don't block start."""
+    info("Checking database schema (auto-migrate)...")
+    result = subprocess.run(
+        [str(PYTHON), "-m", "alembic", "upgrade", "head"],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    if result.returncode == 0:
+        ok("Database schema up-to-date")
+    else:
+        # Common case: DB doesn't exist yet → tell the user clearly
+        if "does not exist" in result.stderr or "Connection refused" in result.stderr:
+            err("Cannot connect to PostgreSQL.")
+            err("Make sure PostgreSQL is running and the database exists:")
+            err(f"  createuser -s evidentrx")
+            err(f"  createdb -O evidentrx evidentrx")
+            err(f"  Then re-run:  python evidentrx.py setup")
+            sys.exit(1)
+        warn(f"Migration warning (schema may already be current): {result.stderr[:120]}")
 
 
 def cmd_start(args: argparse.Namespace) -> None:
     header("EvidentRx — Starting Platform")
 
+    # ── Pre-flight checks ────────────────────────────────────────────────────
+    _check_venv_ready()
+
     pg_ok = check_postgres()
     if not pg_ok:
         sys.exit(1)
+
+    check_dotenv()
+    _auto_migrate()        # always keep schema up-to-date on start
 
     api_only = getattr(args, "api_only", False)
     ui_only  = getattr(args, "ui_only", False)
@@ -312,16 +370,24 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     if procs:
         print()
-        print(f"{BOLD}Platform is running. Press Ctrl+C to stop all servers.{RESET}")
+        print(f"{BOLD}{'═' * 56}{RESET}")
+        print(f"{BOLD}{G}  EvidentRx is running{RESET}")
+        print(f"{BOLD}{'═' * 56}{RESET}")
+        if not ui_only:
+            print(f"  {B}API{RESET}          http://localhost:8000")
+            print(f"  {B}API docs{RESET}     http://localhost:8000/api/docs")
+        if not api_only and has_node:
+            print(f"  {B}Dashboard{RESET}    http://localhost:3000")
+        print(f"  {Y}Stop{RESET}         Ctrl+C")
         print()
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            print("\nShutting down...")
+            print(f"\n{Y}Shutting down…{RESET}")
             for p in procs:
                 p.terminate()
-            print("Done.")
+            ok("All servers stopped.")
 
 
 def cmd_seed(args: argparse.Namespace) -> None:
