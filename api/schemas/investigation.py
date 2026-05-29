@@ -60,6 +60,26 @@ class CaseStatusUpdate(BaseModel):
     resolution_notes: str | None = None
 
 
+class CaseNote(BaseModel):
+    """A timestamped analyst note attached to an investigation case."""
+    note_id:    UUID
+    case_id:    UUID
+    author:     str
+    body:       str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CaseNoteCreate(BaseModel):
+    author: str = Field(..., min_length=1, max_length=120)
+    body:   str = Field(..., min_length=1, max_length=4000)
+
+
+class CaseAssignUpdate(BaseModel):
+    assigned_to: str | None = Field(None, max_length=120)
+
+
 class SeverityDistribution(BaseModel):
     critical: int = 0
     high:     int = 0

@@ -13,6 +13,9 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from api.schemas.investigation import (
+    CaseAssignUpdate,
+    CaseNote,
+    CaseNoteCreate,
     CaseStatusUpdate,
     DashboardMetrics,
     InvestigationCaseDetail,
@@ -273,3 +276,54 @@ def update_case_status(
     db.commit()
     # Return the UI-facing status so the frontend cache stays consistent
     return {"case_id": str(case_id), "status": body.status, "updated": True}
+
+
+@router.patch("/{case_id}/assign", response_model=dict)
+def assign_case(
+    case_id: UUID,
+    body: CaseAssignUpdate,
+    db: Session = Depends(get_db),
+):
+    """Assigns (or unassigns) a case to an analyst."""
+    db.execute(text("""
+        UPDATE audit.investigation_cases
+        SET assigned_to = :assigned_to,
+            updated_at  = NOW()
+        WHERE case_id = :cid::uuid
+    """), {"cid": str(case_id), "assigned_to": body.assigned_to})
+    db.commit()
+    return {"case_id": str(case_id), "assigned_to": body.assigned_to, "updated": True}
+
+
+@router.get("/{case_id}/notes", response_model=list[CaseNote])
+def get_case_notes(case_id: UUID, db: Session = Depends(get_db)):
+    """Returns all analyst notes for a case, newest first."""
+    rows = db.execute(text("""
+        SELECT note_id, case_id, author, body, created_at
+        FROM audit.case_notes
+        WHERE case_id = :cid::uuid
+        ORDER BY created_at DESC
+    """), {"cid": str(case_id)}).mappings().fetchall()
+    return [dict(r) for r in rows]
+
+
+@router.post("/{case_id}/notes", response_model=CaseNote, status_code=201)
+def add_case_note(
+    case_id: UUID,
+    body: CaseNoteCreate,
+    db: Session = Depends(get_db),
+):
+    """Adds a new analyst note to an investigation case."""
+    row = db.execute(text("""
+        INSERT INTO audit.case_notes (case_id, author, body)
+        VALUES (:cid::uuid, :author, :body)
+        RETURNING note_id, case_id, author, body, created_at
+    """), {
+        "cid":    str(case_id),
+        "author": body.author,
+        "body":   body.body,
+    }).mappings().fetchone()
+    db.commit()
+    if not row:
+        raise HTTPException(status_code=500, detail="Failed to create note")
+    return dict(row)
