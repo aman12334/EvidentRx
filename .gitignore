@@ -71,7 +71,7 @@ frontend/out/
 
 # Runtime artifacts (generated at runtime — not source code)
 runtime_state/
-reports/
+/reports/
 
 # Claude Code internal
 .claude/settings.local.json
