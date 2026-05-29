@@ -16,14 +16,14 @@ class InvestigationCaseSummary(BaseModel):
     status:             str
     priority:           str
     violation_category: str
-    entity_name:        str
+    entity_name:        str | None = None   # None when CE not in reference table
     covered_entity_id:  UUID
     risk_level:         str | None = None
     composite_score:    float | None = None
-    total_findings:     int = 0
-    critical_findings:  int = 0
-    high_findings:      int = 0
-    financial_exposure: float = 0.0
+    total_findings:     int | None = 0
+    critical_findings:  int | None = 0
+    high_findings:      int | None = 0
+    financial_exposure: float | None = 0.0
     opened_at:          datetime | None = None
     assigned_to:        str | None = None
 
@@ -31,11 +31,11 @@ class InvestigationCaseSummary(BaseModel):
 
 
 class InvestigationCaseDetail(InvestigationCaseSummary):
-    medium_findings:    int = 0
-    low_findings:       int = 0
-    unique_patients:    int = 0
-    ndc_list:           list[str] = Field(default_factory=list)
-    findings_by_rule:   dict[str, int] = Field(default_factory=dict)
+    medium_findings:    int | None = 0
+    low_findings:       int | None = 0
+    unique_patients:    int | None = 0
+    ndc_list:           list[str] | None = Field(default_factory=list)
+    findings_by_rule:   dict[str, int] | None = Field(default_factory=dict)
     closed_at:          datetime | None = None
     resolution_notes:   str | None = None
 
@@ -48,7 +48,15 @@ class InvestigationQueueResponse(BaseModel):
 
 
 class CaseStatusUpdate(BaseModel):
-    status:           str = Field(..., pattern="^(open|triaged|investigating|escalated|resolved|closed)$")
+    # Accept both frontend labels (triaged, investigating) and DB values
+    # (pending_review, in_progress) — the router translates before writing.
+    status:           str = Field(
+        ...,
+        pattern=(
+            "^(open|triaged|investigating|in_progress|pending_review"
+            "|escalated|resolved|closed|dismissed|on_hold)$"
+        ),
+    )
     resolution_notes: str | None = None
 
 

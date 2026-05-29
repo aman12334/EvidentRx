@@ -40,17 +40,17 @@ export function CaseOverview({ case_: c }: CaseOverviewProps) {
         <Field label="Entity"        value={c.entity_name} />
         <Field label="Category"      value={c.violation_category} />
         <Field label="Assigned To"   value={c.assigned_to ?? "Unassigned"} />
-        <Field label="Total Findings" value={c.total_findings.toString()} />
-        <Field label="Critical"      value={c.critical_findings.toString()} />
-        <Field label="Exposure"      value={`$${c.financial_exposure.toLocaleString()}`} />
+        <Field label="Total Findings" value={(c.total_findings ?? 0).toString()} />
+        <Field label="Critical"      value={(c.critical_findings ?? 0).toString()} />
+        <Field label="Exposure"      value={`$${(c.financial_exposure ?? 0).toLocaleString()}`} />
         {c.composite_score != null && (
           <Field label="Risk Score"  value={c.composite_score.toFixed(4)} mono />
         )}
         {c.opened_at && (
           <Field label="Opened"      value={new Date(c.opened_at).toLocaleDateString()} />
         )}
-        {c.unique_patients > 0 && (
-          <Field label="Patients"    value={c.unique_patients.toString()} />
+        {(c.unique_patients ?? 0) > 0 && (
+          <Field label="Patients"    value={(c.unique_patients ?? 0).toString()} />
         )}
       </div>
 

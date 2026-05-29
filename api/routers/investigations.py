@@ -28,6 +28,52 @@ router = APIRouter(prefix="/investigations", tags=["Investigations"])
 _CLOSED_STATUSES = ("'closed'", "'dismissed'")
 _CLOSED_IN = ", ".join(_CLOSED_STATUSES)
 
+# ── Status translation: DB ↔ frontend ─────────────────────────────────────────
+# The DB uses snake_case compound statuses; the frontend uses single-word labels.
+_DB_TO_UI = {
+    "in_progress":    "investigating",
+    "pending_review": "triaged",
+    "dismissed":      "closed",
+    "on_hold":        "open",
+}
+_UI_TO_DB = {v: k for k, v in _DB_TO_UI.items()}
+
+
+def _to_ui(status: str | None) -> str:
+    """Map a DB status value to the frontend label."""
+    return _DB_TO_UI.get(status or "", status or "open")
+
+
+def _to_db(status: str | None) -> str:
+    """Map a frontend status label to the DB value."""
+    return _UI_TO_DB.get(status or "", status or "open")
+
+
+def _sanitise_case(d: dict) -> dict:
+    """
+    Coerce NULL values from DB lateral joins to safe defaults so that
+    Pydantic validation never receives None for non-Optional fields.
+    Also translates DB status → frontend status.
+    """
+    d["status"]            = _to_ui(d.get("status"))
+    d["entity_name"]       = d.get("entity_name") or "Unknown Entity"
+    d["total_findings"]    = int(d.get("total_findings") or 0)
+    d["critical_findings"] = int(d.get("critical_findings") or 0)
+    d["high_findings"]     = int(d.get("high_findings") or 0)
+    d["financial_exposure"] = float(d.get("financial_exposure") or 0.0)
+    return d
+
+
+def _sanitise_detail(d: dict) -> dict:
+    """Extends _sanitise_case with detail-only fields."""
+    d = _sanitise_case(d)
+    d["medium_findings"]  = int(d.get("medium_findings") or 0)
+    d["low_findings"]     = int(d.get("low_findings") or 0)
+    d["unique_patients"]  = int(d.get("unique_patients") or 0)
+    d["ndc_list"]         = d.get("ndc_list") or []
+    d["findings_by_rule"] = d.get("findings_by_rule") or {}
+    return d
+
 # ── Reusable risk-level CASE expression ───────────────────────────────────────
 _RISK_LEVEL = """
     CASE
@@ -94,7 +140,7 @@ def get_dashboard_metrics(db: Session = Depends(get_db)):
             low=int(findings["low"] or 0),
             total=int(findings["total"] or 0),
         ),
-        recent_escalations=[dict(r) for r in escalated],
+        recent_escalations=[_sanitise_case(dict(r)) for r in escalated],
     )
 
 
@@ -111,9 +157,7 @@ def get_investigation_queue(
     params: dict = {"offset": (page - 1) * limit, "limit": limit}
 
     if status:
-        # Map frontend status labels to actual DB values
-        status_map = {"triaged": "pending_review", "investigating": "in_progress"}
-        params["status"] = status_map.get(status, status)
+        params["status"] = _to_db(status)
         filters.append("ic.status = :status")
     if priority:
         filters.append("ic.priority = :priority")
@@ -162,7 +206,7 @@ def get_investigation_queue(
         total=int(total_row["cnt"]),
         page=page,
         limit=limit,
-        items=[dict(r) for r in rows],
+        items=[_sanitise_case(dict(r)) for r in rows],
     )
 
 
@@ -207,7 +251,7 @@ def get_case_detail(case_id: UUID, db: Session = Depends(get_db)):
     if not row:
         raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
 
-    return dict(row)
+    return _sanitise_detail(dict(row))
 
 
 @router.patch("/{case_id}/status", response_model=dict)
@@ -217,6 +261,7 @@ def update_case_status(
     db: Session = Depends(get_db),
 ):
     """Updates the status of an investigation case."""
+    db_status = _to_db(body.status)
     db.execute(text("""
         UPDATE audit.investigation_cases
         SET status    = :status,
@@ -224,6 +269,7 @@ def update_case_status(
                              ELSE closed_at END,
             updated_at = NOW()
         WHERE case_id = :cid::uuid
-    """), {"cid": str(case_id), "status": body.status})
+    """), {"cid": str(case_id), "status": db_status})
     db.commit()
+    # Return the UI-facing status so the frontend cache stays consistent
     return {"case_id": str(case_id), "status": body.status, "updated": True}
